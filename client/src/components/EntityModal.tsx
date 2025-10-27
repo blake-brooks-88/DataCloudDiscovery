@@ -308,6 +308,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
                   field={field}
                   entities={entities}
                   currentEntityId={entity?.id}
+                  currentEntityType={entityType}
                   onUpdate={(updates) => handleFieldChange(field.id, updates)}
                   onRemove={() => handleRemoveField(field.id)}
                 />
@@ -348,15 +349,18 @@ interface FieldRowProps {
   field: Field;
   entities: Entity[];
   currentEntityId?: string;
+  currentEntityType: EntityType;
   onUpdate: (updates: Partial<Field>) => void;
   onRemove: () => void;
 }
 
-function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: FieldRowProps) {
+function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdate, onRemove }: FieldRowProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showFKConfig, setShowFKConfig] = useState(false);
 
-  const availableEntities = entities.filter(e => e.id !== currentEntityId);
+  const availableEntities = entities.filter(e => 
+    e.id !== currentEntityId && e.type === currentEntityType
+  );
 
   return (
     <div className="border border-coolgray-200 rounded-lg p-3 space-y-3 bg-coolgray-50">
