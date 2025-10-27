@@ -318,24 +318,24 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                 />
               </div>
             )}
-          </div>
 
-          {entityType === 'dmo' && (
-            <div>
-              <Label htmlFor="business-purpose" className="text-sm font-medium text-coolgray-500">
-                Business Purpose
-              </Label>
-              <Textarea
-                id="business-purpose"
-                value={businessPurpose}
-                onChange={(e) => setBusinessPurpose(e.target.value)}
-                placeholder="Describe the business purpose of this entity..."
-                className="mt-1 border-coolgray-200 focus:border-secondary-500"
-                rows={2}
-                data-testid="textarea-business-purpose"
-              />
-            </div>
-          )}
+            {entityType === 'dmo' && (
+              <div>
+                <Label htmlFor="business-purpose" className="text-sm font-medium text-coolgray-500">
+                  Business Purpose
+                </Label>
+                <Textarea
+                  id="business-purpose"
+                  value={businessPurpose}
+                  onChange={(e) => setBusinessPurpose(e.target.value)}
+                  placeholder="Describe the business purpose of this entity..."
+                  className="mt-1 border-coolgray-200 focus:border-secondary-500"
+                  rows={2}
+                  data-testid="textarea-business-purpose"
+                />
+              </div>
+            )}
+          </div>
 
           <div>
             <div className="flex items-center justify-between mb-3">
