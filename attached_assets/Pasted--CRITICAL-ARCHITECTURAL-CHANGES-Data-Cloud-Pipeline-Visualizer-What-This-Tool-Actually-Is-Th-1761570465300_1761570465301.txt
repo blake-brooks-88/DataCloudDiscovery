@@ -1,0 +1,711 @@
+# CRITICAL ARCHITECTURAL CHANGES - Data Cloud Pipeline Visualizer
+
+## What This Tool Actually Is
+
+This is NOT a generic ERD tool. It's a **Data Cloud pipeline visualizer** that shows:
+1. External data sources (Salesforce, databases, APIs)
+2. Data ingestion configuration (Data Streams)
+3. Raw data storage (Data Lake Objects - DLOs)
+4. Unified data model (Data Model Objects - DMOs)
+5. Data flow and transformations between these layers
+
+## Complete Entity Type System
+```typescript
+type EntityType = 
+  | 'data-source'      // Container (NOT rendered as entity card, but as swimlane)
+  | 'data-stream'      // Ingestion config
+  | 'dlo'              // Raw data
+  | 'dmo'              // Unified data
+  | 'data-transform';  // Transformation logic (optional, advanced)
+
+interface Entity {
+  id: string;
+  name: string;
+  type: EntityType;  // CRITICAL
+  fields: Field[];
+  
+  // Linking properties
+  dataSourceId?: string;           // For data-stream: parent Data Source
+  sourceDataStreamId?: string;     // For dlo: which Data Stream feeds this
+  sourceDLOIds?: string[];         // For dmo: which DLOs feed this (ARRAY)
+  
+  // Data Cloud metadata
+  dataCloudMetadata?: {
+    streamConfig?: {
+      refreshType: 'full' | 'incremental';
+      schedule: 'real-time' | 'hourly' | 'daily' | 'weekly' | 'custom';
+      customSchedule?: string;
+      sourceObjectName: string;
+      connectorType?: 'native' | 'mulesoft' | 'csv' | 'ftp' | 'api';
+    };
+    objectType?: 'DLO' | 'DMO';
+    profileObjectType?: 'Profile' | 'Engagement' | 'Other' | 'TBD';
+    apiName?: string;
+    transformLogic?: string;
+  };
+  
+  // Field-level mappings
+  fieldMappings?: Array<{
+    targetFieldId: string;        // Field in THIS entity
+    sourceEntityId: string;        // Where data comes from
+    sourceFieldId: string;         // Which field in source
+    transformDescription?: string;
+  }>;
+  
+  position?: { x: number; y: number };
+}
+
+interface DataSource {
+  id: string;
+  name: string;
+  type: SourceSystemType;
+  description?: string;
+  connectionDetails?: string;
+  environment?: 'production' | 'sandbox' | 'dev' | 'uat';
+  contactPerson?: string;
+  collapsed?: boolean;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  dataSources: DataSource[];     // NEW
+  entities: Entity[];
+  relationships: Relationship[];  // NEW
+}
+```
+
+## Relationship Types (STRICT RULES)
+```typescript
+type RelationshipType = 
+  | 'feeds-into'      // Data Stream → DLO (1:1 ONLY)
+  | 'transforms-to'   // DLO → DMO (many:1)
+  | 'references';     // DMO → DMO (many:1, traditional FK)
+
+interface Relationship {
+  id: string;
+  type: RelationshipType;
+  sourceEntityId: string;
+  targetEntityId: string;
+  label?: string;
+  fieldMappings?: Array<{
+    sourceFieldId: string;
+    targetFieldId: string;
+  }>;
+}
+```
+
+### **Allowed Relationships (Enforce These Rules)**
+
+| From | To | Type | Cardinality | Required |
+|------|-----|------|-------------|----------|
+| data-stream | dlo | feeds-into | 1:1 | YES - auto-created |
+| dlo | dmo | transforms-to | many:1 | User creates |
+| dmo | dmo | references | many:1 | User creates (FK) |
+
+**PREVENT these relationships:**
+- ❌ data-stream → dmo (must go through DLO)
+- ❌ data-stream → data-stream
+- ❌ dlo → dlo
+- ❌ dlo → data-stream (wrong direction)
+
+## Visual Representation (CRITICAL)
+
+### Entity Card Colors & Icons
+```typescript
+function getEntityCardStyle(type: EntityType) {
+  return {
+    'data-stream': {
+      background: '#E6F3FB',           // secondary-50
+      borderColor: '#4AA0D9',          // secondary-500
+      icon: 'Stream',
+      badge: { text: 'Data Stream', color: 'secondary' },
+    },
+    'dlo': {
+      background: '#F9FCEA',           // tertiary-50
+      borderColor: '#BED163',          // tertiary-500
+      icon: 'Cylinder',
+      badge: { text: 'DLO', color: 'tertiary' },
+    },
+    'dmo': {
+      background: '#FFF6EB',           // primary-50
+      borderColor: '#E49A43',          // primary-500
+      icon: 'Layers',
+      badge: { text: 'DMO', color: 'primary' },
+    },
+  }[type];
+}
+```
+
+### Relationship Line Styles (MUST BE VISUALLY DISTINCT)
+```typescript
+function getRelationshipLineStyle(type: RelationshipType) {
+  return {
+    'feeds-into': {
+      stroke: '#4AA0D9',              // Blue
+      strokeWidth: 3,
+      strokeDasharray: 'none',        // Solid
+      animated: true,                 // Flowing dots
+      label: 'Ingests',
+    },
+    'transforms-to': {
+      stroke: '#BED163',              // Green
+      strokeWidth: 3,
+      strokeDasharray: '8,4',         // Dashed
+      label: 'Transforms',
+    },
+    'references': {
+      stroke: '#64748B',              // Gray
+      strokeWidth: 2,
+      strokeDasharray: 'none',        // Solid
+      label: 'FK',
+    },
+  }[type];
+}
+```
+
+### Graph View SVG Implementation
+```tsx
+<svg className="absolute inset-0 pointer-events-none">
+  {/* Define arrow markers */}
+  <defs>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#4AA0D9" />
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#BED163" />
+    </marker>
+    <marker id="arrow-gray" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#64748B" />
+    </marker>
+    
+    {/* Animated pattern for data flow */}
+    <pattern id="data-flow" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="5" cy="10" r="2" fill="#4AA0D9" opacity="0.6">
+        <animate attributeName="cx" from="5" to="25" dur="2s" repeatCount="indefinite" />
+      </circle>
+    </pattern>
+  </defs>
+  
+  {/* Render all relationships */}
+  {relationships.map(rel => {
+    const sourceEntity = entities.find(e => e.id === rel.sourceEntityId);
+    const targetEntity = entities.find(e => e.id === rel.targetEntityId);
+    const style = getRelationshipLineStyle(rel.type);
+    
+    return (
+      <g key={rel.id}>
+        {/* Main line */}
+        <line
+          x1={sourceEntity.position.x + 140} // Center of entity card
+          y1={sourceEntity.position.y + 75}
+          x2={targetEntity.position.x + 140}
+          y2={targetEntity.position.y + 75}
+          stroke={style.stroke}
+          strokeWidth={style.strokeWidth}
+          strokeDasharray={style.strokeDasharray}
+          markerEnd={rel.type === 'feeds-into' ? 'url(#arrow-blue)' : 
+                     rel.type === 'transforms-to' ? 'url(#arrow-green)' : 
+                     'url(#arrow-gray)'}
+        />
+        
+        {/* Animated overlay for feeds-into */}
+        {style.animated && (
+          <line
+            x1={sourceEntity.position.x + 140}
+            y1={sourceEntity.position.y + 75}
+            x2={targetEntity.position.x + 140}
+            y2={targetEntity.position.y + 75}
+            stroke="url(#data-flow)"
+            strokeWidth={style.strokeWidth}
+          />
+        )}
+        
+        {/* Label */}
+        <text
+          x={(sourceEntity.position.x + targetEntity.position.x) / 2 + 140}
+          y={(sourceEntity.position.y + targetEntity.position.y) / 2 + 75}
+          className="text-xs font-medium fill-coolgray-600"
+          textAnchor="middle"
+        >
+          {style.label}
+        </text>
+      </g>
+    );
+  })}
+</svg>
+```
+
+## Auto-Generation Workflows (CRITICAL FEATURE)
+
+### Generate DLO from Data Stream
+```typescript
+function autoGenerateDLO(dataStreamId: string): void {
+  const dataStream = getEntity(dataStreamId);
+  
+  if (dataStream.type !== 'data-stream') {
+    throw new Error('Can only generate DLO from Data Stream');
+  }
+  
+  // Check if DLO already exists
+  const existingDLO = entities.find(
+    e => e.type === 'dlo' && e.sourceDataStreamId === dataStreamId
+  );
+  if (existingDLO) {
+    toast.error('DLO already exists for this Data Stream');
+    return;
+  }
+  
+  // Create DLO
+  const dlo: Entity = {
+    id: uuidv4(),
+    name: `${dataStream.name.replace(' Stream', '')}_DLO`,
+    type: 'dlo',
+    fields: dataStream.fields.map(f => ({
+      ...f,
+      id: uuidv4(), // New IDs for copied fields
+    })),
+    sourceDataStreamId: dataStreamId,
+    dataCloudMetadata: {
+      objectType: 'DLO',
+      apiName: `${dataStream.name.replace(/\s/g, '_')}_DLO`,
+    },
+    position: {
+      x: dataStream.position.x,
+      y: dataStream.position.y + 220, // Position below Data Stream
+    },
+  };
+  
+  // Create relationship
+  const relationship: Relationship = {
+    id: uuidv4(),
+    type: 'feeds-into',
+    sourceEntityId: dataStreamId,
+    targetEntityId: dlo.id,
+    label: 'Ingests',
+    fieldMappings: dataStream.fields.map((sourceField, index) => ({
+      sourceFieldId: sourceField.id,
+      targetFieldId: dlo.fields[index].id,
+    })),
+  };
+  
+  // Save
+  addEntity(dlo);
+  addRelationship(relationship);
+  
+  // Notify user
+  toast.success(
+    `${dlo.name} created with ${dlo.fields.length} fields`,
+    {
+      action: {
+        label: 'View DLO',
+        onClick: () => focusEntity(dlo.id),
+      },
+    }
+  );
+}
+```
+
+### Generate DMO from DLO (Simple 1:1)
+```typescript
+function autoGenerateDMO(dloId: string): void {
+  const dlo = getEntity(dloId);
+  
+  if (dlo.type !== 'dlo') {
+    throw new Error('Can only generate DMO from DLO');
+  }
+  
+  // Create DMO
+  const dmo: Entity = {
+    id: uuidv4(),
+    name: `${dlo.name.replace('_DLO', '')}_DMO`,
+    type: 'dmo',
+    fields: dlo.fields.map(f => ({
+      ...f,
+      id: uuidv4(),
+    })),
+    sourceDLOIds: [dloId],
+    dataCloudMetadata: {
+      objectType: 'DMO',
+      profileObjectType: 'TBD',
+      apiName: `${dlo.name.replace('_DLO', '')}_DMO`,
+    },
+    fieldMappings: dlo.fields.map((dloField, index) => {
+      const dmoFieldId = /* new field ID from copied fields */;
+      return {
+        targetFieldId: dmoFieldId,
+        sourceEntityId: dloId,
+        sourceFieldId: dloField.id,
+        transformDescription: 'Direct copy',
+      };
+    }),
+    position: {
+      x: dlo.position.x,
+      y: dlo.position.y + 220,
+    },
+  };
+  
+  // Create relationship
+  const relationship: Relationship = {
+    id: uuidv4(),
+    type: 'transforms-to',
+    sourceEntityId: dloId,
+    targetEntityId: dmo.id,
+    label: 'Transforms',
+    fieldMappings: dmo.fieldMappings.map(fm => ({
+      sourceFieldId: fm.sourceFieldId,
+      targetFieldId: fm.targetFieldId,
+    })),
+  };
+  
+  addEntity(dmo);
+  addRelationship(relationship);
+  
+  toast.success(`${dmo.name} created`);
+}
+```
+
+### Add Source DLOs to DMO (Multi-Source)
+```typescript
+function addSourceDLOsToDMO(dmoId: string, selectedDLOIds: string[]): void {
+  const dmo = getEntity(dmoId);
+  
+  if (dmo.type !== 'dmo') {
+    throw new Error('Can only add sources to DMO');
+  }
+  
+  // Show field picker modal
+  const availableFields = selectedDLOIds.flatMap(dloId => {
+    const dlo = getEntity(dloId);
+    return dlo.fields.map(field => ({
+      dloId,
+      dloName: dlo.name,
+      field,
+      selected: false,
+      targetName: field.name, // User can rename
+    }));
+  });
+  
+  openFieldPickerModal({
+    title: 'Select Fields to Include',
+    fields: availableFields,
+    onConfirm: (selectedFields) => {
+      // Add selected fields to DMO
+      selectedFields.forEach(sf => {
+        const newField: Field = {
+          id: uuidv4(),
+          name: sf.targetName,
+          type: sf.field.type,
+          isPK: false,
+          isFK: false,
+        };
+        
+        dmo.fields.push(newField);
+        
+        // Create field mapping
+        dmo.fieldMappings.push({
+          targetFieldId: newField.id,
+          sourceEntityId: sf.dloId,
+          sourceFieldId: sf.field.id,
+          transformDescription: sf.targetName !== sf.field.name 
+            ? `Renamed from ${sf.field.name}` 
+            : 'Direct copy',
+        });
+      });
+      
+      // Add DLOs to sourceDLOIds
+      selectedDLOIds.forEach(dloId => {
+        if (!dmo.sourceDLOIds.includes(dloId)) {
+          dmo.sourceDLOIds.push(dloId);
+        }
+      });
+      
+      // Create transforms-to relationships
+      selectedDLOIds.forEach(dloId => {
+        const existingRel = relationships.find(
+          r => r.type === 'transforms-to' && 
+               r.sourceEntityId === dloId && 
+               r.targetEntityId === dmoId
+        );
+        
+        if (!existingRel) {
+          addRelationship({
+            id: uuidv4(),
+            type: 'transforms-to',
+            sourceEntityId: dloId,
+            targetEntityId: dmoId,
+          });
+        }
+      });
+      
+      updateEntity(dmoId, dmo);
+      toast.success(`Added ${selectedFields.length} fields from ${selectedDLOIds.length} DLOs`);
+    },
+  });
+}
+```
+
+## UI Components That Need Changes
+
+### Entity Card (Update Visual Styling)
+```tsx
+<div
+  className={cn(
+    'card absolute cursor-pointer transition-all duration-300',
+    'min-w-[280px]',
+    isFocused && 'ring-4 shadow-2xl scale-105 z-20',
+    isDimmed && 'opacity-30 scale-95'
+  )}
+  style={{
+    left: entity.position.x,
+    top: entity.position.y,
+    backgroundColor: getEntityCardStyle(entity.type).background,
+    borderColor: getEntityCardStyle(entity.type).borderColor,
+    borderWidth: '2px',
+  }}
+>
+  {/* Header */}
+  <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+    {/* Icon based on type */}
+    {entity.type === 'data-stream' && <Stream className="h-5 w-5 text-secondary-500" />}
+    {entity.type === 'dlo' && <Cylinder className="h-5 w-5 text-tertiary-500" />}
+    {entity.type === 'dmo' && <Layers className="h-5 w-5 text-primary-500" />}
+    
+    {/* Entity name */}
+    <h3 className="font-semibold text-text flex-1">{entity.name}</h3>
+    
+    {/* Type badge */}
+    <Badge variant={getEntityCardStyle(entity.type).badge.color} size="sm">
+      {getEntityCardStyle(entity.type).badge.text}
+    </Badge>
+  </div>
+  
+  {/* Metadata row */}
+  <div className="px-4 py-2 border-b border-border text-xs text-neutral">
+    {entity.type === 'data-stream' && (
+      <>
+        <span>{entity.dataCloudMetadata.streamConfig.refreshType}</span>
+        <span className="mx-2">•</span>
+        <span>{entity.dataCloudMetadata.streamConfig.schedule}</span>
+      </>
+    )}
+    {entity.type === 'dlo' && (
+      <>
+        <span>From: {getSourceDataStream(entity.sourceDataStreamId).name}</span>
+      </>
+    )}
+    {entity.type === 'dmo' && (
+      <>
+        <span>Sources: {entity.sourceDLOIds.length} DLOs</span>
+        <span className="mx-2">•</span>
+        <span>{entity.dataCloudMetadata.profileObjectType}</span>
+      </>
+    )}
+  </div>
+  
+  {/* Fields preview */}
+  <div className="px-4 py-2">
+    {entity.fields.slice(0, 3).map(field => (
+      <div key={field.id} className="text-sm py-1 flex items-center gap-2">
+        <code className="font-mono">{field.name}</code>
+        <span className="text-xs text-neutral">{field.type}</span>
+      </div>
+    ))}
+    {entity.fields.length > 3 && (
+      <div className="text-xs text-neutral">+{entity.fields.length - 3} more</div>
+    )}
+  </div>
+  
+  {/* Quick action button */}
+  {entity.type === 'data-stream' && !hasLinkedDLO(entity.id) && (
+    <div className="px-4 py-2 border-t border-border">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={(e) => {
+          e.stopPropagation();
+          autoGenerateDLO(entity.id);
+        }}
+        className="w-full text-tertiary-500 border-tertiary-300"
+      >
+        <Wand className="h-4 w-4 mr-1" />
+        Generate DLO
+      </Button>
+    </div>
+  )}
+  
+  {entity.type === 'dlo' && !hasLinkedDMO(entity.id) && (
+    <div className="px-4 py-2 border-t border-border">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={(e) => {
+          e.stopPropagation();
+          autoGenerateDMO(entity.id);
+        }}
+        className="w-full text-primary-500 border-primary-300"
+      >
+        <Wand className="h-4 w-4 mr-1" />
+        Generate DMO
+      </Button>
+    </div>
+  )}
+</div>
+```
+
+### DMO Entity Modal - Sources Tab
+```tsx
+<EntityEditorModal entity={dmoEntity}>
+  <Tabs>
+    <Tab label="Fields">
+      {/* Show fields with source indicators */}
+      {dmoEntity.fields.map(field => {
+        const mapping = dmoEntity.fieldMappings?.find(
+          m => m.targetFieldId === field.id
+        );
+        
+        return (
+          <div key={field.id} className="flex items-center gap-2 p-2 hover:bg-base">
+            <code className="font-mono flex-1">{field.name}</code>
+            <Badge variant="neutral">{field.type}</Badge>
+            
+            {mapping && (
+              <button
+                onClick={() => jumpToEntity(mapping.sourceEntityId)}
+                className="text-xs text-secondary-500 hover:underline"
+              >
+                ← {getSourceEntityName(mapping.sourceEntityId)}.{getSourceFieldName(mapping.sourceFieldId)}
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </Tab>
+    
+    <Tab label="Sources">
+      <div className="space-y-4">
+        <h4 className="font-semibold text-text">Source DLOs</h4>
+        
+        {dmoEntity.sourceDLOIds?.map(dloId => {
+          const dlo = getEntity(dloId);
+          const mappedFieldCount = dmoEntity.fieldMappings.filter(
+            m => m.sourceEntityId === dloId
+          ).length;
+          
+          return (
+            <div key={dloId} className="p-3 border border-border rounded-lg">
+              <div className="flex justify-between items-center mb-2">
+                <div>
+                  <h5 className="font-medium text-text">{dlo.name}</h5>
+                  <p className="text-xs text-neutral">
+                    {mappedFieldCount} of {dmoEntity.fields.length} fields mapped
+                  </p>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => showFieldMappings(dloId)}
+                >
+                  View Mappings
+                </Button>
+              </div>
+              
+              {/* Preview of mappings */}
+              <div className="text-xs text-neutral space-y-1">
+                {dmoEntity.fieldMappings
+                  .filter(m => m.sourceEntityId === dloId)
+                  .slice(0, 3)
+                  .map(mapping => (
+                    <div key={mapping.targetFieldId}>
+                      {getFieldName(mapping.sourceFieldId)} → {getFieldName(mapping.targetFieldId)}
+                    </div>
+                  ))
+                }
+                {mappedFieldCount > 3 && (
+                  <div>+{mappedFieldCount - 3} more mappings</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        
+        <Button onClick={() => addSourceDLOsModal(dmoEntity.id)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Source DLOs
+        </Button>
+      </div>
+    </Tab>
+    
+    <Tab label="Relationships">
+      {/* Show DMO→DMO FK relationships */}
+    </Tab>
+  </Tabs>
+</EntityEditorModal>
+```
+
+## Legend Component (Add to Graph View)
+```tsx
+<div className="absolute top-4 left-4 bg-white rounded-xl shadow-lg p-4 border border-border">
+  <h4 className="font-semibold text-text mb-3">Data Flow Layers</h4>
+  
+  <div className="space-y-2 text-sm">
+    <div className="flex items-center gap-2">
+      <div className="w-4 h-4 rounded border-2 border-secondary-500 bg-secondary-50" />
+      <span>Data Stream (ingestion)</span>
+    </div>
+    <div className="flex items-center gap-2">
+      <div className="w-4 h-4 rounded border-2 border-tertiary-500 bg-tertiary-50" />
+      <span>DLO (raw data lake)</span>
+    </div>
+    <div className="flex items-center gap-2">
+      <div className="w-4 h-4 rounded border-2 border-primary-500 bg-primary-50" />
+      <span>DMO (unified model)</span>
+    </div>
+  </div>
+  
+  <hr className="my-3 border-border" />
+  
+  <h4 className="font-semibold text-text mb-3">Relationships</h4>
+  
+  <div className="space-y-2 text-sm">
+    <div className="flex items-center gap-2">
+      <svg width="40" height="2">
+        <line x1="0" y1="1" x2="40" y2="1" stroke="#4AA0D9" strokeWidth="3" />
+      </svg>
+      <span>Ingests (animated)</span>
+    </div>
+    <div className="flex items-center gap-2">
+      <svg width="40" height="2">
+        <line x1="0" y1="1" x2="40" y2="1" stroke="#BED163" strokeWidth="3" strokeDasharray="8,4" />
+      </svg>
+      <span>Transforms</span>
+    </div>
+    <div className="flex items-center gap-2">
+      <svg width="40" height="2">
+        <line x1="0" y1="1" x2="40" y2="1" stroke="#64748B" strokeWidth="2" />
+      </svg>
+      <span>References (FK)</span>
+    </div>
+  </div>
+</div>
+```
+
+## Critical Rules Summary
+
+1. **Entity Types Matter**: Every entity MUST have a type. Type determines visual styling and allowed relationships.
+
+2. **Relationship Validation**: Enforce strict rules on which entity types can connect to which.
+
+3. **1:1 Data Stream → DLO**: A Data Stream can only feed ONE DLO. This relationship is auto-created.
+
+4. **Many:1 DLO → DMO**: Multiple DLOs can feed one DMO. User creates these via "Add Source DLOs" workflow.
+
+5. **Field Mappings Are Lightweight**: Don't force exhaustive mapping. Just show "this field comes from that field" with optional description.
+
+6. **Lines MUST Be Visible**: Every relationship must render as a colored line in Graph View with appropriate styling.
+
+7. **Auto-Generation Is Key**: "Generate DLO" and "Generate DMO" buttons dramatically speed up workflow by copying field structures.
+
+8. **Data Sources Are Containers**: Data Sources group Data Streams but are NOT entities themselves (render as swimlanes).
+
+Build this as a Data Cloud-specific tool, not a generic ERD tool. The value is in visualizing the pipeline and auto-generating boilerplate.

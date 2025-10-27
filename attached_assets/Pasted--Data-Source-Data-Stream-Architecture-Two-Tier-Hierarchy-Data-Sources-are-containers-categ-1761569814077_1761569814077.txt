@@ -1,0 +1,93 @@
+# Data Source & Data Stream Architecture
+
+## Two-Tier Hierarchy
+
+Data Sources are **containers/categories** that hold Data Streams.
+```typescript
+interface DataSource {
+  id: string;
+  name: string; // "Salesforce Production Org"
+  type: SourceSystemType;
+  description?: string;
+  connectionDetails?: string;
+  environment?: 'production' | 'sandbox' | 'dev' | 'uat';
+  contactPerson?: string;
+  color?: string;
+  collapsed?: boolean; // For list view
+}
+
+interface DataStream extends Entity {
+  type: 'data-stream';
+  dataSourceId: string; // Links to parent Data Source
+  
+  streamConfig: {
+    refreshType: 'full' | 'incremental';
+    schedule: 'real-time' | 'hourly' | 'daily' | 'weekly' | 'custom';
+    customSchedule?: string;
+    sourceObjectName: string;
+    connectorType?: string;
+  };
+  
+  fields: Field[];
+}
+```
+
+## Visual Treatment
+
+### Graph View
+- **Data Source**: Large dashed rectangle (swimlane) with subtle background tint
+- **Data Streams**: Entity cards positioned inside the Data Source rectangle
+- **Lines**: Flow from Data Stream → DLO → DMO
+
+### List View
+- **Data Source**: Collapsible card header
+- **Data Streams**: Indented cards inside collapsed/expanded Data Source
+- **Empty state**: Show "Add First Data Stream" button if no streams exist
+
+## Creation Flow
+
+### Step 1: Create Data Source
+User clicks "Add Data Source" → Opens dialog:
+- Name (e.g., "Salesforce Production Org")
+- Type (Salesforce/Database/ERP/API/CSV/Custom)
+- Environment (Production/Sandbox/Dev/UAT)
+- Connection Details (optional textarea)
+- Contact Person (optional)
+
+Result: Data Source created as a container, no streams yet.
+
+### Step 2: Add Data Streams
+User clicks "Add Data Stream" button on Data Source card → Opens dialog:
+- Parent Data Source (dropdown)
+- Stream Name
+- Source Object Name
+- Refresh Type (Full/Incremental)
+- Schedule (Real-time/Hourly/Daily/Weekly/Custom)
+- Fields (add manually or import from CSV)
+
+**Two creation buttons:**
+1. "Create Data Stream Only" - Just the stream
+2. "Create Stream + Auto-Generate DLO" - Creates stream AND DLO (recommended)
+
+## Auto-Generation
+When user clicks "Generate DLO" on a Data Stream:
+1. Create new entity with type='dlo'
+2. Copy all fields from Data Stream (exact same structure)
+3. Create 'feeds-into' relationship (Data Stream → DLO)
+4. Set name: `{StreamName}_DLO`
+5. Show success toast with "View DLO" button
+
+## Filters
+Replace "Source Filter" with:
+- **Data Source Filter**: Dropdown showing all Data Sources
+- **Entity Type Filter**: All Layers / Data Streams / DLOs / DMOs
+
+When Data Source selected:
+- Graph View: Show only entities related to that Data Source
+- List View: Auto-expand that Data Source, collapse others
+
+## Blueprint Export
+Add "Data Sources" section showing:
+- Data Source name, type, environment, contact
+- Table of Data Streams per source (name, object, refresh, schedule, field count)
+- Total counts (X data sources, Y data streams, Z DLOs, W DMOs)
