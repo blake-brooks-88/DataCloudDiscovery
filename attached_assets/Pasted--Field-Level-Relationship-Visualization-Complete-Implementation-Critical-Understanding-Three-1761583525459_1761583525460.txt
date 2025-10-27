@@ -1,0 +1,708 @@
+# Field-Level Relationship Visualization - Complete Implementation
+
+## Critical Understanding: Three Relationship Types
+
+Your tool must render THREE distinct types of relationships, all with field-level precision:
+
+### 1. feeds-into (Data Stream → DLO)
+**Entity-level connection** - one line regardless of field count
+
+**Visual:**
+- Color: `#4AA0D9` (secondary-500, blue)
+- Width: 4px (thicker than field lines)
+- Style: Solid line
+- Animation: Flowing dots (moving from source to target)
+- Connects: Entity center to entity center (or PK to PK)
+- Label: "Ingests"
+
+### 2. transforms-to (DLO → DMO OR DMO → DMO)
+**Field-level lineage** - one line per field mapping
+
+**Visual:**
+- Color: `#BED163` (tertiary-500, green)
+- Width: 2px
+- Style: Dashed line (`strokeDasharray: '8,4'`)
+- Animation: None
+- Connects: Source field row → Target field row
+- Label: None (too many lines)
+
+**Purpose:** Shows where a field's value comes from
+- `Contact_DLO.email` → `Unified_Individual.email_address` (DLO → DMO)
+- `Account_DMO.name` → `Unified_Individual.company_name` (DMO → DMO)
+
+### 3. references (DMO → DMO)
+**Traditional FK relationships** - one line per FK field
+
+**Visual:**
+- Color: `#64748B` (coolgray-500, gray)
+- Width: 2px
+- Style: Solid line
+- Animation: None
+- Connects: FK field row → PK field row
+- Label: Cardinality ("1:1", "1:M", "M:1")
+- Markers: Crow's foot notation at endpoints
+
+**Purpose:** Shows traditional foreign key relationships
+- `Contact_DMO.account_id` → `Account_DMO.id` (many-to-one)
+
+---
+
+## Component Architecture
+
+### New Components Needed:
+
+#### 1. EntityLevelLine.tsx
+```tsx
+import type { Relationship, Entity } from "@shared/schema";
+
+interface EntityLevelLineProps {
+  relationship: Relationship;
+  sourceEntity: Entity;
+  targetEntity: Entity;
+  zoom: number;
+  panOffset: { x: number; y: number };
+}
+
+export default function EntityLevelLine({
+  relationship,
+  sourceEntity,
+  targetEntity,
+  zoom,
+  panOffset,
+}: EntityLevelLineProps) {
+  const sourcePos = sourceEntity.position || { x: 100, y: 100 };
+  const targetPos = targetEntity.position || { x: 400, y: 100 };
+  
+  const ENTITY_WIDTH = 320;
+  const ENTITY_HEIGHT = 150; // Approximate
+  
+  // Connect from right edge of source to left edge of target (at center height)
+  const startX = sourcePos.x + ENTITY_WIDTH;
+  const startY = sourcePos.y + ENTITY_HEIGHT / 2;
+  const endX = targetPos.x;
+  const endY = targetPos.y + ENTITY_HEIGHT / 2;
+  
+  // Simple straight line (can enhance with orthogonal routing later)
+  const midX = (startX + endX) / 2;
+  const pathData = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
+  
+  return (
+    <g>
+      {/* Main line */}
+      <path
+        d={pathData}
+        stroke="#4AA0D9"
+        strokeWidth="4"
+        fill="none"
+        markerEnd="url(#arrow-blue)"
+      />
+      
+      {/* Animated overlay */}
+      <path
+        d={pathData}
+        stroke="url(#data-flow-pattern)"
+        strokeWidth="4"
+        fill="none"
+        style={{ pointerEvents: 'none' }}
+      />
+      
+      {/* Label */}
+      <text
+        x={midX}
+        y={(startY + endY) / 2 - 8}
+        fill="#4AA0D9"
+        fontSize="11"
+        fontWeight="600"
+        textAnchor="middle"
+        style={{ pointerEvents: 'none', userSelect: 'none' }}
+      >
+        Ingests
+      </text>
+    </g>
+  );
+}
+```
+
+#### 2. FieldLevelLine.tsx (Refactor from RelationshipLine.tsx)
+
+**CRITICAL:** Your existing `RelationshipLine.tsx` is 95% correct. We just need to:
+1. Accept a `relationshipType` prop
+2. Style based on type (green dashed for transforms-to, gray solid for references)
+3. Optionally hide cardinality label for transforms-to
+```tsx
+import type { Relationship, Entity, Field } from "@shared/schema";
+
+interface FieldLevelLineProps {
+  relationship: Relationship;
+  sourceEntity: Entity;
+  targetEntity: Entity;
+  sourceField: Field;
+  targetField: Field;
+  relationshipType: 'transforms-to' | 'references';
+  zoom: number;
+  panOffset: { x: number; y: number };
+  onUpdateWaypoints?: (fieldId: string, waypoints: { x: number; y: number }[]) => void;
+}
+
+export default function FieldLevelLine({
+  relationship,
+  sourceEntity,
+  targetEntity,
+  sourceField,
+  targetField,
+  relationshipType,
+  zoom,
+  panOffset,
+  onUpdateWaypoints,
+}: FieldLevelLineProps) {
+  // Get visual style based on relationship type
+  const style = relationshipType === 'transforms-to' 
+    ? {
+        stroke: '#BED163',        // Green
+        strokeWidth: 2,
+        strokeDasharray: '8,4',   // Dashed
+        showCardinality: false,
+      }
+    : {
+        stroke: '#64748B',        // Gray
+        strokeWidth: 2,
+        strokeDasharray: 'none',  // Solid
+        showCardinality: true,
+      };
+  
+  // Rest of implementation is EXACTLY like your current RelationshipLine.tsx
+  // - Calculate field positions
+  // - Create orthogonal path
+  // - Render waypoint handles
+  // - Show cardinality label (only if showCardinality === true)
+  
+  // ... (copy your existing RelationshipLine logic here)
+}
+```
+
+---
+
+## SVG Rendering in GraphView
+
+Replace the current relationship rendering section with this:
+```tsx
+{/* In GraphView.tsx, inside the main SVG element */}
+
+<svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
+  {/* SVG Definitions */}
+  <defs>
+    {/* Arrow markers */}
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#4AA0D9" />
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#BED163" />
+    </marker>
+    <marker id="arrow-gray" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#64748B" />
+    </marker>
+    
+    {/* Animated data flow pattern */}
+    <pattern id="data-flow-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="5" cy="10" r="2" fill="#4AA0D9" opacity="0.6">
+        <animate attributeName="cx" from="5" to="25" dur="2s" repeatCount="indefinite" />
+      </circle>
+    </pattern>
+    
+    {/* Crow's foot markers for references relationships */}
+    <marker id="cf-one" markerWidth="12" markerHeight="12" refX="0" refY="6" orient="auto">
+      <line x1="0" y1="0" x2="0" y2="12" stroke="#64748B" strokeWidth="2" />
+    </marker>
+    <marker id="cf-many" markerWidth="12" markerHeight="12" refX="0" refY="6" orient="auto">
+      <g>
+        <line x1="0" y1="6" x2="10" y2="0" stroke="#64748B" strokeWidth="2" />
+        <line x1="0" y1="6" x2="10" y2="6" stroke="#64748B" strokeWidth="2" />
+        <line x1="0" y1="6" x2="10" y2="12" stroke="#64748B" strokeWidth="2" />
+      </g>
+    </marker>
+  </defs>
+
+  {/* 1. Entity-level lines (feeds-into: Data Stream → DLO) */}
+  {project.relationships
+    ?.filter(rel => rel.type === 'feeds-into')
+    .map(rel => {
+      const sourceEntity = entities.find(e => e.id === rel.sourceEntityId);
+      const targetEntity = entities.find(e => e.id === rel.targetEntityId);
+      
+      if (!sourceEntity || !targetEntity) return null;
+      
+      return (
+        <EntityLevelLine
+          key={rel.id}
+          relationship={rel}
+          sourceEntity={sourceEntity}
+          targetEntity={targetEntity}
+          zoom={zoom}
+          panOffset={panOffset}
+        />
+      );
+    })}
+
+  {/* 2. Field-level lines (transforms-to: DLO → DMO OR DMO → DMO) */}
+  {project.relationships
+    ?.filter(rel => rel.type === 'transforms-to')
+    .flatMap(rel => {
+      const sourceEntity = entities.find(e => e.id === rel.sourceEntityId);
+      const targetEntity = entities.find(e => e.id === rel.targetEntityId);
+      
+      if (!sourceEntity || !targetEntity) return [];
+      
+      // Get field mappings from relationship OR from target entity
+      const mappings = rel.fieldMappings || 
+                       targetEntity.fieldMappings?.filter(fm => fm.sourceEntityId === sourceEntity.id) ||
+                       [];
+      
+      // Render one line per field mapping
+      return mappings.map(mapping => {
+        const sourceField = sourceEntity.fields.find(f => f.id === mapping.sourceFieldId);
+        const targetField = targetEntity.fields.find(f => f.id === mapping.targetFieldId);
+        
+        if (!sourceField || !targetField) return null;
+        
+        return (
+          <FieldLevelLine
+            key={`${rel.id}-${mapping.targetFieldId}`}
+            relationship={rel}
+            sourceEntity={sourceEntity}
+            targetEntity={targetEntity}
+            sourceField={sourceField}
+            targetField={targetField}
+            relationshipType="transforms-to"
+            zoom={zoom}
+            panOffset={panOffset}
+          />
+        );
+      });
+    })}
+
+  {/* 3. Field-level lines (references: DMO → DMO FK relationships) */}
+  {entities.flatMap(entity =>
+    entity.fields
+      .filter(f => f.isFK && f.fkReference)
+      .map(field => {
+        const targetEntity = entities.find(e => e.id === field.fkReference!.targetEntityId);
+        const targetField = targetEntity?.fields.find(f => f.id === field.fkReference!.targetFieldId);
+        
+        if (!targetEntity || !targetField) return null;
+        
+        return (
+          <FieldLevelLine
+            key={field.id}
+            relationship={{
+              id: field.id,
+              type: 'references',
+              sourceEntityId: entity.id,
+              targetEntityId: targetEntity.id,
+            }}
+            sourceEntity={entity}
+            targetEntity={targetEntity}
+            sourceField={field}
+            targetField={targetField}
+            relationshipType="references"
+            zoom={zoom}
+            panOffset={panOffset}
+            onUpdateWaypoints={(fieldId, waypoints) => {
+              // Update waypoints in field.fkReference
+              updateFieldWaypoints(entity.id, fieldId, waypoints);
+            }}
+          />
+        );
+      })
+  )}
+</svg>
+```
+
+---
+
+## Auto-Generation Logic Updates
+
+### Generate DLO from Data Stream
+```typescript
+function handleGenerateDLO(dataStreamId: string) {
+  const dataStream = entities.find(e => e.id === dataStreamId);
+  if (!dataStream || dataStream.type !== 'data-stream') return;
+  
+  // Check if DLO already exists
+  const existingDLO = entities.find(
+    e => e.type === 'dlo' && e.sourceDataStreamId === dataStreamId
+  );
+  if (existingDLO) {
+    toast.error('DLO already exists for this Data Stream');
+    return;
+  }
+  
+  const dloId = crypto.randomUUID();
+  
+  // Create DLO with copied fields
+  const dlo: Entity = {
+    id: dloId,
+    name: `${dataStream.name.replace(' Stream', '')}_DLO`,
+    type: 'dlo',
+    fields: dataStream.fields.map(f => ({
+      ...f,
+      id: crypto.randomUUID(), // New field IDs
+    })),
+    sourceDataStreamId: dataStreamId,
+    dataCloudMetadata: {
+      objectType: 'DLO',
+      apiName: `${dataStream.name.replace(/\s/g, '_')}_DLO`,
+    },
+    position: {
+      x: dataStream.position!.x,
+      y: dataStream.position!.y + 240, // Position below
+    },
+  };
+  
+  // Create feeds-into relationship (entity-level, no field mappings needed)
+  const relationship: Relationship = {
+    id: crypto.randomUUID(),
+    type: 'feeds-into',
+    sourceEntityId: dataStreamId,
+    targetEntityId: dloId,
+    label: 'Ingests',
+  };
+  
+  // Add to project
+  addEntity(dlo);
+  addRelationship(relationship);
+  
+  toast.success(`${dlo.name} created with ${dlo.fields.length} fields`, {
+    action: {
+      label: 'View DLO',
+      onClick: () => focusEntity(dloId),
+    },
+  });
+}
+```
+
+### Generate DMO from DLO
+```typescript
+function handleGenerateDMO(dloId: string) {
+  const dlo = entities.find(e => e.id === dloId);
+  if (!dlo || dlo.type !== 'dlo') return;
+  
+  const dmoId = crypto.randomUUID();
+  
+  // Create DMO with copied fields
+  const dmoFields = dlo.fields.map(f => ({
+    ...f,
+    id: crypto.randomUUID(),
+  }));
+  
+  const dmo: Entity = {
+    id: dmoId,
+    name: `${dlo.name.replace('_DLO', '')}_DMO`,
+    type: 'dmo',
+    fields: dmoFields,
+    sourceDLOIds: [dloId],
+    dataCloudMetadata: {
+      objectType: 'DMO',
+      profileObjectType: 'TBD',
+      apiName: `${dlo.name.replace('_DLO', '')}_DMO`,
+    },
+    // CRITICAL: Create field mappings
+    fieldMappings: dlo.fields.map((sourceField, index) => ({
+      sourceEntityId: dloId,
+      sourceFieldId: sourceField.id,
+      targetFieldId: dmoFields[index].id,
+      transformDescription: 'Direct copy',
+    })),
+    position: {
+      x: dlo.position!.x,
+      y: dlo.position!.y + 240,
+    },
+  };
+  
+  // Create transforms-to relationship
+  const relationship: Relationship = {
+    id: crypto.randomUUID(),
+    type: 'transforms-to',
+    sourceEntityId: dloId,
+    targetEntityId: dmoId,
+    // Optional: can also store fieldMappings here (redundant with entity.fieldMappings)
+    fieldMappings: dmo.fieldMappings.map(fm => ({
+      sourceFieldId: fm.sourceFieldId,
+      targetFieldId: fm.targetFieldId,
+    })),
+  };
+  
+  addEntity(dmo);
+  addRelationship(relationship);
+  
+  toast.success(`${dmo.name} created with ${dmo.fields.length} fields`);
+}
+```
+
+---
+
+## Field Mapping Creation for DMO → DMO
+
+When user wants to show that a DMO field gets its value from another DMO field:
+
+### In Entity Editor Modal - Add "Field Sources" Section
+```tsx
+{/* In EntityEditorModal.tsx, within the Fields tab */}
+
+{entity.type === 'dmo' && (
+  <div className="mt-4 p-3 bg-coolgray-50 rounded-lg border border-coolgray-200">
+    <h4 className="text-sm font-semibold text-coolgray-700 mb-2">Field Source</h4>
+    
+    <div className="space-y-2">
+      <Select
+        value={fieldSourceEntity}
+        onValueChange={setFieldSourceEntity}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Select source entity..." />
+        </SelectTrigger>
+        <SelectContent>
+          {entities
+            .filter(e => e.type === 'dmo' && e.id !== entity.id)
+            .map(e => (
+              <SelectItem key={e.id} value={e.id}>
+                {e.name}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+      
+      {fieldSourceEntity && (
+        <Select
+          value={fieldSourceField}
+          onValueChange={setFieldSourceField}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select source field..." />
+          </SelectTrigger>
+          <SelectContent>
+            {getEntity(fieldSourceEntity).fields.map(f => (
+              <SelectItem key={f.id} value={f.id}>
+                {f.name} ({f.type})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+      
+      <Button
+        size="sm"
+        onClick={() => addFieldMapping(currentFieldId, fieldSourceEntity, fieldSourceField)}
+        disabled={!fieldSourceEntity || !fieldSourceField}
+      >
+        Add Field Source
+      </Button>
+    </div>
+    
+    {/* Show existing field mapping if any */}
+    {entity.fieldMappings?.find(fm => fm.targetFieldId === currentFieldId) && (
+      <div className="mt-2 text-xs text-coolgray-600">
+        ← Sources from: {getSourceFieldPath(currentFieldId)}
+      </div>
+    )}
+  </div>
+)}
+```
+
+### Add Field Mapping Function
+```typescript
+function addFieldMapping(
+  targetFieldId: string,
+  sourceEntityId: string,
+  sourceFieldId: string
+) {
+  // Add to entity.fieldMappings
+  const updatedEntity = {
+    ...entity,
+    fieldMappings: [
+      ...(entity.fieldMappings || []),
+      {
+        sourceEntityId,
+        sourceFieldId,
+        targetFieldId,
+        transformDescription: 'Field lineage',
+      },
+    ],
+  };
+  
+  updateEntity(entity.id, updatedEntity);
+  
+  // Create transforms-to relationship if it doesn't exist
+  const existingRel = project.relationships?.find(
+    r => r.type === 'transforms-to' &&
+         r.sourceEntityId === sourceEntityId &&
+         r.targetEntityId === entity.id
+  );
+  
+  if (!existingRel) {
+    const relationship: Relationship = {
+      id: crypto.randomUUID(),
+      type: 'transforms-to',
+      sourceEntityId,
+      targetEntityId: entity.id,
+    };
+    addRelationship(relationship);
+  }
+  
+  toast.success('Field source added');
+}
+```
+
+---
+
+## Example: Creating DMO → DMO Field Lineage
+
+### User Workflow:
+
+1. User has `Account_DMO` with field `name`
+2. User creates `Unified_Individual` DMO with field `company_name`
+3. User opens `Unified_Individual` in modal
+4. User selects field `company_name`
+5. User clicks "Add Field Source"
+6. User selects `Account_DMO` from entity dropdown
+7. User selects `name` from field dropdown
+8. User clicks "Add Field Source" button
+
+### Result:
+
+**Data structure:**
+```typescript
+{
+  id: 'unified-individual-123',
+  type: 'dmo',
+  fields: [
+    { id: 'field-456', name: 'company_name', type: 'string' }
+  ],
+  fieldMappings: [
+    {
+      sourceEntityId: 'account-dmo-789',
+      sourceFieldId: 'field-101',  // Account_DMO.name
+      targetFieldId: 'field-456',  // Unified_Individual.company_name
+      transformDescription: 'Field lineage',
+    }
+  ]
+}
+
+// Relationship also created:
+{
+  id: 'rel-999',
+  type: 'transforms-to',
+  sourceEntityId: 'account-dmo-789',
+  targetEntityId: 'unified-individual-123',
+}
+```
+
+**Visual in Graph:**
+- Green dashed line from `Account_DMO.name` field row to `Unified_Individual.company_name` field row
+
+---
+
+## Visual Distinction Summary
+
+| Relationship | From | To | Visual | Purpose |
+|--------------|------|-----|--------|---------|
+| **feeds-into** | Data Stream | DLO | Blue thick animated line (entity-level) | Data ingestion |
+| **transforms-to** | DLO | DMO | Green dashed lines (field-level, multiple) | Field transformation |
+| **transforms-to** | DMO | DMO | Green dashed lines (field-level, multiple) | Field lineage/derivation |
+| **references** | DMO | DMO | Gray solid lines with crow's feet (field-level) | Traditional FK relationship |
+
+---
+
+## Critical Implementation Notes
+
+1. **Field Positioning:** Use existing logic from `RelationshipLine.tsx` to calculate field Y positions
+2. **Orthogonal Routing:** Keep Manhattan-style routing with waypoints for field-level lines
+3. **Line Overlap:** With multiple field-level lines, they naturally space out because they connect at different Y positions
+4. **Focus Mode:** When entity is focused, fade non-related lines to reduce clutter
+5. **Performance:** With 50+ field-level lines, use React memoization and only render visible lines when zoomed out
+
+---
+
+## Testing Scenarios
+
+### Scenario 1: Simple Pipeline
+```
+Account_Stream (15 fields)
+  ↓ (1 blue entity-level line)
+Account_DLO (15 fields)
+  ↓ (15 green field-level lines)
+Account_DMO (15 fields)
+```
+
+### Scenario 2: Multi-Source DMO
+```
+Contact_DLO (18 fields)
+  ↓ (10 green field-level lines)
+Shopify_DLO (12 fields)  ⟶ Unified_Individual (25 fields)
+  ↓ (8 green field-level lines)
+```
+
+### Scenario 3: DMO Referencing Another DMO with Field Lineage
+```
+Account_DMO:
+├─ id (PK)
+├─ name
+└─ industry
+
+Unified_Individual:
+├─ person_id (PK)
+├─ account_id (FK)  ──(gray line with M:1)──→ Account_DMO.id
+└─ company_name  ──(green dashed line)──→ Account_DMO.name
+```
+Result: 2 lines between same entity pair (1 gray FK, 1 green field lineage)
+
+---
+
+## Legend Component
+
+Add this to GraphView:
+```tsx
+<div className="absolute top-4 left-4 bg-white rounded-xl shadow-lg p-4 border border-coolgray-200">
+  <h4 className="font-semibold text-coolgray-700 text-sm mb-3">Relationships</h4>
+  
+  <div className="space-y-2.5 text-xs">
+    <div className="flex items-center gap-3">
+      <svg width="50" height="4">
+        <line x1="0" y1="2" x2="50" y2="2" stroke="#4AA0D9" strokeWidth="4" />
+        <circle cx="10" cy="2" r="2" fill="#4AA0D9" opacity="0.6" />
+      </svg>
+      <span className="text-coolgray-600">Ingests (Data Stream → DLO)</span>
+    </div>
+    
+    <div className="flex items-center gap-3">
+      <svg width="50" height="2">
+        <line x1="0" y1="1" x2="50" y2="1" stroke="#BED163" strokeWidth="2" strokeDasharray="8,4" />
+      </svg>
+      <span className="text-coolgray-600">Transforms (field lineage)</span>
+    </div>
+    
+    <div className="flex items-center gap-3">
+      <svg width="50" height="2">
+        <line x1="0" y1="1" x2="50" y2="1" stroke="#64748B" strokeWidth="2" />
+      </svg>
+      <span className="text-coolgray-600">References (FK relationship)</span>
+    </div>
+  </div>
+</div>
+```
+
+---
+
+## Summary
+
+Build THREE distinct line rendering systems:
+1. **EntityLevelLine** - Blue animated (feeds-into only)
+2. **FieldLevelLine** - Green OR gray based on relationship type
+   - Green dashed: transforms-to (DLO→DMO or DMO→DMO field lineage)
+   - Gray solid: references (DMO→DMO FK relationships)
+
+All three can coexist in the same graph. Users see:
+- Pipeline architecture (blue lines)
+- Field transformations (green lines)
+- Traditional relationships (gray lines)
+
+This gives complete visibility into data flow AND data model simultaneously.
