@@ -136,10 +136,12 @@ export default function GraphView({
     entities.forEach(entity => {
       const x = entity.position?.x || 100;
       const y = entity.position?.y || 100;
+      const ENTITY_WIDTH = 320;
+      const ENTITY_HEIGHT = 200;
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + 320);
-      maxY = Math.max(maxY, y + 200);
+      maxX = Math.max(maxX, x + ENTITY_WIDTH);
+      maxY = Math.max(maxY, y + ENTITY_HEIGHT);
     });
 
     const bounds = {
@@ -232,7 +234,12 @@ export default function GraphView({
       entity.fields.forEach((field) => {
         if (field.isFK && field.fkReference && field.visibleInERD !== false) {
           const targetEntity = entities.find(e => e.id === field.fkReference!.targetEntityId);
-          if (!targetEntity) return;
+          if (!targetEntity) {
+            console.warn(`Target entity not found for FK relationship: ${field.fkReference!.targetEntityId}`);
+            return;
+          }
+
+          console.log(`Rendering relationship line from ${entity.name}.${field.name} to ${targetEntity.name}`);
 
           lines.push(
             <RelationshipLine
@@ -251,6 +258,7 @@ export default function GraphView({
       });
     });
 
+    console.log(`Total relationship lines to render: ${lines.length}`);
     return lines;
   };
 

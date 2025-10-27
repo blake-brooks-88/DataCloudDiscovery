@@ -73,7 +73,7 @@ export default function EntityNode({
         hover:shadow-lg`}
       data-testid={`entity-node-${entity.id}`}
     >
-      <div className="min-w-64 max-w-80">
+      <div className="w-80">
         <div className="px-4 py-3 border-b border-coolgray-200 flex items-center gap-2">
           <IconComponent className="h-5 w-5 flex-shrink-0" style={{ color: cardStyle.borderColor }} />
           <h3 className="text-lg font-semibold text-coolgray-700 break-words flex-1">{entity.name}</h3>

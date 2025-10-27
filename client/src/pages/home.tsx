@@ -113,13 +113,101 @@ export default function Home() {
         console.error('Failed to load projects:', e);
       }
     } else {
+      // Create default project with sample entities and relationships for testing
+      const sampleDataStreamId = `entity-${Date.now()}-1`;
+      const sampleDLOId = `entity-${Date.now()}-2`;
+      const sampleDMOId = `entity-${Date.now()}-3`;
+      
       const defaultProject: Project = {
         id: `project-${Date.now()}`,
         name: 'My First Project',
         createdAt: Date.now(),
         lastModified: Date.now(),
-        dataSources: [],
-        entities: [],
+        dataSources: [
+          {
+            id: `datasource-${Date.now()}`,
+            name: 'Salesforce CRM',
+            type: 'salesforce',
+            description: 'Production Salesforce instance',
+          }
+        ],
+        entities: [
+          {
+            id: sampleDataStreamId,
+            name: 'Contact_Stream',
+            type: 'data-stream',
+            fields: [
+              { id: 'field-1', name: 'ContactId', type: 'string', isPK: true, isFK: false, visibleInERD: true },
+              { id: 'field-2', name: 'Email', type: 'email', isPK: false, isFK: false, visibleInERD: true },
+              { id: 'field-3', name: 'FirstName', type: 'string', isPK: false, isFK: false, visibleInERD: true },
+            ],
+            dataCloudMetadata: {
+              streamConfig: {
+                refreshType: 'incremental',
+                schedule: 'hourly',
+                sourceObjectName: 'Contact',
+              }
+            },
+            position: { x: 100, y: 100 },
+          },
+          {
+            id: sampleDLOId,
+            name: 'Contact_DLO',
+            type: 'dlo',
+            fields: [
+              { id: 'field-dlo-1', name: 'Id', type: 'string', isPK: true, isFK: false, visibleInERD: true },
+              { id: 'field-dlo-2', name: 'Email', type: 'email', isPK: false, isFK: false, visibleInERD: true },
+              { 
+                id: 'field-dlo-3', 
+                name: 'StreamId', 
+                type: 'string', 
+                isPK: false, 
+                isFK: true, 
+                visibleInERD: true,
+                fkReference: {
+                  targetEntityId: sampleDataStreamId,
+                  targetFieldId: 'field-1',
+                  cardinality: 'many-to-one',
+                  relationshipLabel: 'sources from',
+                }
+              },
+            ],
+            dataCloudMetadata: {
+              objectType: 'DLO',
+            },
+            sourceDataStreamId: sampleDataStreamId,
+            position: { x: 500, y: 100 },
+          },
+          {
+            id: sampleDMOId,
+            name: 'Unified_Contact',
+            type: 'dmo',
+            fields: [
+              { id: 'field-dmo-1', name: 'UnifiedId', type: 'string', isPK: true, isFK: false, visibleInERD: true },
+              { id: 'field-dmo-2', name: 'Email', type: 'email', isPK: false, isFK: false, visibleInERD: true },
+              { 
+                id: 'field-dmo-3', 
+                name: 'SourceDLOId', 
+                type: 'string', 
+                isPK: false, 
+                isFK: true, 
+                visibleInERD: true,
+                fkReference: {
+                  targetEntityId: sampleDLOId,
+                  targetFieldId: 'field-dlo-1',
+                  cardinality: 'many-to-one',
+                  relationshipLabel: 'unified from',
+                }
+              },
+            ],
+            dataCloudMetadata: {
+              objectType: 'DMO',
+              profileObjectType: 'Profile',
+            },
+            sourceDLOIds: [sampleDLOId],
+            position: { x: 900, y: 100 },
+          },
+        ],
         relationships: [],
       };
       setProjects([defaultProject]);
