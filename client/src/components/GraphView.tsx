@@ -1,13 +1,15 @@
 import { useRef, useState, useEffect } from "react";
 import { Plus, Minus, Maximize2, RotateCcw, Target } from "lucide-react";
 import EntityNode from "./EntityNode";
-import RelationshipLine from "./RelationshipLine";
+import EntityLevelLine from "./EntityLevelLine";
+import FieldLevelLine from "./FieldLevelLine";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import type { Entity } from "@shared/schema";
+import type { Entity, Relationship } from "@shared/schema";
 
 interface GraphViewProps {
   entities: Entity[];
+  relationships?: Relationship[];
   selectedEntityId: string | null;
   searchQuery?: string;
   onSelectEntity: (entityId: string | null) => void;
@@ -28,6 +30,7 @@ interface DragState {
 
 export default function GraphView({
   entities,
+  relationships = [],
   selectedEntityId,
   searchQuery = '',
   onSelectEntity,
@@ -229,19 +232,84 @@ export default function GraphView({
   const renderRelationshipLines = () => {
     const lines: JSX.Element[] = [];
 
-    // Render FK relationships with draggable waypoints
-    entities.forEach((entity) => {
-      entity.fields.forEach((field) => {
-        if (field.isFK && field.fkReference && field.visibleInERD !== false) {
-          const targetEntity = entities.find(e => e.id === field.fkReference!.targetEntityId);
-          if (!targetEntity) return;
+    // 1. Entity-level lines (feeds-into: Data Stream → DLO)
+    relationships
+      .filter(rel => rel.type === 'feeds-into')
+      .forEach(rel => {
+        const sourceEntity = entities.find(e => e.id === rel.sourceEntityId);
+        const targetEntity = entities.find(e => e.id === rel.targetEntityId);
+        
+        if (!sourceEntity || !targetEntity) return;
+        
+        lines.push(
+          <EntityLevelLine
+            key={rel.id}
+            relationship={rel}
+            sourceEntity={sourceEntity}
+            targetEntity={targetEntity}
+            zoom={zoom}
+            panOffset={panOffset}
+          />
+        );
+      });
 
+    // 2. Field-level lines (transforms-to: DLO → DMO OR DMO → DMO)
+    relationships
+      .filter(rel => rel.type === 'transforms-to')
+      .forEach(rel => {
+        const sourceEntity = entities.find(e => e.id === rel.sourceEntityId);
+        const targetEntity = entities.find(e => e.id === rel.targetEntityId);
+        
+        if (!sourceEntity || !targetEntity) return;
+        
+        // Get field mappings from relationship OR from target entity
+        const mappings = rel.fieldMappings || 
+                         targetEntity.fieldMappings?.filter(fm => fm.sourceEntityId === sourceEntity.id) ||
+                         [];
+        
+        // Render one line per field mapping
+        mappings.forEach(mapping => {
+          const sourceField = sourceEntity.fields.find(f => f.id === mapping.sourceFieldId);
+          const targetField = targetEntity.fields.find(f => f.id === mapping.targetFieldId);
+          
+          if (!sourceField || !targetField) return;
+          
           lines.push(
-            <RelationshipLine
+            <FieldLevelLine
+              key={`${rel.id}-${mapping.targetFieldId}`}
+              sourceEntity={sourceEntity}
+              targetEntity={targetEntity}
+              sourceField={sourceField}
+              targetField={targetField}
+              relationshipType="transforms-to"
+              zoom={zoom}
+              panOffset={panOffset}
+            />
+          );
+        });
+      });
+
+    // 3. Field-level lines (references: DMO → DMO FK relationships)
+    entities.forEach(entity => {
+      entity.fields
+        .filter(f => f.isFK && f.fkReference && f.visibleInERD !== false)
+        .forEach(field => {
+          const targetEntity = entities.find(e => e.id === field.fkReference!.targetEntityId);
+          const targetField = targetEntity?.fields.find(f => f.id === field.fkReference!.targetFieldId);
+          
+          if (!targetEntity || !targetField) return;
+          
+          lines.push(
+            <FieldLevelLine
               key={`${entity.id}-${field.id}`}
               sourceEntity={entity}
               targetEntity={targetEntity}
-              field={field}
+              sourceField={field}
+              targetField={targetField}
+              relationshipType="references"
+              cardinality={field.fkReference!.cardinality}
+              relationshipLabel={field.fkReference!.relationshipLabel}
+              waypoints={field.fkReference!.waypoints}
               zoom={zoom}
               panOffset={panOffset}
               onUpdateWaypoints={(fieldId, waypoints) => 
@@ -249,8 +317,7 @@ export default function GraphView({
               }
             />
           );
-        }
-      });
+        });
     });
 
     return lines;
@@ -287,29 +354,26 @@ export default function GraphView({
         }}
       >
         <defs>
-          {/* Crow's foot notation markers */}
-          
-          {/* "One" marker - single perpendicular line */}
-          <marker
-            id="cf-one"
-            markerWidth="16"
-            markerHeight="16"
-            refX="8"
-            refY="8"
-            orient="auto"
-          >
-            <line x1="8" y1="4" x2="8" y2="12" stroke="#64748B" strokeWidth="2" />
+          {/* Arrow markers */}
+          <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+            <polygon points="0 0, 10 3, 0 6" fill="#4AA0D9" />
+          </marker>
+          <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+            <polygon points="0 0, 10 3, 0 6" fill="#BED163" />
           </marker>
           
-          {/* "Many" marker - crow's foot (three lines) */}
-          <marker
-            id="cf-many"
-            markerWidth="16"
-            markerHeight="16"
-            refX="8"
-            refY="8"
-            orient="auto"
-          >
+          {/* Animated data flow pattern */}
+          <pattern id="data-flow-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="5" cy="10" r="2" fill="#4AA0D9" opacity="0.6">
+              <animate attributeName="cx" from="5" to="25" dur="2s" repeatCount="indefinite" />
+            </circle>
+          </pattern>
+          
+          {/* Crow's foot notation markers for references relationships */}
+          <marker id="cf-one" markerWidth="16" markerHeight="16" refX="8" refY="8" orient="auto">
+            <line x1="8" y1="4" x2="8" y2="12" stroke="#64748B" strokeWidth="2" />
+          </marker>
+          <marker id="cf-many" markerWidth="16" markerHeight="16" refX="8" refY="8" orient="auto">
             <line x1="8" y1="8" x2="2" y2="4" stroke="#64748B" strokeWidth="2" />
             <line x1="8" y1="8" x2="2" y2="8" stroke="#64748B" strokeWidth="2" />
             <line x1="8" y1="8" x2="2" y2="12" stroke="#64748B" strokeWidth="2" />
@@ -438,39 +502,28 @@ export default function GraphView({
           </div>
         </div>
 
-        {/* Relationship Cardinality (Crow's Foot Notation) */}
+        {/* Relationships */}
         <div>
-          <div className="text-xs font-medium text-coolgray-500 mb-2">Relationship Cardinality</div>
+          <div className="text-xs font-medium text-coolgray-500 mb-2">Relationships</div>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <svg width="40" height="16" className="flex-shrink-0">
-                <defs>
-                  <marker id="legend-one" markerWidth="16" markerHeight="16" refX="8" refY="8" orient="auto">
-                    <line x1="8" y1="4" x2="8" y2="12" stroke="#64748B" strokeWidth="2" />
-                  </marker>
-                </defs>
-                <line x1="4" y1="8" x2="36" y2="8" stroke="#64748B" strokeWidth="2" markerStart="url(#legend-one)" markerEnd="url(#legend-one)" />
+              <svg width="50" height="4" className="flex-shrink-0">
+                <line x1="0" y1="2" x2="50" y2="2" stroke="#4AA0D9" strokeWidth="4" />
+                <circle cx="10" cy="2" r="2" fill="#4AA0D9" opacity="0.6" />
               </svg>
-              <span className="text-xs text-coolgray-600">One-to-One (1:1)</span>
+              <span className="text-xs text-coolgray-600">Ingests (Data Stream → DLO)</span>
             </div>
             <div className="flex items-center gap-2">
-              <svg width="40" height="16" className="flex-shrink-0">
-                <defs>
-                  <marker id="legend-many" markerWidth="16" markerHeight="16" refX="8" refY="8" orient="auto">
-                    <line x1="8" y1="8" x2="2" y2="4" stroke="#64748B" strokeWidth="2" />
-                    <line x1="8" y1="8" x2="2" y2="8" stroke="#64748B" strokeWidth="2" />
-                    <line x1="8" y1="8" x2="2" y2="12" stroke="#64748B" strokeWidth="2" />
-                  </marker>
-                </defs>
-                <line x1="4" y1="8" x2="36" y2="8" stroke="#64748B" strokeWidth="2" markerStart="url(#legend-one)" markerEnd="url(#legend-many)" />
+              <svg width="50" height="2" className="flex-shrink-0">
+                <line x1="0" y1="1" x2="50" y2="1" stroke="#BED163" strokeWidth="2" strokeDasharray="8,4" />
               </svg>
-              <span className="text-xs text-coolgray-600">One-to-Many (1:M)</span>
+              <span className="text-xs text-coolgray-600">Transforms (field lineage)</span>
             </div>
             <div className="flex items-center gap-2">
-              <svg width="40" height="16" className="flex-shrink-0">
-                <line x1="4" y1="8" x2="36" y2="8" stroke="#64748B" strokeWidth="2" markerStart="url(#legend-many)" markerEnd="url(#legend-one)" />
+              <svg width="50" height="2" className="flex-shrink-0">
+                <line x1="0" y1="1" x2="50" y2="1" stroke="#64748B" strokeWidth="2" />
               </svg>
-              <span className="text-xs text-coolgray-600">Many-to-One (M:1)</span>
+              <span className="text-xs text-coolgray-600">References (FK)</span>
             </div>
           </div>
         </div>
