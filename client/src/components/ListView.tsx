@@ -195,9 +195,13 @@ export default function ListView({ entities, selectedEntityId, onEntityClick }: 
                   <div className="flex items-center gap-3">
                     {(() => {
                       const style = getEntityCardStyle(entity.type || 'dmo');
+                      const badgeColorClass = style.badge.color === 'primary' ? 'bg-primary-50 text-primary-700 border-primary-500' :
+                                              style.badge.color === 'secondary' ? 'bg-secondary-50 text-secondary-700 border-secondary-500' :
+                                              style.badge.color === 'tertiary' ? 'bg-tertiary-50 text-tertiary-700 border-tertiary-500' :
+                                              'bg-coolgray-100 text-coolgray-700 border-coolgray-400';
                       return (
-                        <Badge className={`${style.badgeClass} text-xs font-semibold border`}>
-                          {style.label}
+                        <Badge className={`${badgeColorClass} text-xs font-semibold border`}>
+                          {style.badge.text}
                         </Badge>
                       );
                     })()}
@@ -228,9 +232,9 @@ export default function ListView({ entities, selectedEntityId, onEntityClick }: 
                         <p className="text-sm text-coolgray-700 font-mono">{entity.dataSource || '-'}</p>
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-coolgray-500 mb-1">Data Cloud Intent</p>
+                        <p className="text-xs font-medium text-coolgray-500 mb-1">Data Cloud Type</p>
                         <p className="text-sm text-coolgray-700">
-                          {entity.dataCloudIntent?.objectType || '-'}
+                          {entity.dataCloudMetadata?.objectType || '-'}
                         </p>
                       </div>
                       <div>
