@@ -24,48 +24,77 @@ export default function RelationshipLine({
   const sourcePos = sourceEntity.position || { x: 100, y: 100 };
   const targetPos = targetEntity.position || { x: 400, y: 100 };
 
-  // Entity card is w-80 (320px wide), approximately 150px tall
+  // Entity card dimensions
   const ENTITY_WIDTH = 320;
-  const ENTITY_HEIGHT = 150;
-
-  // Connect from right edge of source to left edge of target
-  const startX = sourcePos.x + ENTITY_WIDTH; // Right edge
-  const startY = sourcePos.y + ENTITY_HEIGHT / 2;  // Middle of entity height
-  const endX = targetPos.x;         // Left edge of target
-  const endY = targetPos.y + ENTITY_HEIGHT / 2;    // Middle of entity height
-
-  const waypoints = field.fkReference?.waypoints || [];
-  const cardinality = field.fkReference?.cardinality || 'many-to-one';
+  const HEADER_HEIGHT = 52; // Header with name and badge
+  const METADATA_HEIGHT = 36; // Metadata row
+  const FIELD_HEIGHT = 28; // Approximate height per field
+  const PADDING_TOP = HEADER_HEIGHT + METADATA_HEIGHT;
   
   const GRID_SIZE = 20;
 
-  // Create path through all waypoints
+  // Calculate Y position for the source field (FK field)
+  const sourceFieldIndex = sourceEntity.fields.filter(f => f.visibleInERD !== false).findIndex(f => f.id === field.id);
+  const sourceFieldY = sourcePos.y + PADDING_TOP + (sourceFieldIndex * FIELD_HEIGHT) + (FIELD_HEIGHT / 2);
+
+  // Calculate Y position for the target field (PK field)
+  const targetFieldId = field.fkReference?.targetFieldId;
+  const targetFieldIndex = targetEntity.fields.filter(f => f.visibleInERD !== false).findIndex(f => f.id === targetFieldId);
+  const targetFieldY = targetPos.y + PADDING_TOP + (targetFieldIndex * FIELD_HEIGHT) + (FIELD_HEIGHT / 2);
+
+  // Connect from right edge of source to left edge of target
+  const startX = sourcePos.x + ENTITY_WIDTH; // Right edge
+  const startY = sourceFieldY >= 0 ? sourceFieldY : sourcePos.y + PADDING_TOP;
+  const endX = targetPos.x;         // Left edge of target
+  const endY = targetFieldY >= 0 ? targetFieldY : targetPos.y + PADDING_TOP;
+
+  const waypoints = field.fkReference?.waypoints || [];
+  const cardinality = field.fkReference?.cardinality || 'many-to-one';
+
+  // Create orthogonal path (Manhattan routing)
   const createPath = () => {
     if (waypoints.length === 0) {
-      return `M ${startX} ${startY} L ${endX} ${endY}`;
+      // Default orthogonal routing: horizontal -> vertical -> horizontal
+      const midX = (startX + endX) / 2;
+      return `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
     }
 
     let path = `M ${startX} ${startY}`;
     
-    // Create smooth curves through waypoints
-    for (let i = 0; i < waypoints.length; i++) {
-      const wp = waypoints[i];
-      if (i === 0) {
-        // First waypoint: quadratic curve from start
-        const controlX = (startX + wp.x) / 2;
-        const controlY = (startY + wp.y) / 2;
-        path += ` Q ${controlX} ${controlY}, ${wp.x} ${wp.y}`;
+    // First segment: horizontal to first waypoint's X
+    path += ` L ${waypoints[0].x} ${startY}`;
+    
+    // Then vertical to first waypoint's Y
+    path += ` L ${waypoints[0].x} ${waypoints[0].y}`;
+    
+    // Connect through waypoints with orthogonal segments
+    for (let i = 1; i < waypoints.length; i++) {
+      const prevWp = waypoints[i - 1];
+      const currWp = waypoints[i];
+      
+      // Alternate between horizontal and vertical segments
+      if (i % 2 === 1) {
+        // Horizontal then vertical
+        path += ` L ${currWp.x} ${prevWp.y}`;
+        path += ` L ${currWp.x} ${currWp.y}`;
       } else {
-        // Subsequent waypoints: line to waypoint
-        path += ` L ${wp.x} ${wp.y}`;
+        // Vertical then horizontal
+        path += ` L ${prevWp.x} ${currWp.y}`;
+        path += ` L ${currWp.x} ${currWp.y}`;
       }
     }
     
-    // Final segment to end
+    // Final segments to end point
     const lastWp = waypoints[waypoints.length - 1];
-    const controlX = (lastWp.x + endX) / 2;
-    const controlY = (lastWp.y + endY) / 2;
-    path += ` Q ${controlX} ${controlY}, ${endX} ${endY}`;
+    if (waypoints.length % 2 === 1) {
+      // Horizontal then vertical
+      path += ` L ${endX} ${lastWp.y}`;
+      path += ` L ${endX} ${endY}`;
+    } else {
+      // Vertical then horizontal
+      path += ` L ${lastWp.x} ${endY}`;
+      path += ` L ${endX} ${endY}`;
+    }
     
     return path;
   };
@@ -140,6 +169,60 @@ export default function RelationshipLine({
 
   const pathData = createPath();
   
+  // For orthogonal routing, we need to draw markers separately at the correct positions
+  // because SVG markers don't always orient correctly with multi-segment paths
+  const drawStartMarker = () => {
+    const markerSize = 12;
+    if (cardinality === 'one-to-one' || cardinality === 'one-to-many') {
+      // Draw "one" marker - single line
+      return (
+        <line 
+          x1={startX} 
+          y1={startY - markerSize/2} 
+          x2={startX} 
+          y2={startY + markerSize/2} 
+          stroke="#64748B" 
+          strokeWidth="2" 
+        />
+      );
+    } else {
+      // Draw "many" marker - crow's foot
+      return (
+        <g>
+          <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY - markerSize/2} stroke="#64748B" strokeWidth="2" />
+          <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY} stroke="#64748B" strokeWidth="2" />
+          <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY + markerSize/2} stroke="#64748B" strokeWidth="2" />
+        </g>
+      );
+    }
+  };
+  
+  const drawEndMarker = () => {
+    const markerSize = 12;
+    if (cardinality === 'one-to-one' || cardinality === 'many-to-one') {
+      // Draw "one" marker - single line
+      return (
+        <line 
+          x1={endX} 
+          y1={endY - markerSize/2} 
+          x2={endX} 
+          y2={endY + markerSize/2} 
+          stroke="#64748B" 
+          strokeWidth="2" 
+        />
+      );
+    } else {
+      // Draw "many" marker - crow's foot
+      return (
+        <g>
+          <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY - markerSize/2} stroke="#64748B" strokeWidth="2" />
+          <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY} stroke="#64748B" strokeWidth="2" />
+          <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY + markerSize/2} stroke="#64748B" strokeWidth="2" />
+        </g>
+      );
+    }
+  };
+  
   // Calculate midpoint for label
   const midX = waypoints.length > 0 
     ? waypoints[Math.floor(waypoints.length / 2)].x 
@@ -169,10 +252,12 @@ export default function RelationshipLine({
         stroke={isHovered ? "#3b82f6" : "#64748B"}
         strokeWidth={isHovered ? "3" : "2"}
         fill="none"
-        markerStart={markerStart}
-        markerEnd={markerEnd}
         style={{ pointerEvents: 'none' }}
       />
+      
+      {/* Draw markers separately for better control */}
+      {drawStartMarker()}
+      {drawEndMarker()}
 
       {/* Cardinality label */}
       <text
