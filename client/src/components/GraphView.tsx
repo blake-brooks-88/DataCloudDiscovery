@@ -507,6 +507,58 @@ export default function GraphView({
           </div>
         </div>
       )}
+
+      {/* Legend */}
+      <div className="absolute bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 w-72 z-10" data-testid="legend-panel">
+        <div className="text-sm font-semibold mb-3 text-coolgray-600">Legend</div>
+        
+        {/* Entity Types */}
+        <div className="mb-3">
+          <div className="text-xs font-medium text-coolgray-500 mb-2">Entity Types</div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-blue-100 border border-blue-400"></div>
+              <span className="text-xs text-coolgray-600">Data Stream (Ingestion)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-green-100 border border-green-500"></div>
+              <span className="text-xs text-coolgray-600">DLO (Raw Data)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-orange-100 border border-orange-500"></div>
+              <span className="text-xs text-coolgray-600">DMO (Unified Model)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Relationship Types */}
+        <div>
+          <div className="text-xs font-medium text-coolgray-500 mb-2">Relationships</div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <svg width="24" height="12" className="flex-shrink-0">
+                <line x1="0" y1="6" x2="24" y2="6" stroke="#4AA0D9" strokeWidth="2" />
+                <polygon points="20 3, 24 6, 20 9" fill="#4AA0D9" />
+              </svg>
+              <span className="text-xs text-coolgray-600">Feeds Into (Animated)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="24" height="12" className="flex-shrink-0">
+                <line x1="0" y1="6" x2="24" y2="6" stroke="#BED163" strokeWidth="2" strokeDasharray="4,2" />
+                <polygon points="20 3, 24 6, 20 9" fill="#BED163" />
+              </svg>
+              <span className="text-xs text-coolgray-600">Transforms To</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="24" height="12" className="flex-shrink-0">
+                <line x1="0" y1="6" x2="24" y2="6" stroke="#64748B" strokeWidth="2" />
+                <polygon points="20 3, 24 6, 20 9" fill="#64748B" />
+              </svg>
+              <span className="text-xs text-coolgray-600">References (FK)</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
