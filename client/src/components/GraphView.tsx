@@ -42,9 +42,7 @@ export default function GraphView({
 }: GraphViewProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
-  const [isPanning, setIsPanning] = useState(false);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1.0);
 
   const handleEntityDragStart = (entityId: string, e: React.DragEvent) => {
@@ -94,21 +92,7 @@ export default function GraphView({
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('[data-testid^="entity-node-"]')) return;
     
-    setIsPanning(true);
-    setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
     onSelectEntity(null);
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    if (!isPanning) return;
-    setPanOffset({
-      x: e.clientX - panStart.x,
-      y: e.clientY - panStart.y,
-    });
-  };
-
-  const handleCanvasMouseUp = () => {
-    setIsPanning(false);
   };
 
   // Search matching logic
@@ -187,27 +171,41 @@ export default function GraphView({
     onSelectEntity(entityId);
   };
 
-  // Mouse wheel zoom
+  // Mouse wheel for pan and zoom
   const handleWheel = (e: React.WheelEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
 
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    // Ctrl/Cmd + scroll = zoom
+    if (e.ctrlKey || e.metaKey) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
 
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
 
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    const newZoom = Math.min(5.0, Math.max(0.1, zoom + delta));
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      const newZoom = Math.min(5.0, Math.max(0.1, zoom + delta));
 
-    const scale = newZoom / zoom;
-    setPanOffset({
-      x: mouseX - (mouseX - panOffset.x) * scale,
-      y: mouseY - (mouseY - panOffset.y) * scale,
-    });
+      const scale = newZoom / zoom;
+      setPanOffset({
+        x: mouseX - (mouseX - panOffset.x) * scale,
+        y: mouseY - (mouseY - panOffset.y) * scale,
+      });
 
-    setZoom(newZoom);
+      setZoom(newZoom);
+    } else if (e.shiftKey) {
+      // Shift + scroll = horizontal pan
+      setPanOffset({
+        x: panOffset.x - e.deltaY,
+        y: panOffset.y,
+      });
+    } else {
+      // Regular scroll = vertical pan (or trackpad swipe)
+      setPanOffset({
+        x: panOffset.x - e.deltaX,
+        y: panOffset.y - e.deltaY,
+      });
+    }
   };
 
   // Keyboard shortcuts
@@ -327,11 +325,8 @@ export default function GraphView({
   return (
     <div
       ref={canvasRef}
-      className="relative w-full h-full bg-white overflow-hidden cursor-grab active:cursor-grabbing"
+      className="relative w-full h-full bg-white overflow-hidden"
       onMouseDown={handleCanvasMouseDown}
-      onMouseMove={handleCanvasMouseMove}
-      onMouseUp={handleCanvasMouseUp}
-      onMouseLeave={handleCanvasMouseUp}
       onWheel={handleWheel}
       style={{
         backgroundImage: `
