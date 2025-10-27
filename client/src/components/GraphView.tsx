@@ -3,12 +3,10 @@ import { Plus, Minus, Maximize2, RotateCcw, Target } from "lucide-react";
 import EntityNode from "./EntityNode";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import type { Entity, Relationship } from "@shared/schema";
-import { getRelationshipLineStyle } from "@/lib/dataCloudStyles";
+import type { Entity } from "@shared/schema";
 
 interface GraphViewProps {
   entities: Entity[];
-  relationships?: Relationship[];
   selectedEntityId: string | null;
   searchQuery?: string;
   onSelectEntity: (entityId: string | null) => void;
@@ -28,7 +26,6 @@ interface DragState {
 
 export default function GraphView({
   entities,
-  relationships = [],
   selectedEntityId,
   searchQuery = '',
   onSelectEntity,
@@ -227,79 +224,12 @@ export default function GraphView({
   const renderRelationshipLines = () => {
     const lines: JSX.Element[] = [];
 
-    // Render new Relationship objects
-    relationships.forEach((rel) => {
-      const sourceEntity = entities.find(e => e.id === rel.sourceEntityId);
-      const targetEntity = entities.find(e => e.id === rel.targetEntityId);
-      if (!sourceEntity || !targetEntity) return;
-
-      const style = getRelationshipLineStyle(rel.type);
-      
-      const sourcePos = sourceEntity.position || { x: 100, y: 100 };
-      const targetPos = targetEntity.position || { x: 400, y: 100 };
-
-      const startX = sourcePos.x + 140;
-      const startY = sourcePos.y + 75;
-      const endX = targetPos.x + 140;
-      const endY = targetPos.y + 75;
-
-      const markerEndId = rel.type === 'feeds-into' ? 'arrow-blue' : 
-                          rel.type === 'transforms-to' ? 'arrow-green' : 
-                          'arrow-gray';
-
-      lines.push(
-        <g key={rel.id}>
-          {/* Main relationship line */}
-          <line
-            x1={startX}
-            y1={startY}
-            x2={endX}
-            y2={endY}
-            stroke={style.stroke}
-            strokeWidth={style.strokeWidth}
-            strokeDasharray={style.strokeDasharray}
-            markerEnd={`url(#${markerEndId})`}
-          />
-          
-          {/* Animated overlay for feeds-into */}
-          {style.animated && (
-            <line
-              x1={startX}
-              y1={startY}
-              x2={endX}
-              y2={endY}
-              stroke="url(#data-flow)"
-              strokeWidth={style.strokeWidth}
-            />
-          )}
-          
-          {/* Label */}
-          <text
-            x={(startX + endX) / 2}
-            y={(startY + endY) / 2 - 5}
-            fill="#64748B"
-            fontSize="11"
-            fontWeight="600"
-            textAnchor="middle"
-          >
-            {rel.label || style.label}
-          </text>
-        </g>
-      );
-    });
-
-    // Also render legacy FK references for backward compatibility
+    // Render FK relationships with crow's foot notation
     entities.forEach((entity) => {
       entity.fields.forEach((field) => {
         if (field.isFK && field.fkReference && field.visibleInERD !== false) {
           const targetEntity = entities.find(e => e.id === field.fkReference!.targetEntityId);
           if (!targetEntity) return;
-
-          // Check if this relationship is already in the relationships array
-          const hasRelationship = relationships.some(r =>
-            r.sourceEntityId === entity.id && r.targetEntityId === field.fkReference!.targetEntityId
-          );
-          if (hasRelationship) return; // Skip if already rendered
 
           const sourcePos = entity.position || { x: 100, y: 100 };
           const targetPos = targetEntity.position || { x: 400, y: 100 };
@@ -308,6 +238,35 @@ export default function GraphView({
           const startY = sourcePos.y + 75;
           const endX = targetPos.x + 140;
           const endY = targetPos.y + 75;
+
+          const cardinality = field.fkReference.cardinality || 'many-to-one';
+          
+          // Determine markers based on cardinality
+          let markerStart = '';
+          let markerEnd = '';
+          let cardinalityLabel = '';
+          
+          switch (cardinality) {
+            case 'one-to-one':
+              markerStart = 'url(#one)';
+              markerEnd = 'url(#one)';
+              cardinalityLabel = '1:1';
+              break;
+            case 'one-to-many':
+              markerStart = 'url(#one)';
+              markerEnd = 'url(#many)';
+              cardinalityLabel = '1:M';
+              break;
+            case 'many-to-one':
+              markerStart = 'url(#many)';
+              markerEnd = 'url(#one)';
+              cardinalityLabel = 'M:1';
+              break;
+            default:
+              markerStart = 'url(#many)';
+              markerEnd = 'url(#many)';
+              cardinalityLabel = 'M:M';
+          }
 
           lines.push(
             <g key={`${entity.id}-${field.id}`}>
@@ -318,17 +277,31 @@ export default function GraphView({
                 y2={endY}
                 stroke="#64748B"
                 strokeWidth="2"
-                markerEnd="url(#arrow-gray)"
+                markerStart={markerStart}
+                markerEnd={markerEnd}
               />
               <text
                 x={(startX + endX) / 2}
-                y={(startY + endY) / 2 - 5}
-                fill="#64748B"
+                y={(startY + endY) / 2 - 8}
+                fill="#334155"
                 fontSize="11"
+                fontWeight="600"
                 textAnchor="middle"
               >
-                {field.fkReference.relationshipLabel || 'FK'}
+                {cardinalityLabel}
               </text>
+              {field.fkReference.relationshipLabel && (
+                <text
+                  x={(startX + endX) / 2}
+                  y={(startY + endY) / 2 + 8}
+                  fill="#64748B"
+                  fontSize="10"
+                  fontStyle="italic"
+                  textAnchor="middle"
+                >
+                  {field.fkReference.relationshipLabel}
+                </text>
+              )}
             </g>
           );
         }
@@ -360,44 +333,33 @@ export default function GraphView({
     >
       <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
         <defs>
-          {/* Arrow markers for different relationship types */}
+          {/* Crow's foot notation markers */}
+          
+          {/* "One" marker - single perpendicular line */}
           <marker
-            id="arrow-blue"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
+            id="one"
+            markerWidth="16"
+            markerHeight="16"
+            refX="8"
+            refY="8"
             orient="auto"
           >
-            <polygon points="0 0, 10 3, 0 6" fill="#4AA0D9" />
-          </marker>
-          <marker
-            id="arrow-green"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
-            orient="auto"
-          >
-            <polygon points="0 0, 10 3, 0 6" fill="#BED163" />
-          </marker>
-          <marker
-            id="arrow-gray"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
-            orient="auto"
-          >
-            <polygon points="0 0, 10 3, 0 6" fill="#64748B" />
+            <line x1="8" y1="4" x2="8" y2="12" stroke="#64748B" strokeWidth="2" />
           </marker>
           
-          {/* Animated pattern for data flow */}
-          <pattern id="data-flow" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-            <circle cx="5" cy="10" r="2" fill="#4AA0D9" opacity="0.6">
-              <animate attributeName="cx" from="5" to="25" dur="2s" repeatCount="indefinite" />
-            </circle>
-          </pattern>
+          {/* "Many" marker - crow's foot (three lines) */}
+          <marker
+            id="many"
+            markerWidth="16"
+            markerHeight="16"
+            refX="8"
+            refY="8"
+            orient="auto"
+          >
+            <line x1="8" y1="8" x2="2" y2="4" stroke="#64748B" strokeWidth="2" />
+            <line x1="8" y1="8" x2="2" y2="8" stroke="#64748B" strokeWidth="2" />
+            <line x1="8" y1="8" x2="2" y2="12" stroke="#64748B" strokeWidth="2" />
+          </marker>
         </defs>
         <g transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoom})`}>
           {renderRelationshipLines()}
@@ -416,14 +378,6 @@ export default function GraphView({
         {entities.map((entity) => {
           const isMatch = hasSearchQuery && matchingEntities.some(e => e.id === entity.id);
           const shouldDim = hasSearchQuery && !isMatch;
-          
-          // Check if this entity has linked DLO or DMO
-          const hasLinkedDLO = relationships.some(r => 
-            r.type === 'feeds-into' && r.sourceEntityId === entity.id
-          );
-          const hasLinkedDMO = relationships.some(r => 
-            r.type === 'transforms-to' && r.sourceEntityId === entity.id
-          );
 
           return (
             <EntityNode
@@ -439,8 +393,6 @@ export default function GraphView({
               onDoubleClick={() => onEntityDoubleClick(entity.id)}
               onGenerateDLO={onGenerateDLO}
               onGenerateDMO={onGenerateDMO}
-              hasLinkedDLO={hasLinkedDLO}
-              hasLinkedDMO={hasLinkedDMO}
               style={{
                 left: entity.position?.x || 100,
                 top: entity.position?.y || 100,
@@ -531,30 +483,39 @@ export default function GraphView({
           </div>
         </div>
 
-        {/* Relationship Types */}
+        {/* Relationship Cardinality (Crow's Foot Notation) */}
         <div>
-          <div className="text-xs font-medium text-coolgray-500 mb-2">Relationships</div>
+          <div className="text-xs font-medium text-coolgray-500 mb-2">Relationship Cardinality</div>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <svg width="24" height="12" className="flex-shrink-0">
-                <line x1="0" y1="6" x2="24" y2="6" stroke="#4AA0D9" strokeWidth="2" />
-                <polygon points="20 3, 24 6, 20 9" fill="#4AA0D9" />
+              <svg width="40" height="16" className="flex-shrink-0">
+                <defs>
+                  <marker id="legend-one" markerWidth="16" markerHeight="16" refX="8" refY="8" orient="auto">
+                    <line x1="8" y1="4" x2="8" y2="12" stroke="#64748B" strokeWidth="2" />
+                  </marker>
+                </defs>
+                <line x1="4" y1="8" x2="36" y2="8" stroke="#64748B" strokeWidth="2" markerStart="url(#legend-one)" markerEnd="url(#legend-one)" />
               </svg>
-              <span className="text-xs text-coolgray-600">Feeds Into (Animated)</span>
+              <span className="text-xs text-coolgray-600">One-to-One (1:1)</span>
             </div>
             <div className="flex items-center gap-2">
-              <svg width="24" height="12" className="flex-shrink-0">
-                <line x1="0" y1="6" x2="24" y2="6" stroke="#BED163" strokeWidth="2" strokeDasharray="4,2" />
-                <polygon points="20 3, 24 6, 20 9" fill="#BED163" />
+              <svg width="40" height="16" className="flex-shrink-0">
+                <defs>
+                  <marker id="legend-many" markerWidth="16" markerHeight="16" refX="8" refY="8" orient="auto">
+                    <line x1="8" y1="8" x2="2" y2="4" stroke="#64748B" strokeWidth="2" />
+                    <line x1="8" y1="8" x2="2" y2="8" stroke="#64748B" strokeWidth="2" />
+                    <line x1="8" y1="8" x2="2" y2="12" stroke="#64748B" strokeWidth="2" />
+                  </marker>
+                </defs>
+                <line x1="4" y1="8" x2="36" y2="8" stroke="#64748B" strokeWidth="2" markerStart="url(#legend-one)" markerEnd="url(#legend-many)" />
               </svg>
-              <span className="text-xs text-coolgray-600">Transforms To</span>
+              <span className="text-xs text-coolgray-600">One-to-Many (1:M)</span>
             </div>
             <div className="flex items-center gap-2">
-              <svg width="24" height="12" className="flex-shrink-0">
-                <line x1="0" y1="6" x2="24" y2="6" stroke="#64748B" strokeWidth="2" />
-                <polygon points="20 3, 24 6, 20 9" fill="#64748B" />
+              <svg width="40" height="16" className="flex-shrink-0">
+                <line x1="4" y1="8" x2="36" y2="8" stroke="#64748B" strokeWidth="2" markerStart="url(#legend-many)" markerEnd="url(#legend-one)" />
               </svg>
-              <span className="text-xs text-coolgray-600">References (FK)</span>
+              <span className="text-xs text-coolgray-600">Many-to-One (M:1)</span>
             </div>
           </div>
         </div>

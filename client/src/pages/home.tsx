@@ -503,7 +503,6 @@ export default function Home() {
         {viewMode === 'graph' ? (
           <GraphView
             entities={filteredEntities}
-            relationships={currentProject?.relationships || []}
             selectedEntityId={selectedEntityId}
             searchQuery={searchQuery}
             onSelectEntity={setSelectedEntityId}
