@@ -1,9 +1,10 @@
 import { useRef, useState, useEffect } from "react";
 import EntityNode from "./EntityNode";
-import type { Entity } from "@shared/schema";
+import type { Entity, SourceSystem } from "@shared/schema";
 
 interface GraphViewProps {
   entities: Entity[];
+  sourceSystems: SourceSystem[];
   selectedEntityId: string | null;
   onSelectEntity: (entityId: string | null) => void;
   onUpdateEntityPosition: (entityId: string, position: { x: number; y: number }) => void;
@@ -20,6 +21,7 @@ interface DragState {
 
 export default function GraphView({
   entities,
+  sourceSystems,
   selectedEntityId,
   onSelectEntity,
   onUpdateEntityPosition,

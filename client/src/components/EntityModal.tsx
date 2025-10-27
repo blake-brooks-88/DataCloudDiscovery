@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { X, Plus, Trash2, Key, Link as LinkIcon, AlertTriangle, AlertCircle, Lock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Plus, Trash2, Key, Link as LinkIcon, Lock, Eye, EyeOff } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,23 +7,40 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { Entity, Field, SourceSystemType, FieldType, DataCloudObjectType, Cardinality } from "@shared/schema";
+import type { Entity, Field, SourceSystem, FieldType, DataCloudObjectType, Cardinality } from "@shared/schema";
 
 interface EntityModalProps {
   isOpen: boolean;
   onClose: () => void;
   entity: Entity | null;
   entities: Entity[];
+  sourceSystems: SourceSystem[];
   onSave: (entity: Partial<Entity>) => void;
+  onCreateSourceSystem: () => void;
 }
 
-export default function EntityModal({ isOpen, onClose, entity, entities, onSave }: EntityModalProps) {
-  const [name, setName] = useState(entity?.name || "");
-  const [sourceType, setSourceType] = useState<SourceSystemType>(entity?.sourceSystem.type || "database");
-  const [sourceName, setSourceName] = useState(entity?.sourceSystem.name || "");
-  const [businessPurpose, setBusinessPurpose] = useState(entity?.businessPurpose || "");
-  const [dataCloudType, setDataCloudType] = useState<DataCloudObjectType>(entity?.dataCloudIntent?.objectType || "TBD");
-  const [fields, setFields] = useState<Field[]>(entity?.fields || []);
+export default function EntityModal({ isOpen, onClose, entity, entities, sourceSystems, onSave, onCreateSourceSystem }: EntityModalProps) {
+  const [name, setName] = useState("");
+  const [sourceSystemId, setSourceSystemId] = useState("");
+  const [businessPurpose, setBusinessPurpose] = useState("");
+  const [dataCloudType, setDataCloudType] = useState<DataCloudObjectType>("TBD");
+  const [fields, setFields] = useState<Field[]>([]);
+
+  useEffect(() => {
+    if (entity) {
+      setName(entity.name || "");
+      setSourceSystemId(entity.sourceSystemId || "");
+      setBusinessPurpose(entity.businessPurpose || "");
+      setDataCloudType(entity.dataCloudIntent?.objectType || "TBD");
+      setFields(entity.fields || []);
+    } else {
+      setName("");
+      setSourceSystemId(sourceSystems[0]?.id || "");
+      setBusinessPurpose("");
+      setDataCloudType("TBD");
+      setFields([]);
+    }
+  }, [entity, isOpen, sourceSystems]);
 
   const handleAddField = () => {
     const newField: Field = {
@@ -32,6 +49,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
       type: "string",
       isPK: false,
       isFK: false,
+      visibleInERD: true,
     };
     setFields([...fields, newField]);
   };
@@ -48,14 +66,13 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
     const updatedEntity: Partial<Entity> = {
       ...(entity?.id && { id: entity.id }),
       name,
-      sourceSystem: { type: sourceType, name: sourceName },
+      sourceSystemId,
       businessPurpose,
       dataCloudIntent: { objectType: dataCloudType },
       fields,
       ...(entity?.position && { position: entity.position }),
     };
     onSave(updatedEntity);
-    onClose();
   };
 
   return (
@@ -84,37 +101,33 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
             </div>
 
             <div>
-              <Label htmlFor="source-type" className="text-sm font-medium text-coolgray-500">
-                Source System Type *
+              <Label htmlFor="source-system" className="text-sm font-medium text-coolgray-500">
+                Source System *
               </Label>
-              <Select value={sourceType} onValueChange={(value) => setSourceType(value as SourceSystemType)}>
-                <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-source-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-coolgray-200">
-                  <SelectItem value="salesforce">Salesforce</SelectItem>
-                  <SelectItem value="database">Database</SelectItem>
-                  <SelectItem value="api">API</SelectItem>
-                  <SelectItem value="csv">CSV</SelectItem>
-                  <SelectItem value="erp">ERP</SelectItem>
-                  <SelectItem value="marketing_tool">Marketing Tool</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="source-name" className="text-sm font-medium text-coolgray-500">
-                Source System Name
-              </Label>
-              <Input
-                id="source-name"
-                value={sourceName}
-                onChange={(e) => setSourceName(e.target.value)}
-                placeholder="e.g., PostgreSQL, Salesforce CRM"
-                className="mt-1 border-coolgray-200 focus:border-secondary-500"
-                data-testid="input-source-name"
-              />
+              <div className="flex gap-2 mt-1">
+                <Select value={sourceSystemId} onValueChange={setSourceSystemId}>
+                  <SelectTrigger className="border-coolgray-200" data-testid="select-source-system">
+                    <SelectValue placeholder="Select source system" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-coolgray-200">
+                    {sourceSystems.map((source) => (
+                      <SelectItem key={source.id} value={source.id}>
+                        {source.name} ({source.type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onCreateSourceSystem}
+                  className="border-primary-500 text-primary-500 hover:bg-primary-50"
+                  data-testid="button-create-source-system"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div>
@@ -195,7 +208,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
           </Button>
           <Button
             onClick={handleSave}
-            disabled={!name || fields.length === 0}
+            disabled={!name || !sourceSystemId || fields.length === 0}
             className="bg-primary-500 hover:bg-primary-600 text-white"
             data-testid="button-save-entity"
           >
@@ -281,6 +294,19 @@ function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: Fiel
             <Lock className="h-3 w-3 text-warning-500" />
             PII
           </label>
+          <label className="flex items-center gap-1 text-xs text-coolgray-600">
+            <Checkbox
+              checked={field.visibleInERD !== false}
+              onCheckedChange={(checked) => onUpdate({ visibleInERD: checked as boolean })}
+              data-testid={`checkbox-visible-erd-${field.id}`}
+            />
+            {field.visibleInERD !== false ? (
+              <Eye className="h-3 w-3 text-secondary-500" />
+            ) : (
+              <EyeOff className="h-3 w-3 text-coolgray-400" />
+            )}
+            ERD
+          </label>
           <Button
             variant="ghost"
             size="sm"
@@ -311,29 +337,16 @@ function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: Fiel
             onChange={(e) => onUpdate({ businessName: e.target.value })}
             placeholder="Business name"
             className="text-sm border-coolgray-200"
+            data-testid={`input-business-name-${field.id}`}
           />
           <Textarea
-            value={field.description || ""}
-            onChange={(e) => onUpdate({ description: e.target.value })}
-            placeholder="Description"
+            value={field.notes || ""}
+            onChange={(e) => onUpdate({ notes: e.target.value })}
+            placeholder="Notes"
             className="text-sm border-coolgray-200"
             rows={2}
+            data-testid={`textarea-notes-${field.id}`}
           />
-          <div className="flex gap-2">
-            <Select
-              value={field.flag || 'none'}
-              onValueChange={(value) => onUpdate({ flag: value === 'none' ? null : value as 'caution' | 'critical' })}
-            >
-              <SelectTrigger className="text-sm border-coolgray-200">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white border-coolgray-200">
-                <SelectItem value="none">No Flag</SelectItem>
-                <SelectItem value="caution">Caution</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       )}
     </div>

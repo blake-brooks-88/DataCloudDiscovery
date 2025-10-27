@@ -1,17 +1,18 @@
 import { Key, Link as LinkIcon, AlertTriangle, AlertCircle, Lock, ArrowUpDown } from "lucide-react";
-import type { Entity } from "@shared/schema";
+import type { Entity, SourceSystem } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 
 interface TableViewProps {
   entities: Entity[];
+  sourceSystems: SourceSystem[];
   onEntityClick: (entityId: string) => void;
 }
 
 type SortField = 'entity' | 'field' | 'type' | 'source';
 type SortDirection = 'asc' | 'desc';
 
-export default function TableView({ entities, onEntityClick }: TableViewProps) {
+export default function TableView({ entities, sourceSystems, onEntityClick }: TableViewProps) {
   const [sortField, setSortField] = useState<SortField>('entity');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -24,8 +25,9 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
     }
   };
 
-  const flattenedData = entities.flatMap((entity) =>
-    entity.fields.map((field) => ({
+  const flattenedData = entities.flatMap((entity) => {
+    const sourceSystem = sourceSystems.find(s => s.id === entity.sourceSystemId);
+    return entity.fields.map((field) => ({
       entityId: entity.id,
       entityName: entity.name,
       fieldId: field.id,
@@ -34,14 +36,14 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
       isPK: field.isPK,
       isFK: field.isFK,
       businessName: field.businessName,
-      description: field.description,
+      notes: field.notes,
       containsPII: field.containsPII,
-      flag: field.flag,
-      sourceSystem: entity.sourceSystem.type,
-      sourceSystemName: entity.sourceSystem.name,
+      visibleInERD: field.visibleInERD,
+      sourceSystem: sourceSystem?.type || 'custom',
+      sourceSystemName: sourceSystem?.name || 'Unknown',
       dataCloudObjectType: entity.dataCloudIntent?.objectType,
-    }))
-  );
+    }));
+  });
 
   const sortedData = [...flattenedData].sort((a, b) => {
     let comparison = 0;
@@ -91,7 +93,7 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
               Business Name
             </th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-coolgray-600">
-              Description
+              Notes
             </th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-coolgray-600">
               <SortButton field="source" label="Source" />
@@ -100,7 +102,7 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
               Data Cloud
             </th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-coolgray-600">
-              Flags
+              ERD Visible
             </th>
           </tr>
         </thead>
@@ -131,7 +133,7 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
                 {row.businessName || '-'}
               </td>
               <td className="px-4 py-3 text-sm text-coolgray-600 max-w-md truncate">
-                {row.description || '-'}
+                {row.notes || '-'}
               </td>
               <td className="px-4 py-3 text-sm">
                 <div className="flex flex-col gap-1">
@@ -152,28 +154,12 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
                   '-'
                 )}
               </td>
-              <td className="px-4 py-3 text-sm">
-                <div className="flex items-center gap-2">
-                  {row.containsPII && (
-                    <div className="flex items-center gap-1">
-                      <Lock className="h-3 w-3 text-warning-500" />
-                      <span className="text-xs text-warning-700">PII</span>
-                    </div>
-                  )}
-                  {row.flag === 'caution' && (
-                    <div className="flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3 text-warning-500" />
-                      <span className="text-xs text-warning-700">Caution</span>
-                    </div>
-                  )}
-                  {row.flag === 'critical' && (
-                    <div className="flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3 text-danger-500" />
-                      <span className="text-xs text-danger-700">Critical</span>
-                    </div>
-                  )}
-                  {!row.containsPII && !row.flag && '-'}
-                </div>
+              <td className="px-4 py-3 text-sm text-center">
+                {row.visibleInERD !== false ? (
+                  <span className="text-success-500">✓</span>
+                ) : (
+                  <span className="text-coolgray-400">-</span>
+                )}
               </td>
             </tr>
           ))}

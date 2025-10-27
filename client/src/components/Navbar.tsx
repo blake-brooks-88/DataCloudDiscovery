@@ -1,4 +1,4 @@
-import { Database, Layers3, ChevronDown, FilePlus, Upload, Download, FileText, FileJson, Edit, Trash2 } from "lucide-react";
+import { Database, Layers3, ChevronDown, FilePlus, Upload, Download, FileText, FileJson, Edit, Trash2, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,6 +16,7 @@ interface NavbarProps {
   onCreateProject: () => void;
   onRenameProject: () => void;
   onDeleteProject: () => void;
+  onManageSourceSystems: () => void;
   onImportCSV: () => void;
   onImportJSON: () => void;
   onExportJSON: () => void;
@@ -30,6 +31,7 @@ export default function Navbar({
   onCreateProject,
   onRenameProject,
   onDeleteProject,
+  onManageSourceSystems,
   onImportCSV,
   onImportJSON,
   onExportJSON,
@@ -81,6 +83,12 @@ export default function Navbar({
                     <Edit className="h-4 w-4 mr-2" />
                     Rename Project
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onManageSourceSystems} data-testid="menu-item-manage-sources">
+                    <Server className="h-4 w-4 mr-2" />
+                    Manage Source Systems
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onClick={onDeleteProject} 
                     className="text-danger-500"

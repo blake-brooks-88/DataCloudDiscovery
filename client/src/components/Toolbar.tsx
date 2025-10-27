@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { SourceSystemType, FieldType, FlagType } from "@shared/schema";
+import type { SourceSystemType, FieldType } from "@shared/schema";
 
 type ViewMode = 'graph' | 'table';
 
@@ -21,8 +21,6 @@ interface ToolbarProps {
   onSourceFilterChange: (source: SourceSystemType | 'all') => void;
   typeFilter: FieldType | 'all';
   onTypeFilterChange: (type: FieldType | 'all') => void;
-  flagFilter: FlagType | 'all';
-  onFlagFilterChange: (flag: FlagType | 'all') => void;
 }
 
 export default function Toolbar({
@@ -34,8 +32,6 @@ export default function Toolbar({
   onSourceFilterChange,
   typeFilter,
   onTypeFilterChange,
-  flagFilter,
-  onFlagFilterChange,
 }: ToolbarProps) {
   return (
     <div className="bg-white border-b border-coolgray-200 px-6 py-4">
@@ -96,17 +92,6 @@ export default function Toolbar({
               <SelectItem value="erp">ERP</SelectItem>
               <SelectItem value="marketing_tool">Marketing Tool</SelectItem>
               <SelectItem value="custom">Custom</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={flagFilter || 'all'} onValueChange={(value) => onFlagFilterChange(value === 'all' ? null : value as FlagType)}>
-            <SelectTrigger className="w-32 border-coolgray-200" data-testid="select-flag-filter">
-              <SelectValue placeholder="Flags" />
-            </SelectTrigger>
-            <SelectContent className="bg-white border-coolgray-200">
-              <SelectItem value="all">All Flags</SelectItem>
-              <SelectItem value="caution">Caution</SelectItem>
-              <SelectItem value="critical">Critical</SelectItem>
             </SelectContent>
           </Select>
         </div>
