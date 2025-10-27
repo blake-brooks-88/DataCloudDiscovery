@@ -1,29 +1,34 @@
-import { Key, Link as LinkIcon, AlertTriangle, AlertCircle, Lock } from "lucide-react";
-import type { Entity } from "@shared/schema";
+import { Key, Link as LinkIcon, Lock } from "lucide-react";
+import type { Entity, SourceSystem } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 
 interface EntityNodeProps {
   entity: Entity;
+  sourceSystem?: SourceSystem;
   isSelected: boolean;
   onSelect: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDrag: (e: React.DragEvent) => void;
   onDragEnd: (e: React.DragEvent) => void;
+  onDoubleClick: () => void;
   style?: React.CSSProperties;
 }
 
 export default function EntityNode({
   entity,
+  sourceSystem,
   isSelected,
   onSelect,
   onDragStart,
   onDrag,
   onDragEnd,
+  onDoubleClick,
   style,
 }: EntityNodeProps) {
-  const pkFields = entity.fields.filter(f => f.isPK);
-  const fkFields = entity.fields.filter(f => f.isFK);
-  const regularFields = entity.fields.filter(f => !f.isPK && !f.isFK);
+  const visibleFields = entity.fields.filter(f => f.visibleInERD !== false);
+  const pkFields = visibleFields.filter(f => f.isPK);
+  const fkFields = visibleFields.filter(f => f.isFK);
+  const regularFields = visibleFields.filter(f => !f.isPK && !f.isFK);
 
   const getSourceColor = (type: string) => {
     const colors: Record<string, string> = {
@@ -45,6 +50,7 @@ export default function EntityNode({
       onDrag={onDrag}
       onDragEnd={onDragEnd}
       onClick={onSelect}
+      onDoubleClick={onDoubleClick}
       style={style}
       className={`absolute bg-white rounded-xl shadow-md cursor-move select-none transition-all
         ${isSelected ? 'border-2 border-secondary-500 shadow-lg' : 'border border-coolgray-200'}
@@ -55,12 +61,14 @@ export default function EntityNode({
         <div className="bg-coolgray-50 px-4 py-3 border-b border-coolgray-200 rounded-t-xl">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-lg font-semibold text-coolgray-600 break-words">{entity.name}</h3>
-            <Badge className={`text-xs px-2 py-0.5 rounded-full border ${getSourceColor(entity.sourceSystem.type)}`}>
-              {entity.sourceSystem.type}
-            </Badge>
+            {sourceSystem && (
+              <Badge className={`text-xs px-2 py-0.5 rounded-full border ${getSourceColor(sourceSystem.type)}`}>
+                {sourceSystem.type}
+              </Badge>
+            )}
           </div>
-          {entity.sourceSystem.name && (
-            <p className="text-xs text-coolgray-500 mt-1 font-mono">{entity.sourceSystem.name}</p>
+          {sourceSystem?.name && (
+            <p className="text-xs text-coolgray-500 mt-1 font-mono">{sourceSystem.name}</p>
           )}
         </div>
 
@@ -73,8 +81,6 @@ export default function EntityNode({
                   <span className="font-mono text-coolgray-700 font-medium">{field.name}</span>
                   <span className="text-xs text-coolgray-500">{field.type}</span>
                   {field.containsPII && <Lock className="h-3 w-3 text-warning-500 flex-shrink-0" />}
-                  {field.flag === 'caution' && <AlertTriangle className="h-3 w-3 text-warning-500 flex-shrink-0" />}
-                  {field.flag === 'critical' && <AlertCircle className="h-3 w-3 text-danger-500 flex-shrink-0" />}
                 </div>
               ))}
             </div>
@@ -88,8 +94,6 @@ export default function EntityNode({
                   <span className="font-mono text-coolgray-700">{field.name}</span>
                   <span className="text-xs text-coolgray-500">{field.type}</span>
                   {field.containsPII && <Lock className="h-3 w-3 text-warning-500 flex-shrink-0" />}
-                  {field.flag === 'caution' && <AlertTriangle className="h-3 w-3 text-warning-500 flex-shrink-0" />}
-                  {field.flag === 'critical' && <AlertCircle className="h-3 w-3 text-danger-500 flex-shrink-0" />}
                 </div>
               ))}
             </div>
@@ -103,8 +107,6 @@ export default function EntityNode({
                   <span className="font-mono text-coolgray-600">{field.name}</span>
                   <span className="text-xs text-coolgray-500">{field.type}</span>
                   {field.containsPII && <Lock className="h-3 w-3 text-warning-500 flex-shrink-0" />}
-                  {field.flag === 'caution' && <AlertTriangle className="h-3 w-3 text-warning-500 flex-shrink-0" />}
-                  {field.flag === 'critical' && <AlertCircle className="h-3 w-3 text-danger-500 flex-shrink-0" />}
                 </div>
               ))}
               {regularFields.length > 10 && (
@@ -113,6 +115,10 @@ export default function EntityNode({
                 </p>
               )}
             </div>
+          )}
+
+          {visibleFields.length === 0 && (
+            <p className="text-xs text-coolgray-400 py-2 text-center">No visible fields</p>
           )}
         </div>
 

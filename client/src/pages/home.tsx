@@ -51,9 +51,35 @@ export default function Home() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setProjects(parsed);
-        if (parsed.length > 0) {
-          setCurrentProjectId(parsed[0].id);
+        const migratedProjects = parsed.map((project: any) => ({
+          ...project,
+          sourceSystems: project.sourceSystems || [],
+          entities: (project.entities || []).map((entity: any) => {
+            if (entity.sourceSystem && !entity.sourceSystemId) {
+              const sourceSystemId = `source-${Date.now()}-${Math.random()}`;
+              if (!project.sourceSystems) project.sourceSystems = [];
+              const existingSource = project.sourceSystems.find(
+                (s: SourceSystem) => s.type === entity.sourceSystem.type && s.name === entity.sourceSystem.name
+              );
+              if (!existingSource) {
+                project.sourceSystems.push({
+                  id: sourceSystemId,
+                  name: entity.sourceSystem.name || entity.sourceSystem.type,
+                  type: entity.sourceSystem.type,
+                });
+              }
+              return {
+                ...entity,
+                sourceSystemId: existingSource?.id || sourceSystemId,
+              };
+            }
+            return entity;
+          }),
+        }));
+        setProjects(migratedProjects);
+        localStorage.setItem('schema-builder-projects', JSON.stringify(migratedProjects));
+        if (migratedProjects.length > 0) {
+          setCurrentProjectId(migratedProjects[0].id);
         }
       } catch (e) {
         console.error('Failed to load projects:', e);

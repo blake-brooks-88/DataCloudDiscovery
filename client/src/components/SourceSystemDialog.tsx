@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -45,12 +46,23 @@ export default function SourceSystemDialog({ isOpen, onClose, sourceSystem, onSa
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: sourceSystem?.name || "",
-      type: sourceSystem?.type || "salesforce",
-      connectionDetails: sourceSystem?.connectionDetails || "",
-      color: sourceSystem?.color || "",
+      name: "",
+      type: "salesforce",
+      connectionDetails: "",
+      color: "",
     },
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        name: sourceSystem?.name || "",
+        type: sourceSystem?.type || "salesforce",
+        connectionDetails: sourceSystem?.connectionDetails || "",
+        color: sourceSystem?.color || "",
+      });
+    }
+  }, [isOpen, sourceSystem, form]);
 
   const handleSubmit = (data: FormData) => {
     onSave(data);
