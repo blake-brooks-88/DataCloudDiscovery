@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { Project, Entity, FieldType } from "@shared/schema";
+import type { Project, Entity, FieldType, Relationship } from "@shared/schema";
 
 type ViewMode = 'graph' | 'table';
 
@@ -47,8 +47,12 @@ export default function Home() {
       try {
         const parsed = JSON.parse(stored);
         const migratedProjects = parsed.map((project: any) => {
+          const relationships: Relationship[] = [];
+          
           const migratedProject = {
             ...project,
+            dataSources: project.dataSources || [],
+            relationships: project.relationships || [],
             entities: (project.entities || []).map((entity: any) => {
               let dataSource = entity.dataSource;
               
@@ -63,13 +67,38 @@ export default function Home() {
                 dataSource = entity.sourceSystem.name || entity.sourceSystem.type || '';
               }
               
+              // Extract relationships from old FK references
+              if (entity.fields) {
+                entity.fields.forEach((field: any) => {
+                  if (field.isFK && field.fkReference && !project.relationships) {
+                    relationships.push({
+                      id: `rel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      type: 'references',
+                      sourceEntityId: entity.id,
+                      targetEntityId: field.fkReference.targetEntityId,
+                      label: field.fkReference.relationshipLabel,
+                      fieldMappings: [{
+                        sourceFieldId: field.id,
+                        targetFieldId: field.fkReference.targetFieldId,
+                      }],
+                    });
+                  }
+                });
+              }
+              
               const { sourceSystemId, sourceSystem, ...entityRest } = entity;
               return {
                 ...entityRest,
+                type: entity.type || 'dmo', // Default to DMO for existing entities
                 ...(dataSource && { dataSource }),
               };
             }),
           };
+          
+          // Add extracted relationships if not already present
+          if (relationships.length > 0 && !project.relationships) {
+            migratedProject.relationships = relationships;
+          }
           
           delete migratedProject.sourceSystems;
           return migratedProject;
@@ -89,7 +118,9 @@ export default function Home() {
         name: 'My First Project',
         createdAt: Date.now(),
         lastModified: Date.now(),
+        dataSources: [],
         entities: [],
+        relationships: [],
       };
       setProjects([defaultProject]);
       setCurrentProjectId(defaultProject.id);
@@ -117,7 +148,9 @@ export default function Home() {
       consultant: data.consultant,
       createdAt: Date.now(),
       lastModified: Date.now(),
+      dataSources: [],
       entities: [],
+      relationships: [],
     };
     const updated = [...projects, newProject];
     saveProjects(updated);
@@ -166,10 +199,11 @@ export default function Home() {
       const newEntity: Entity = {
         id: `entity-${Date.now()}`,
         name: entityData.name!,
+        type: entityData.type || 'dmo',
         fields: entityData.fields || [],
         dataSource: entityData.dataSource,
         businessPurpose: entityData.businessPurpose,
-        dataCloudIntent: entityData.dataCloudIntent,
+        dataCloudMetadata: entityData.dataCloudMetadata,
         position: {
           x: 100 + (currentProject.entities.length * 50),
           y: 100 + (currentProject.entities.length * 50),
