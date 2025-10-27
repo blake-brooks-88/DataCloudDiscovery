@@ -1,18 +1,17 @@
 import { Key, Link as LinkIcon, AlertTriangle, AlertCircle, Lock, ArrowUpDown } from "lucide-react";
-import type { Entity, SourceSystem } from "@shared/schema";
+import type { Entity } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 
 interface TableViewProps {
   entities: Entity[];
-  sourceSystems: SourceSystem[];
   onEntityClick: (entityId: string) => void;
 }
 
-type SortField = 'entity' | 'field' | 'type' | 'source';
+type SortField = 'entity' | 'field' | 'type' | 'dataSource';
 type SortDirection = 'asc' | 'desc';
 
-export default function TableView({ entities, sourceSystems, onEntityClick }: TableViewProps) {
+export default function TableView({ entities, onEntityClick }: TableViewProps) {
   const [sortField, setSortField] = useState<SortField>('entity');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -26,7 +25,6 @@ export default function TableView({ entities, sourceSystems, onEntityClick }: Ta
   };
 
   const flattenedData = entities.flatMap((entity) => {
-    const sourceSystem = sourceSystems.find(s => s.id === entity.sourceSystemId);
     return entity.fields.map((field) => ({
       entityId: entity.id,
       entityName: entity.name,
@@ -39,8 +37,7 @@ export default function TableView({ entities, sourceSystems, onEntityClick }: Ta
       notes: field.notes,
       containsPII: field.containsPII,
       visibleInERD: field.visibleInERD,
-      sourceSystem: sourceSystem?.type || 'custom',
-      sourceSystemName: sourceSystem?.name || 'Unknown',
+      dataSource: entity.dataSource || '',
       dataCloudObjectType: entity.dataCloudIntent?.objectType,
     }));
   });
@@ -57,8 +54,8 @@ export default function TableView({ entities, sourceSystems, onEntityClick }: Ta
       case 'type':
         comparison = a.fieldType.localeCompare(b.fieldType);
         break;
-      case 'source':
-        comparison = a.sourceSystem.localeCompare(b.sourceSystem);
+      case 'dataSource':
+        comparison = a.dataSource.localeCompare(b.dataSource);
         break;
     }
     return sortDirection === 'asc' ? comparison : -comparison;
@@ -96,7 +93,7 @@ export default function TableView({ entities, sourceSystems, onEntityClick }: Ta
               Notes
             </th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-coolgray-600">
-              <SortButton field="source" label="Source" />
+              <SortButton field="dataSource" label="Data Source" />
             </th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-coolgray-600">
               Data Cloud
@@ -135,15 +132,8 @@ export default function TableView({ entities, sourceSystems, onEntityClick }: Ta
               <td className="px-4 py-3 text-sm text-coolgray-600 max-w-md truncate">
                 {row.notes || '-'}
               </td>
-              <td className="px-4 py-3 text-sm">
-                <div className="flex flex-col gap-1">
-                  <Badge className="text-xs px-2 py-0.5 bg-secondary-50 text-secondary-700 border border-secondary-500 rounded-full w-fit">
-                    {row.sourceSystem}
-                  </Badge>
-                  {row.sourceSystemName && (
-                    <span className="text-xs text-coolgray-500 font-mono">{row.sourceSystemName}</span>
-                  )}
-                </div>
+              <td className="px-4 py-3 text-sm text-coolgray-600 font-mono">
+                {row.dataSource || '-'}
               </td>
               <td className="px-4 py-3 text-sm">
                 {row.dataCloudObjectType ? (

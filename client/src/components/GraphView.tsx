@@ -1,10 +1,9 @@
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState } from "react";
 import EntityNode from "./EntityNode";
-import type { Entity, SourceSystem } from "@shared/schema";
+import type { Entity } from "@shared/schema";
 
 interface GraphViewProps {
   entities: Entity[];
-  sourceSystems: SourceSystem[];
   selectedEntityId: string | null;
   onSelectEntity: (entityId: string | null) => void;
   onUpdateEntityPosition: (entityId: string, position: { x: number; y: number }) => void;
@@ -19,30 +18,8 @@ interface DragState {
   offsetY: number;
 }
 
-interface SourceGroup {
-  sourceSystem: SourceSystem;
-  entities: Entity[];
-  bounds: {
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
-  };
-}
-
-const sourceTypeColors: Record<string, { bg: string; border: string; text: string }> = {
-  salesforce: { bg: 'bg-secondary-50/40', border: 'border-secondary-300', text: 'text-secondary-700' },
-  database: { bg: 'bg-primary-50/40', border: 'border-primary-300', text: 'text-primary-700' },
-  api: { bg: 'bg-tertiary-50/40', border: 'border-tertiary-300', text: 'text-tertiary-700' },
-  csv: { bg: 'bg-warning-50/40', border: 'border-warning-300', text: 'text-warning-700' },
-  erp: { bg: 'bg-purple-50/40', border: 'border-purple-300', text: 'text-purple-700' },
-  marketing_tool: { bg: 'bg-pink-50/40', border: 'border-pink-300', text: 'text-pink-700' },
-  custom: { bg: 'bg-coolgray-100/40', border: 'border-coolgray-300', text: 'text-coolgray-700' },
-};
-
 export default function GraphView({
   entities,
-  sourceSystems,
   selectedEntityId,
   onSelectEntity,
   onUpdateEntityPosition,
@@ -53,42 +30,6 @@ export default function GraphView({
   const [isPanning, setIsPanning] = useState(false);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-
-  const sourceGroups = useMemo(() => {
-    const groups = new Map<string, SourceGroup>();
-
-    entities.forEach((entity) => {
-      const sourceSystem = sourceSystems.find(s => s.id === entity.sourceSystemId);
-      if (!sourceSystem) return;
-
-      if (!groups.has(sourceSystem.id)) {
-        groups.set(sourceSystem.id, {
-          sourceSystem,
-          entities: [],
-          bounds: {
-            minX: Infinity,
-            minY: Infinity,
-            maxX: -Infinity,
-            maxY: -Infinity,
-          },
-        });
-      }
-
-      const group = groups.get(sourceSystem.id)!;
-      group.entities.push(entity);
-
-      const pos = entity.position || { x: 100, y: 100 };
-      const entityWidth = 320;
-      const entityHeight = 120;
-
-      group.bounds.minX = Math.min(group.bounds.minX, pos.x);
-      group.bounds.minY = Math.min(group.bounds.minY, pos.y);
-      group.bounds.maxX = Math.max(group.bounds.maxX, pos.x + entityWidth);
-      group.bounds.maxY = Math.max(group.bounds.maxY, pos.y + entityHeight);
-    });
-
-    return Array.from(groups.values());
-  }, [entities, sourceSystems]);
 
   const handleEntityDragStart = (entityId: string, e: React.DragEvent) => {
     e.stopPropagation();
@@ -191,34 +132,6 @@ export default function GraphView({
     return lines;
   };
 
-  const renderSourceGroups = () => {
-    return sourceGroups.map((group) => {
-      const padding = 30;
-      const x = group.bounds.minX - padding;
-      const y = group.bounds.minY - padding;
-      const width = group.bounds.maxX - group.bounds.minX + padding * 2;
-      const height = group.bounds.maxY - group.bounds.minY + padding * 2;
-
-      const colors = sourceTypeColors[group.sourceSystem.type] || sourceTypeColors.custom;
-
-      return (
-        <div
-          key={group.sourceSystem.id}
-          className={`absolute rounded-2xl border-2 ${colors.bg} ${colors.border} pointer-events-none`}
-          style={{
-            left: x,
-            top: y,
-            width,
-            height,
-          }}
-        >
-          <div className={`absolute -top-3 left-4 px-3 py-1 rounded-full text-xs font-semibold ${colors.text} bg-white border ${colors.border}`}>
-            {group.sourceSystem.name}
-          </div>
-        </div>
-      );
-    });
-  };
 
   return (
     <div
@@ -262,12 +175,10 @@ export default function GraphView({
           zIndex: 2,
         }}
       >
-        {renderSourceGroups()}
         {entities.map((entity) => (
           <EntityNode
             key={entity.id}
             entity={entity}
-            sourceSystem={sourceSystems.find(s => s.id === entity.sourceSystemId)}
             isSelected={selectedEntityId === entity.id}
             onSelect={() => onSelectEntity(entity.id)}
             onDragStart={(e) => handleEntityDragStart(entity.id, e)}

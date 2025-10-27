@@ -6,8 +6,6 @@ import GraphView from "@/components/GraphView";
 import TableView from "@/components/TableView";
 import EntityModal from "@/components/EntityModal";
 import ProjectDialog from "@/components/ProjectDialog";
-import SourceSystemDialog from "@/components/SourceSystemDialog";
-import SourceSystemManagementDialog from "@/components/SourceSystemManagementDialog";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -20,7 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { Project, Entity, SourceSystem, SourceSystemType, FieldType } from "@shared/schema";
+import type { Project, Entity, FieldType } from "@shared/schema";
 
 type ViewMode = 'graph' | 'table';
 
@@ -30,7 +28,6 @@ export default function Home() {
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sourceFilter, setSourceFilter] = useState<SourceSystemType | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<FieldType | 'all'>('all');
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   
@@ -39,10 +36,6 @@ export default function Home() {
   
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [projectDialogMode, setProjectDialogMode] = useState<'create' | 'rename'>('create');
-  
-  const [isSourceSystemDialogOpen, setIsSourceSystemDialogOpen] = useState(false);
-  const [isSourceSystemManagementOpen, setIsSourceSystemManagementOpen] = useState(false);
-  const [editingSourceSystem, setEditingSourceSystem] = useState<SourceSystem | null>(null);
   
   const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
 
@@ -53,31 +46,35 @@ export default function Home() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        const migratedProjects = parsed.map((project: any) => ({
-          ...project,
-          sourceSystems: project.sourceSystems || [],
-          entities: (project.entities || []).map((entity: any) => {
-            if (entity.sourceSystem && !entity.sourceSystemId) {
-              const sourceSystemId = `source-${Date.now()}-${Math.random()}`;
-              if (!project.sourceSystems) project.sourceSystems = [];
-              const existingSource = project.sourceSystems.find(
-                (s: SourceSystem) => s.type === entity.sourceSystem.type && s.name === entity.sourceSystem.name
-              );
-              if (!existingSource) {
-                project.sourceSystems.push({
-                  id: sourceSystemId,
-                  name: entity.sourceSystem.name || entity.sourceSystem.type,
-                  type: entity.sourceSystem.type,
-                });
+        const migratedProjects = parsed.map((project: any) => {
+          const migratedProject = {
+            ...project,
+            entities: (project.entities || []).map((entity: any) => {
+              let dataSource = entity.dataSource;
+              
+              if (!dataSource && entity.sourceSystemId && project.sourceSystems) {
+                const sourceSystem = project.sourceSystems.find((s: any) => s.id === entity.sourceSystemId);
+                if (sourceSystem) {
+                  dataSource = `${sourceSystem.name} (${sourceSystem.type})`;
+                }
               }
+              
+              if (!dataSource && entity.sourceSystem) {
+                dataSource = entity.sourceSystem.name || entity.sourceSystem.type || '';
+              }
+              
+              const { sourceSystemId, sourceSystem, ...entityRest } = entity;
               return {
-                ...entity,
-                sourceSystemId: existingSource?.id || sourceSystemId,
+                ...entityRest,
+                ...(dataSource && { dataSource }),
               };
-            }
-            return entity;
-          }),
-        }));
+            }),
+          };
+          
+          delete migratedProject.sourceSystems;
+          return migratedProject;
+        });
+        
         setProjects(migratedProjects);
         localStorage.setItem('schema-builder-projects', JSON.stringify(migratedProjects));
         if (migratedProjects.length > 0) {
@@ -93,7 +90,6 @@ export default function Home() {
         createdAt: Date.now(),
         lastModified: Date.now(),
         entities: [],
-        sourceSystems: [],
       };
       setProjects([defaultProject]);
       setCurrentProjectId(defaultProject.id);
@@ -122,7 +118,6 @@ export default function Home() {
       createdAt: Date.now(),
       lastModified: Date.now(),
       entities: [],
-      sourceSystems: [],
     };
     const updated = [...projects, newProject];
     saveProjects(updated);
@@ -155,55 +150,6 @@ export default function Home() {
     });
   };
 
-  const handleSaveSourceSystem = (data: Partial<SourceSystem>) => {
-    if (!currentProject) return;
-
-    if (editingSourceSystem?.id) {
-      const updatedSourceSystems = currentProject.sourceSystems.map(s =>
-        s.id === editingSourceSystem.id ? { ...s, ...data } as SourceSystem : s
-      );
-      updateCurrentProject({ sourceSystems: updatedSourceSystems });
-      toast({
-        title: "Source system updated",
-        description: `${data.name} has been updated successfully.`,
-      });
-    } else {
-      const newSourceSystem: SourceSystem = {
-        id: `source-${Date.now()}`,
-        name: data.name!,
-        type: data.type!,
-        connectionDetails: data.connectionDetails,
-        color: data.color,
-      };
-      updateCurrentProject({ sourceSystems: [...currentProject.sourceSystems, newSourceSystem] });
-      toast({
-        title: "Source system created",
-        description: `${newSourceSystem.name} has been created successfully.`,
-      });
-    }
-    setIsSourceSystemDialogOpen(false);
-    setEditingSourceSystem(null);
-  };
-
-  const handleDeleteSourceSystem = (sourceSystemId: string) => {
-    if (!currentProject) return;
-    const entitiesUsingSource = currentProject.entities.filter(e => e.sourceSystemId === sourceSystemId);
-    if (entitiesUsingSource.length > 0) {
-      toast({
-        title: "Cannot delete source system",
-        description: `${entitiesUsingSource.length} entities are using this source system.`,
-        variant: "destructive",
-      });
-      return;
-    }
-    const updatedSourceSystems = currentProject.sourceSystems.filter(s => s.id !== sourceSystemId);
-    updateCurrentProject({ sourceSystems: updatedSourceSystems });
-    toast({
-      title: "Source system deleted",
-      description: "Source system has been deleted.",
-    });
-  };
-
   const handleSaveEntity = (entityData: Partial<Entity>) => {
     if (!currentProject) return;
 
@@ -221,7 +167,7 @@ export default function Home() {
         id: `entity-${Date.now()}`,
         name: entityData.name!,
         fields: entityData.fields || [],
-        sourceSystemId: entityData.sourceSystemId!,
+        dataSource: entityData.dataSource,
         businessPurpose: entityData.businessPurpose,
         dataCloudIntent: entityData.dataCloudIntent,
         position: {
@@ -281,11 +227,10 @@ export default function Home() {
 
   const handleExportDataDictionary = () => {
     if (!currentProject) return;
-    let csv = 'Entity,Field Name,Type,Business Name,Notes,Source System,Data Cloud Type,Is PK,Is FK,Contains PII,Visible in ERD\n';
+    let csv = 'Entity,Field Name,Type,Business Name,Notes,Data Source,Data Cloud Type,Is PK,Is FK,Contains PII,Visible in ERD\n';
     currentProject.entities.forEach(entity => {
-      const sourceSystem = currentProject.sourceSystems.find(s => s.id === entity.sourceSystemId);
       entity.fields.forEach(field => {
-        csv += `"${entity.name}","${field.name}","${field.type}","${field.businessName || ''}","${field.notes || ''}","${sourceSystem?.name || ''}","${entity.dataCloudIntent?.objectType || ''}",${field.isPK},${field.isFK},${field.containsPII || false},${field.visibleInERD !== false}\n`;
+        csv += `"${entity.name}","${field.name}","${field.type}","${field.businessName || ''}","${field.notes || ''}","${entity.dataSource || ''}","${entity.dataCloudIntent?.objectType || ''}",${field.isPK},${field.isFK},${field.containsPII || false},${field.visibleInERD !== false}\n`;
       });
     });
     const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
@@ -314,9 +259,6 @@ export default function Home() {
           imported.id = `project-${Date.now()}`;
           imported.createdAt = Date.now();
           imported.lastModified = Date.now();
-          if (!imported.sourceSystems) {
-            imported.sourceSystems = [];
-          }
           const updated = [...projects, imported];
           saveProjects(updated);
           setCurrentProjectId(imported.id);
@@ -345,8 +287,6 @@ export default function Home() {
   };
 
   const filteredEntities = currentProject?.entities.filter(entity => {
-    const sourceSystem = currentProject.sourceSystems.find(s => s.id === entity.sourceSystemId);
-    if (sourceFilter !== 'all' && sourceSystem?.type !== sourceFilter) return false;
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchesEntity = entity.name.toLowerCase().includes(query);
@@ -371,7 +311,6 @@ export default function Home() {
           setIsProjectDialogOpen(true);
         }}
         onDeleteProject={() => setIsDeleteProjectDialogOpen(true)}
-        onManageSourceSystems={() => setIsSourceSystemManagementOpen(true)}
         onImportCSV={handleImportCSV}
         onImportJSON={handleImportJSON}
         onExportJSON={handleExportJSON}
@@ -384,8 +323,6 @@ export default function Home() {
         onViewModeChange={setViewMode}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        sourceFilter={sourceFilter}
-        onSourceFilterChange={setSourceFilter}
         typeFilter={typeFilter}
         onTypeFilterChange={setTypeFilter}
       />
@@ -394,7 +331,6 @@ export default function Home() {
         {viewMode === 'graph' ? (
           <GraphView
             entities={filteredEntities}
-            sourceSystems={currentProject?.sourceSystems || []}
             selectedEntityId={selectedEntityId}
             onSelectEntity={setSelectedEntityId}
             onUpdateEntityPosition={handleUpdateEntityPosition}
@@ -403,7 +339,6 @@ export default function Home() {
         ) : (
           <TableView
             entities={filteredEntities}
-            sourceSystems={currentProject?.sourceSystems || []}
             onEntityClick={handleEntityDoubleClick}
           />
         )}
@@ -430,12 +365,7 @@ export default function Home() {
         }}
         entity={editingEntity}
         entities={currentProject?.entities || []}
-        sourceSystems={currentProject?.sourceSystems || []}
         onSave={handleSaveEntity}
-        onCreateSourceSystem={() => {
-          setEditingSourceSystem(null);
-          setIsSourceSystemDialogOpen(true);
-        }}
       />
 
       <ProjectDialog
@@ -444,32 +374,6 @@ export default function Home() {
         project={projectDialogMode === 'rename' ? currentProject : null}
         onSave={projectDialogMode === 'create' ? handleCreateProject : handleRenameProject}
         title={projectDialogMode === 'create' ? 'Create New Project' : 'Rename Project'}
-      />
-
-      <SourceSystemDialog
-        isOpen={isSourceSystemDialogOpen}
-        onClose={() => {
-          setIsSourceSystemDialogOpen(false);
-          setEditingSourceSystem(null);
-        }}
-        sourceSystem={editingSourceSystem}
-        onSave={handleSaveSourceSystem}
-        title={editingSourceSystem ? 'Edit Source System' : 'Create Source System'}
-      />
-
-      <SourceSystemManagementDialog
-        isOpen={isSourceSystemManagementOpen}
-        onClose={() => setIsSourceSystemManagementOpen(false)}
-        sourceSystems={currentProject?.sourceSystems || []}
-        onCreateSourceSystem={() => {
-          setEditingSourceSystem(null);
-          setIsSourceSystemDialogOpen(true);
-        }}
-        onEditSourceSystem={(sourceSystem) => {
-          setEditingSourceSystem(sourceSystem);
-          setIsSourceSystemDialogOpen(true);
-        }}
-        onDeleteSourceSystem={handleDeleteSourceSystem}
       />
 
       <AlertDialog open={isDeleteProjectDialogOpen} onOpenChange={setIsDeleteProjectDialogOpen}>

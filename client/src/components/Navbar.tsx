@@ -16,7 +16,6 @@ interface NavbarProps {
   onCreateProject: () => void;
   onRenameProject: () => void;
   onDeleteProject: () => void;
-  onManageSourceSystems: () => void;
   onImportCSV: () => void;
   onImportJSON: () => void;
   onExportJSON: () => void;
@@ -31,7 +30,6 @@ export default function Navbar({
   onCreateProject,
   onRenameProject,
   onDeleteProject,
-  onManageSourceSystems,
   onImportCSV,
   onImportJSON,
   onExportJSON,
@@ -82,11 +80,6 @@ export default function Navbar({
                   <DropdownMenuItem onClick={onRenameProject} data-testid="menu-item-rename-project">
                     <Edit className="h-4 w-4 mr-2" />
                     Rename Project
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onManageSourceSystems} data-testid="menu-item-manage-sources">
-                    <Server className="h-4 w-4 mr-2" />
-                    Manage Source Systems
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 

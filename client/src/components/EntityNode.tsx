@@ -1,10 +1,9 @@
 import { Key, Link as LinkIcon, Lock } from "lucide-react";
-import type { Entity, SourceSystem } from "@shared/schema";
+import type { Entity } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 
 interface EntityNodeProps {
   entity: Entity;
-  sourceSystem?: SourceSystem;
   isSelected: boolean;
   onSelect: () => void;
   onDragStart: (e: React.DragEvent) => void;
@@ -16,7 +15,6 @@ interface EntityNodeProps {
 
 export default function EntityNode({
   entity,
-  sourceSystem,
   isSelected,
   onSelect,
   onDragStart,
@@ -29,19 +27,6 @@ export default function EntityNode({
   const pkFields = visibleFields.filter(f => f.isPK);
   const fkFields = visibleFields.filter(f => f.isFK);
   const regularFields = visibleFields.filter(f => !f.isPK && !f.isFK);
-
-  const getSourceColor = (type: string) => {
-    const colors: Record<string, string> = {
-      salesforce: 'bg-info-50 text-info-700 border-info-500',
-      database: 'bg-secondary-50 text-secondary-700 border-secondary-500',
-      api: 'bg-tertiary-50 text-tertiary-700 border-tertiary-500',
-      csv: 'bg-warning-50 text-warning-700 border-warning-500',
-      erp: 'bg-primary-50 text-primary-700 border-primary-500',
-      marketing_tool: 'bg-success-50 text-success-700 border-success-500',
-      custom: 'bg-coolgray-100 text-coolgray-700 border-coolgray-400',
-    };
-    return colors[type] || colors.custom;
-  };
 
   return (
     <div
@@ -59,16 +44,9 @@ export default function EntityNode({
     >
       <div className="min-w-64 max-w-80">
         <div className="bg-coolgray-50 px-4 py-3 border-b border-coolgray-200 rounded-t-xl">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="text-lg font-semibold text-coolgray-600 break-words">{entity.name}</h3>
-            {sourceSystem && (
-              <Badge className={`text-xs px-2 py-0.5 rounded-full border ${getSourceColor(sourceSystem.type)}`}>
-                {sourceSystem.type}
-              </Badge>
-            )}
-          </div>
-          {sourceSystem?.name && (
-            <p className="text-xs text-coolgray-500 mt-1 font-mono">{sourceSystem.name}</p>
+          <h3 className="text-lg font-semibold text-coolgray-600 break-words">{entity.name}</h3>
+          {entity.dataSource && (
+            <p className="text-xs text-coolgray-500 mt-1 font-mono">{entity.dataSource}</p>
           )}
         </div>
 

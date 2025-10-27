@@ -1,14 +1,7 @@
-import { LayoutGrid, Table, Search, Filter } from "lucide-react";
+import { LayoutGrid, Table, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { SourceSystemType, FieldType } from "@shared/schema";
+import type { FieldType } from "@shared/schema";
 
 type ViewMode = 'graph' | 'table';
 
@@ -17,8 +10,6 @@ interface ToolbarProps {
   onViewModeChange: (mode: ViewMode) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  sourceFilter: SourceSystemType | 'all';
-  onSourceFilterChange: (source: SourceSystemType | 'all') => void;
   typeFilter: FieldType | 'all';
   onTypeFilterChange: (type: FieldType | 'all') => void;
 }
@@ -28,8 +19,6 @@ export default function Toolbar({
   onViewModeChange,
   searchQuery,
   onSearchChange,
-  sourceFilter,
-  onSourceFilterChange,
   typeFilter,
   onTypeFilterChange,
 }: ToolbarProps) {
@@ -77,23 +66,6 @@ export default function Toolbar({
               data-testid="input-search"
             />
           </div>
-
-          <Select value={sourceFilter} onValueChange={(value) => onSourceFilterChange(value as SourceSystemType | 'all')}>
-            <SelectTrigger className="w-40 border-coolgray-200" data-testid="select-source-filter">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Source" />
-            </SelectTrigger>
-            <SelectContent className="bg-white border-coolgray-200">
-              <SelectItem value="all">All Sources</SelectItem>
-              <SelectItem value="salesforce">Salesforce</SelectItem>
-              <SelectItem value="database">Database</SelectItem>
-              <SelectItem value="api">API</SelectItem>
-              <SelectItem value="csv">CSV</SelectItem>
-              <SelectItem value="erp">ERP</SelectItem>
-              <SelectItem value="marketing_tool">Marketing Tool</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
     </div>
