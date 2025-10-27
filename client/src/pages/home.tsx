@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Toolbar from "@/components/Toolbar";
 import GraphView from "@/components/GraphView";
-import TableView from "@/components/TableView";
+import ListView from "@/components/ListView";
 import EntityModal from "@/components/EntityModal";
 import ProjectDialog from "@/components/ProjectDialog";
 import { Button } from "@/components/ui/button";
@@ -337,7 +337,7 @@ export default function Home() {
             onEntityDoubleClick={handleEntityDoubleClick}
           />
         ) : (
-          <TableView
+          <ListView
             entities={filteredEntities}
             onEntityClick={handleEntityDoubleClick}
           />
