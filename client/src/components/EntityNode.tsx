@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 interface EntityNodeProps {
   entity: Entity;
   isSelected: boolean;
+  isSearchMatch?: boolean;
+  dimmed?: boolean;
   onSelect: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDrag: (e: React.DragEvent) => void;
@@ -16,6 +18,8 @@ interface EntityNodeProps {
 export default function EntityNode({
   entity,
   isSelected,
+  isSearchMatch = false,
+  dimmed = false,
   onSelect,
   onDragStart,
   onDrag,
@@ -39,6 +43,8 @@ export default function EntityNode({
       style={style}
       className={`absolute bg-white rounded-xl shadow-md cursor-move select-none transition-all
         ${isSelected ? 'border-2 border-secondary-500 shadow-lg' : 'border border-coolgray-200'}
+        ${isSearchMatch ? 'pulse-ring border-2 border-secondary-500' : ''}
+        ${dimmed ? 'opacity-30' : ''}
         hover:shadow-lg`}
       data-testid={`entity-node-${entity.id}`}
     >

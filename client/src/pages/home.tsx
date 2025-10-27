@@ -332,6 +332,7 @@ export default function Home() {
           <GraphView
             entities={filteredEntities}
             selectedEntityId={selectedEntityId}
+            searchQuery={searchQuery}
             onSelectEntity={setSelectedEntityId}
             onUpdateEntityPosition={handleUpdateEntityPosition}
             onEntityDoubleClick={handleEntityDoubleClick}
