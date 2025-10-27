@@ -87,6 +87,15 @@ export default function GraphView({
   const renderRelationshipLines = () => {
     const lines: JSX.Element[] = [];
 
+    const formatCardinality = (cardinality: string) => {
+      switch (cardinality) {
+        case 'one-to-one': return '1:1';
+        case 'one-to-many': return '1:M';
+        case 'many-to-one': return 'M:1';
+        default: return cardinality;
+      }
+    };
+
     entities.forEach((entity) => {
       entity.fields.forEach((field) => {
         if (field.isFK && field.fkReference && field.visibleInERD !== false) {
@@ -101,7 +110,8 @@ export default function GraphView({
           const endX = targetPos.x;
           const endY = targetPos.y + 60;
 
-          const cardinalityLabel = field.fkReference.cardinality || '';
+          const cardinalityLabel = formatCardinality(field.fkReference.cardinality);
+          const relationshipLabel = field.fkReference.relationshipLabel;
 
           lines.push(
             <g key={`${entity.id}-${field.id}`}>
@@ -116,13 +126,26 @@ export default function GraphView({
               />
               <text
                 x={(startX + endX) / 2}
-                y={(startY + endY) / 2 - 5}
+                y={(startY + endY) / 2 - 8}
                 fill="#64748B"
                 fontSize="11"
-                className="font-mono"
+                className="font-mono font-semibold"
+                textAnchor="middle"
               >
                 {cardinalityLabel}
               </text>
+              {relationshipLabel && (
+                <text
+                  x={(startX + endX) / 2}
+                  y={(startY + endY) / 2 + 8}
+                  fill="#64748B"
+                  fontSize="10"
+                  className="italic"
+                  textAnchor="middle"
+                >
+                  "{relationshipLabel}"
+                </text>
+              )}
             </g>
           );
         }
