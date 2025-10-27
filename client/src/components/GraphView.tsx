@@ -60,6 +60,17 @@ export default function GraphView({
   };
 
   const handleEntityDragEnd = () => {
+    if (dragState) {
+      const entity = entities.find(e => e.id === dragState.entityId);
+      if (entity?.position) {
+        const GRID_SIZE = 20;
+        const snappedPosition = {
+          x: Math.round(entity.position.x / GRID_SIZE) * GRID_SIZE,
+          y: Math.round(entity.position.y / GRID_SIZE) * GRID_SIZE,
+        };
+        onUpdateEntityPosition(dragState.entityId, snappedPosition);
+      }
+    }
     setDragState(null);
   };
 
