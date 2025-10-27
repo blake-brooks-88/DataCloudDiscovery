@@ -6,6 +6,8 @@ import GraphView from "@/components/GraphView";
 import ListView from "@/components/ListView";
 import EntityModal from "@/components/EntityModal";
 import ProjectDialog from "@/components/ProjectDialog";
+import DataSourceManager from "@/components/DataSourceManager";
+import RelationshipBuilder from "@/components/RelationshipBuilder";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -38,6 +40,9 @@ export default function Home() {
   const [projectDialogMode, setProjectDialogMode] = useState<'create' | 'rename'>('create');
   
   const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
+  const [isDataSourceManagerOpen, setIsDataSourceManagerOpen] = useState(false);
+  const [isRelationshipBuilderOpen, setIsRelationshipBuilderOpen] = useState(false);
+  const [editingRelationship, setEditingRelationship] = useState<import("@shared/schema").Relationship | null>(null);
 
   const currentProject = projects.find(p => p.id === currentProjectId) || null;
 
@@ -590,6 +595,69 @@ export default function Home() {
     });
   };
 
+  const handleUpdateDataSource = (id: string, updates: Partial<DataSource>) => {
+    if (!currentProject) return;
+    updateCurrentProject({
+      dataSources: (currentProject.dataSources || []).map(ds =>
+        ds.id === id ? { ...ds, ...updates } : ds
+      ),
+    });
+    toast({
+      title: "Data source updated",
+      description: "Changes saved successfully.",
+    });
+  };
+
+  const handleDeleteDataSource = (id: string) => {
+    if (!currentProject) return;
+    updateCurrentProject({
+      dataSources: (currentProject.dataSources || []).filter(ds => ds.id !== id),
+    });
+    toast({
+      title: "Data source deleted",
+      description: "Data source has been removed.",
+    });
+  };
+
+  const handleSaveRelationship = (relationship: Omit<Relationship, 'id'> | Relationship) => {
+    if (!currentProject) return;
+    
+    if ('id' in relationship) {
+      updateCurrentProject({
+        relationships: (currentProject.relationships || []).map(r =>
+          r.id === relationship.id ? relationship : r
+        ),
+      });
+      toast({
+        title: "Relationship updated",
+        description: "Changes saved successfully.",
+      });
+    } else {
+      const newRelationship: Relationship = {
+        ...relationship,
+        id: `rel-${Date.now()}`,
+      };
+      updateCurrentProject({
+        relationships: [...(currentProject.relationships || []), newRelationship],
+      });
+      toast({
+        title: "Relationship created",
+        description: "New relationship has been added.",
+      });
+    }
+  };
+
+  const handleDeleteRelationship = (id: string) => {
+    if (!currentProject) return;
+    updateCurrentProject({
+      relationships: (currentProject.relationships || []).filter(r => r.id !== id),
+    });
+    toast({
+      title: "Relationship deleted",
+      description: "Relationship has been removed.",
+    });
+  };
+
   const filteredEntities = currentProject?.entities.filter(entity => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -629,6 +697,8 @@ export default function Home() {
         onSearchChange={setSearchQuery}
         typeFilter={typeFilter}
         onTypeFilterChange={setTypeFilter}
+        onOpenDataSources={() => setIsDataSourceManagerOpen(true)}
+        onOpenRelationships={() => setIsRelationshipBuilderOpen(true)}
       />
 
       <div className="flex-1 overflow-hidden">
@@ -707,6 +777,28 @@ export default function Home() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DataSourceManager
+        isOpen={isDataSourceManagerOpen}
+        onClose={() => setIsDataSourceManagerOpen(false)}
+        dataSources={currentProject?.dataSources || []}
+        onCreateDataSource={handleCreateDataSource}
+        onUpdateDataSource={handleUpdateDataSource}
+        onDeleteDataSource={handleDeleteDataSource}
+      />
+
+      <RelationshipBuilder
+        isOpen={isRelationshipBuilderOpen}
+        onClose={() => {
+          setIsRelationshipBuilderOpen(false);
+          setEditingRelationship(null);
+        }}
+        entities={currentProject?.entities || []}
+        relationships={currentProject?.relationships || []}
+        editingRelationship={editingRelationship}
+        onSaveRelationship={handleSaveRelationship}
+        onDeleteRelationship={handleDeleteRelationship}
+      />
     </div>
   );
 }

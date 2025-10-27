@@ -1,4 +1,4 @@
-import { LayoutGrid, Table, Search } from "lucide-react";
+import { LayoutGrid, Table, Search, Database, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { FieldType } from "@shared/schema";
@@ -12,6 +12,8 @@ interface ToolbarProps {
   onSearchChange: (query: string) => void;
   typeFilter: FieldType | 'all';
   onTypeFilterChange: (type: FieldType | 'all') => void;
+  onOpenDataSources?: () => void;
+  onOpenRelationships?: () => void;
 }
 
 export default function Toolbar({
@@ -21,6 +23,8 @@ export default function Toolbar({
   onSearchChange,
   typeFilter,
   onTypeFilterChange,
+  onOpenDataSources,
+  onOpenRelationships,
 }: ToolbarProps) {
   return (
     <div className="bg-white border-b border-coolgray-200 px-6 py-4">
@@ -66,6 +70,32 @@ export default function Toolbar({
               data-testid="input-search"
             />
           </div>
+          
+          {onOpenDataSources && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenDataSources}
+              className="border-coolgray-200 text-coolgray-600 hover:bg-coolgray-100"
+              data-testid="button-open-data-sources"
+            >
+              <Database className="h-4 w-4 mr-2" />
+              Data Sources
+            </Button>
+          )}
+          
+          {onOpenRelationships && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenRelationships}
+              className="border-coolgray-200 text-coolgray-600 hover:bg-coolgray-100"
+              data-testid="button-open-relationships"
+            >
+              <Link2 className="h-4 w-4 mr-2" />
+              Relationships
+            </Button>
+          )}
         </div>
       </div>
     </div>
