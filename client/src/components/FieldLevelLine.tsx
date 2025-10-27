@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Entity, Field, Cardinality } from "@shared/schema";
 
 interface FieldLevelLineProps {
@@ -71,38 +71,19 @@ export default function FieldLevelLine({
 
   const createPath = () => {
     if (waypoints.length === 0) {
+      // Default H-V routing: horizontal first, then vertical
       const midX = (startX + endX) / 2;
       return `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
-    }
-
-    let path = `M ${startX} ${startY}`;
-    
-    path += ` L ${waypoints[0].x} ${startY}`;
-    path += ` L ${waypoints[0].x} ${waypoints[0].y}`;
-    
-    for (let i = 1; i < waypoints.length; i++) {
-      const prevWp = waypoints[i - 1];
-      const currWp = waypoints[i];
-      
-      if (i % 2 === 1) {
-        path += ` L ${currWp.x} ${prevWp.y}`;
-        path += ` L ${currWp.x} ${currWp.y}`;
-      } else {
-        path += ` L ${prevWp.x} ${currWp.y}`;
-        path += ` L ${currWp.x} ${currWp.y}`;
-      }
-    }
-    
-    const lastWp = waypoints[waypoints.length - 1];
-    if (waypoints.length % 2 === 1) {
-      path += ` L ${endX} ${lastWp.y}`;
-      path += ` L ${endX} ${endY}`;
+    } else if (waypoints.length === 1) {
+      // L-shape with one waypoint (H-V or V-H)
+      const wp = waypoints[0];
+      return `M ${startX} ${startY} L ${wp.x} ${startY} L ${wp.x} ${endY} L ${endX} ${endY}`;
     } else {
-      path += ` L ${lastWp.x} ${endY}`;
-      path += ` L ${endX} ${endY}`;
+      // Z-shape with two waypoints (H-V-H)
+      const wp1 = waypoints[0];
+      const wp2 = waypoints[1];
+      return `M ${startX} ${startY} L ${wp1.x} ${startY} L ${wp2.x} ${endY} L ${endX} ${endY}`;
     }
-    
-    return path;
   };
 
   const handleWaypointMouseDown = (index: number, e: React.MouseEvent) => {
@@ -116,38 +97,44 @@ export default function FieldLevelLine({
     const rawX = (e.clientX - panOffset.x) / zoom;
     const rawY = (e.clientY - panOffset.y) / zoom;
     
-    const newWaypoints = [...waypoints];
-    newWaypoints[draggedWaypointIndex] = {
-      x: Math.round(rawX / GRID_SIZE) * GRID_SIZE,
-      y: Math.round(rawY / GRID_SIZE) * GRID_SIZE,
-    };
-    onUpdateWaypoints(sourceField.id, newWaypoints);
+    const snappedX = Math.round(rawX / GRID_SIZE) * GRID_SIZE;
+    const snappedY = Math.round(rawY / GRID_SIZE) * GRID_SIZE;
+    
+    // For H-V-H routing, update both waypoints based on the cleared X position
+    if (waypoints.length === 0) {
+      // Create initial waypoints when dragging starts
+      onUpdateWaypoints(sourceField.id, [
+        { x: snappedX, y: startY },
+        { x: snappedX, y: endY }
+      ]);
+    } else if (waypoints.length === 1) {
+      // Single waypoint - just update X position, keep on start/end Y
+      onUpdateWaypoints(sourceField.id, [{ x: snappedX, y: startY }]);
+    } else {
+      // Two waypoints - update both to maintain H-V-H pattern
+      onUpdateWaypoints(sourceField.id, [
+        { x: snappedX, y: startY },
+        { x: snappedX, y: endY }
+      ]);
+    }
   };
 
   const handleWaypointMouseUp = () => {
     setDraggedWaypointIndex(null);
   };
 
-  const handleLineClick = (e: React.MouseEvent) => {
-    if (e.detail === 2 || !onUpdateWaypoints) return;
+  // Set up event listeners for waypoint dragging
+  useEffect(() => {
+    if (draggedWaypointIndex === null) return;
 
-    const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-    const rawX = (e.clientX - rect.left - panOffset.x) / zoom;
-    const rawY = (e.clientY - rect.top - panOffset.y) / zoom;
+    window.addEventListener('mousemove', handleWaypointMouseMove);
+    window.addEventListener('mouseup', handleWaypointMouseUp);
 
-    const snappedX = Math.round(rawX / GRID_SIZE) * GRID_SIZE;
-    const snappedY = Math.round(rawY / GRID_SIZE) * GRID_SIZE;
-
-    const newWaypoints = [...waypoints, { x: snappedX, y: snappedY }];
-    onUpdateWaypoints(sourceField.id, newWaypoints);
-  };
-
-  const handleWaypointDoubleClick = (index: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!onUpdateWaypoints) return;
-    const newWaypoints = waypoints.filter((_, i) => i !== index);
-    onUpdateWaypoints(sourceField.id, newWaypoints);
-  };
+    return () => {
+      window.removeEventListener('mousemove', handleWaypointMouseMove);
+      window.removeEventListener('mouseup', handleWaypointMouseUp);
+    };
+  }, [draggedWaypointIndex, panOffset, zoom, waypoints]);
 
   let cardinalityLabel = '';
   if (style.showCardinality) {
@@ -239,8 +226,7 @@ export default function FieldLevelLine({
         stroke="transparent"
         strokeWidth="12"
         fill="none"
-        onClick={handleLineClick}
-        style={{ cursor: onUpdateWaypoints ? 'pointer' : 'default' }}
+        style={{ pointerEvents: 'none' }}
       />
 
       <path
@@ -283,16 +269,14 @@ export default function FieldLevelLine({
         </text>
       )}
 
-      {onUpdateWaypoints && waypoints.map((wp, index) => (
+      {onUpdateWaypoints && waypoints.length > 0 && (
         <g
-          key={index}
-          onMouseDown={(e) => handleWaypointMouseDown(index, e)}
-          onDoubleClick={(e) => handleWaypointDoubleClick(index, e)}
-          style={{ cursor: 'move' }}
+          onMouseDown={(e) => handleWaypointMouseDown(0, e)}
+          style={{ cursor: 'ew-resize' }}
         >
           <ellipse
-            cx={wp.x}
-            cy={wp.y}
+            cx={waypoints[0].x}
+            cy={(startY + endY) / 2}
             rx="8"
             ry="6"
             fill="white"
@@ -300,14 +284,14 @@ export default function FieldLevelLine({
             strokeWidth="2"
           />
           <ellipse
-            cx={wp.x}
-            cy={wp.y}
+            cx={waypoints[0].x}
+            cy={(startY + endY) / 2}
             rx="4"
             ry="3"
             fill="#3b82f6"
           />
         </g>
-      ))}
+      )}
     </g>
   );
 }
