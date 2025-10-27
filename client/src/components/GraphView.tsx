@@ -274,7 +274,7 @@ export default function GraphView({
       }}
       data-testid="graph-canvas"
     >
-      <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
+      <svg className="absolute inset-0" style={{ zIndex: 1, pointerEvents: 'none' }}>
         <defs>
           {/* Crow's foot notation markers */}
           
@@ -304,7 +304,7 @@ export default function GraphView({
             <line x1="8" y1="8" x2="2" y2="12" stroke="#64748B" strokeWidth="2" />
           </marker>
         </defs>
-        <g transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoom})`}>
+        <g transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoom})`} style={{ pointerEvents: 'auto' }}>
           {renderRelationshipLines()}
         </g>
       </svg>

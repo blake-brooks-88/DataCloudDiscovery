@@ -359,7 +359,7 @@ function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdat
   const [showFKConfig, setShowFKConfig] = useState(false);
 
   const availableEntities = entities.filter(e => 
-    e.id !== currentEntityId && e.type === currentEntityType
+    e.id !== currentEntityId
   );
 
   return (
