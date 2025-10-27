@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Plus, Trash2, Key, Link as LinkIcon, Lock, Eye, EyeOff } from "lucide-react";
+import { X, Plus, Trash2, Key, Link as LinkIcon, Lock, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { Entity, Field, FieldType, DataCloudObjectType, Cardinality } from "@shared/schema";
+import type { Entity, Field, FieldType, EntityType, Cardinality } from "@shared/schema";
+import { getEntityTypeLabel } from "@/lib/dataCloudStyles";
 
 interface EntityModalProps {
   isOpen: boolean;
@@ -19,24 +20,41 @@ interface EntityModalProps {
 
 export default function EntityModal({ isOpen, onClose, entity, entities, onSave }: EntityModalProps) {
   const [name, setName] = useState("");
+  const [entityType, setEntityType] = useState<EntityType>("dmo");
   const [dataSource, setDataSource] = useState("");
   const [businessPurpose, setBusinessPurpose] = useState("");
-  const [dataCloudType, setDataCloudType] = useState<DataCloudObjectType>("TBD");
   const [fields, setFields] = useState<Field[]>([]);
+  
+  // Data Cloud metadata
+  const [profileObjectType, setProfileObjectType] = useState<"Profile" | "Engagement" | "Other" | "TBD">("TBD");
+  const [apiName, setApiName] = useState("");
+  const [refreshType, setRefreshType] = useState<"full" | "incremental">("full");
+  const [schedule, setSchedule] = useState<"real-time" | "hourly" | "daily" | "weekly" | "custom">("daily");
+  const [sourceObjectName, setSourceObjectName] = useState("");
 
   useEffect(() => {
     if (entity) {
       setName(entity.name || "");
+      setEntityType(entity.type || "dmo");
       setDataSource(entity.dataSource || "");
       setBusinessPurpose(entity.businessPurpose || "");
-      setDataCloudType(entity.dataCloudIntent?.objectType || "TBD");
       setFields(entity.fields || []);
+      setProfileObjectType(entity.dataCloudMetadata?.profileObjectType || "TBD");
+      setApiName(entity.dataCloudMetadata?.apiName || "");
+      setRefreshType(entity.dataCloudMetadata?.streamConfig?.refreshType || "full");
+      setSchedule(entity.dataCloudMetadata?.streamConfig?.schedule || "daily");
+      setSourceObjectName(entity.dataCloudMetadata?.streamConfig?.sourceObjectName || "");
     } else {
       setName("");
+      setEntityType("dmo");
       setDataSource("");
       setBusinessPurpose("");
-      setDataCloudType("TBD");
       setFields([]);
+      setProfileObjectType("TBD");
+      setApiName("");
+      setRefreshType("full");
+      setSchedule("daily");
+      setSourceObjectName("");
     }
   }, [entity, isOpen]);
 
@@ -64,11 +82,31 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
     const updatedEntity: Partial<Entity> = {
       ...(entity?.id && { id: entity.id }),
       name,
+      type: entityType,
       dataSource,
       businessPurpose,
-      dataCloudIntent: { objectType: dataCloudType },
       fields,
+      dataCloudMetadata: {
+        ...(entityType === 'dmo' && { 
+          profileObjectType,
+          objectType: 'DMO' as const,
+        }),
+        ...(entityType === 'dlo' && { 
+          objectType: 'DLO' as const,
+        }),
+        ...(entityType === 'data-stream' && {
+          streamConfig: {
+            refreshType,
+            schedule,
+            sourceObjectName,
+          },
+        }),
+        apiName: apiName || undefined,
+      },
       ...(entity?.position && { position: entity.position }),
+      ...(entity?.sourceDataStreamId && { sourceDataStreamId: entity.sourceDataStreamId }),
+      ...(entity?.sourceDLOIds && { sourceDLOIds: entity.sourceDLOIds }),
+      ...(entity?.dataSourceId && { dataSourceId: entity.dataSourceId }),
     };
     onSave(updatedEntity);
   };
@@ -99,51 +137,155 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
             </div>
 
             <div>
-              <Label htmlFor="data-source" className="text-sm font-medium text-coolgray-500">
-                Data Source
+              <Label htmlFor="entity-type" className="text-sm font-medium text-coolgray-500">
+                Entity Type *
               </Label>
-              <Input
-                id="data-source"
-                value={dataSource}
-                onChange={(e) => setDataSource(e.target.value)}
-                placeholder="e.g., Salesforce Production, MySQL Database"
-                className="mt-1 border-coolgray-200 focus:border-secondary-500"
-                data-testid="input-data-source"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="data-cloud-type" className="text-sm font-medium text-coolgray-500">
-                Data Cloud Object Type
-              </Label>
-              <Select value={dataCloudType} onValueChange={(value) => setDataCloudType(value as DataCloudObjectType)}>
-                <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-data-cloud-type">
+              <Select value={entityType} onValueChange={(value) => setEntityType(value as EntityType)}>
+                <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-entity-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white border-coolgray-200">
-                  <SelectItem value="Profile">Profile</SelectItem>
-                  <SelectItem value="Engagement">Engagement</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                  <SelectItem value="TBD">TBD</SelectItem>
+                  <SelectItem value="data-stream">Data Stream (Ingestion)</SelectItem>
+                  <SelectItem value="dlo">DLO (Data Lake Object)</SelectItem>
+                  <SelectItem value="dmo">DMO (Data Model Object)</SelectItem>
+                  <SelectItem value="data-transform">Data Transform</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {entityType === 'dmo' && (
+              <>
+                <div>
+                  <Label htmlFor="data-source" className="text-sm font-medium text-coolgray-500">
+                    Data Source
+                  </Label>
+                  <Input
+                    id="data-source"
+                    value={dataSource}
+                    onChange={(e) => setDataSource(e.target.value)}
+                    placeholder="e.g., Salesforce Production"
+                    className="mt-1 border-coolgray-200 focus:border-secondary-500"
+                    data-testid="input-data-source"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="profile-object-type" className="text-sm font-medium text-coolgray-500">
+                    Profile Object Type
+                  </Label>
+                  <Select value={profileObjectType} onValueChange={(value: any) => setProfileObjectType(value)}>
+                    <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-profile-object-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-coolgray-200">
+                      <SelectItem value="Profile">Profile</SelectItem>
+                      <SelectItem value="Engagement">Engagement</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="TBD">TBD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {entityType === 'data-stream' && (
+              <>
+                <div>
+                  <Label htmlFor="source-object-name" className="text-sm font-medium text-coolgray-500">
+                    Source Object Name *
+                  </Label>
+                  <Input
+                    id="source-object-name"
+                    value={sourceObjectName}
+                    onChange={(e) => setSourceObjectName(e.target.value)}
+                    placeholder="e.g., Account, Contact"
+                    className="mt-1 border-coolgray-200 focus:border-secondary-500"
+                    data-testid="input-source-object-name"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="refresh-type" className="text-sm font-medium text-coolgray-500">
+                    Refresh Type
+                  </Label>
+                  <Select value={refreshType} onValueChange={(value: any) => setRefreshType(value)}>
+                    <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-refresh-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-coolgray-200">
+                      <SelectItem value="full">Full</SelectItem>
+                      <SelectItem value="incremental">Incremental</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="schedule" className="text-sm font-medium text-coolgray-500">
+                    Schedule
+                  </Label>
+                  <Select value={schedule} onValueChange={(value: any) => setSchedule(value)}>
+                    <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-schedule">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-coolgray-200">
+                      <SelectItem value="real-time">Real-time</SelectItem>
+                      <SelectItem value="hourly">Hourly</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="api-name" className="text-sm font-medium text-coolgray-500">
+                    API Name
+                  </Label>
+                  <Input
+                    id="api-name"
+                    value={apiName}
+                    onChange={(e) => setApiName(e.target.value)}
+                    placeholder="e.g., Account_Stream"
+                    className="mt-1 border-coolgray-200 focus:border-secondary-500"
+                    data-testid="input-api-name"
+                  />
+                </div>
+              </>
+            )}
+
+            {(entityType === 'dlo' || entityType === 'dmo') && (
+              <div>
+                <Label htmlFor="api-name" className="text-sm font-medium text-coolgray-500">
+                  API Name
+                </Label>
+                <Input
+                  id="api-name"
+                  value={apiName}
+                  onChange={(e) => setApiName(e.target.value)}
+                  placeholder={`e.g., ${name.replace(/\s+/g, '_')}_${entityType.toUpperCase()}`}
+                  className="mt-1 border-coolgray-200 focus:border-secondary-500"
+                  data-testid="input-api-name"
+                />
+              </div>
+            )}
           </div>
 
-          <div>
-            <Label htmlFor="business-purpose" className="text-sm font-medium text-coolgray-500">
-              Business Purpose
-            </Label>
-            <Textarea
-              id="business-purpose"
-              value={businessPurpose}
-              onChange={(e) => setBusinessPurpose(e.target.value)}
-              placeholder="Describe the business purpose of this entity..."
-              className="mt-1 border-coolgray-200 focus:border-secondary-500"
-              rows={2}
-              data-testid="textarea-business-purpose"
-            />
-          </div>
+          {entityType === 'dmo' && (
+            <div>
+              <Label htmlFor="business-purpose" className="text-sm font-medium text-coolgray-500">
+                Business Purpose
+              </Label>
+              <Textarea
+                id="business-purpose"
+                value={businessPurpose}
+                onChange={(e) => setBusinessPurpose(e.target.value)}
+                placeholder="Describe the business purpose of this entity..."
+                className="mt-1 border-coolgray-200 focus:border-secondary-500"
+                rows={2}
+                data-testid="textarea-business-purpose"
+              />
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -212,6 +354,7 @@ interface FieldRowProps {
 
 function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: FieldRowProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showFKConfig, setShowFKConfig] = useState(false);
 
   const availableEntities = entities.filter(e => e.id !== currentEntityId);
 
@@ -261,7 +404,10 @@ function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: Fiel
           <label className="flex items-center gap-1 text-xs text-coolgray-600">
             <Checkbox
               checked={field.isFK}
-              onCheckedChange={(checked) => onUpdate({ isFK: checked as boolean })}
+              onCheckedChange={(checked) => {
+                onUpdate({ isFK: checked as boolean });
+                if (checked) setShowFKConfig(true);
+              }}
               data-testid={`checkbox-fk-${field.id}`}
             />
             <LinkIcon className="h-3 w-3 text-secondary-500" />
@@ -313,107 +459,124 @@ function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: Fiel
       </div>
 
       {field.isFK && (
-        <div className="space-y-2 pt-2 border-t border-coolgray-200 bg-secondary-50/50 p-3 rounded">
-          <p className="text-xs font-semibold text-secondary-600 mb-2">Foreign Key Configuration</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs text-coolgray-600">Target Entity *</Label>
-              <Select
-                value={field.fkReference?.targetEntityId || ""}
-                onValueChange={(value) => {
-                  onUpdate({
-                    fkReference: {
-                      targetEntityId: value,
-                      targetFieldId: "",
-                      cardinality: field.fkReference?.cardinality || "many-to-one",
-                      relationshipLabel: field.fkReference?.relationshipLabel,
-                    }
-                  });
-                }}
-              >
-                <SelectTrigger className="text-sm border-coolgray-200 bg-white" data-testid={`select-target-entity-${field.id}`}>
-                  <SelectValue placeholder="Select entity..." />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-coolgray-200">
-                  {availableEntities.map(e => (
-                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="pt-2 border-t border-coolgray-200">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowFKConfig(!showFKConfig)}
+            className="text-xs text-secondary-600 hover:text-secondary-700 w-full justify-between"
+            data-testid={`button-toggle-fk-config-${field.id}`}
+          >
+            <span className="flex items-center gap-1">
+              <LinkIcon className="h-3 w-3" />
+              Foreign Key Configuration
+            </span>
+            {showFKConfig ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+          
+          {showFKConfig && (
+            <div className="space-y-2 mt-2 bg-secondary-50/50 p-3 rounded">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs text-coolgray-600">Target Entity *</Label>
+                  <Select
+                    value={field.fkReference?.targetEntityId || ""}
+                    onValueChange={(value) => {
+                      onUpdate({
+                        fkReference: {
+                          targetEntityId: value,
+                          targetFieldId: "",
+                          cardinality: field.fkReference?.cardinality || "many-to-one",
+                          relationshipLabel: field.fkReference?.relationshipLabel,
+                        }
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="text-sm border-coolgray-200 bg-white" data-testid={`select-target-entity-${field.id}`}>
+                      <SelectValue placeholder="Select entity..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-coolgray-200">
+                      {availableEntities.map(e => (
+                        <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div>
-              <Label className="text-xs text-coolgray-600">Target Field *</Label>
-              <Select
-                value={field.fkReference?.targetFieldId || ""}
-                onValueChange={(value) => {
-                  onUpdate({
-                    fkReference: {
-                      ...field.fkReference!,
-                      targetFieldId: value,
-                    }
-                  });
-                }}
-                disabled={!field.fkReference?.targetEntityId}
-              >
-                <SelectTrigger className="text-sm border-coolgray-200 bg-white" data-testid={`select-target-field-${field.id}`}>
-                  <SelectValue placeholder="Select field..." />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-coolgray-200">
-                  {field.fkReference?.targetEntityId &&
-                    entities
-                      .find(e => e.id === field.fkReference?.targetEntityId)
-                      ?.fields.filter(f => f.isPK)
-                      .map(f => (
-                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                      ))
-                  }
-                </SelectContent>
-              </Select>
-            </div>
+                <div>
+                  <Label className="text-xs text-coolgray-600">Target Field *</Label>
+                  <Select
+                    value={field.fkReference?.targetFieldId || ""}
+                    onValueChange={(value) => {
+                      onUpdate({
+                        fkReference: {
+                          ...field.fkReference!,
+                          targetFieldId: value,
+                        }
+                      });
+                    }}
+                    disabled={!field.fkReference?.targetEntityId}
+                  >
+                    <SelectTrigger className="text-sm border-coolgray-200 bg-white" data-testid={`select-target-field-${field.id}`}>
+                      <SelectValue placeholder="Select field..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-coolgray-200">
+                      {field.fkReference?.targetEntityId &&
+                        entities
+                          .find(e => e.id === field.fkReference?.targetEntityId)
+                          ?.fields.filter(f => f.isPK)
+                          .map(f => (
+                            <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                          ))
+                      }
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div>
-              <Label className="text-xs text-coolgray-600">Cardinality</Label>
-              <Select
-                value={field.fkReference?.cardinality || "many-to-one"}
-                onValueChange={(value) => {
-                  onUpdate({
-                    fkReference: {
-                      ...field.fkReference!,
-                      cardinality: value as Cardinality,
-                    }
-                  });
-                }}
-              >
-                <SelectTrigger className="text-sm border-coolgray-200 bg-white" data-testid={`select-cardinality-${field.id}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-coolgray-200">
-                  <SelectItem value="one-to-one">One-to-One (1:1)</SelectItem>
-                  <SelectItem value="one-to-many">One-to-Many (1:M)</SelectItem>
-                  <SelectItem value="many-to-one">Many-to-One (M:1)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <div>
+                  <Label className="text-xs text-coolgray-600">Cardinality</Label>
+                  <Select
+                    value={field.fkReference?.cardinality || "many-to-one"}
+                    onValueChange={(value) => {
+                      onUpdate({
+                        fkReference: {
+                          ...field.fkReference!,
+                          cardinality: value as Cardinality,
+                        }
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="text-sm border-coolgray-200 bg-white" data-testid={`select-cardinality-${field.id}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-coolgray-200">
+                      <SelectItem value="one-to-one">One-to-One (1:1)</SelectItem>
+                      <SelectItem value="one-to-many">One-to-Many (1:M)</SelectItem>
+                      <SelectItem value="many-to-one">Many-to-One (M:1)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div>
-              <Label className="text-xs text-coolgray-600">Relationship Label</Label>
-              <Input
-                value={field.fkReference?.relationshipLabel || ""}
-                onChange={(e) => {
-                  onUpdate({
-                    fkReference: {
-                      ...field.fkReference!,
-                      relationshipLabel: e.target.value,
-                    }
-                  });
-                }}
-                placeholder="e.g., owns, belongs to"
-                className="text-sm border-coolgray-200 bg-white"
-                data-testid={`input-relationship-label-${field.id}`}
-              />
+                <div>
+                  <Label className="text-xs text-coolgray-600">Relationship Label</Label>
+                  <Input
+                    value={field.fkReference?.relationshipLabel || ""}
+                    onChange={(e) => {
+                      onUpdate({
+                        fkReference: {
+                          ...field.fkReference!,
+                          relationshipLabel: e.target.value,
+                        }
+                      });
+                    }}
+                    placeholder="e.g., owns, belongs to"
+                    className="text-sm border-coolgray-200 bg-white"
+                    data-testid={`input-relationship-label-${field.id}`}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
