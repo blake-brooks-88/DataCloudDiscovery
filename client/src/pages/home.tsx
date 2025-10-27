@@ -237,6 +237,144 @@ export default function Home() {
     }
   };
 
+  const handleGenerateDLO = (dataStreamId: string) => {
+    if (!currentProject) return;
+    
+    const dataStream = currentProject.entities.find(e => e.id === dataStreamId);
+    if (!dataStream || dataStream.type !== 'data-stream') {
+      toast({
+        title: "Error",
+        description: "Can only generate DLO from Data Stream",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if DLO already exists
+    const existingDLO = currentProject.entities.find(
+      e => e.type === 'dlo' && e.sourceDataStreamId === dataStreamId
+    );
+    if (existingDLO) {
+      toast({
+        title: "DLO already exists",
+        description: `${existingDLO.name} is already linked to this Data Stream`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create DLO
+    const dloName = `${dataStream.name.replace(' Stream', '')}_DLO`;
+    const dlo: Entity = {
+      id: `entity-${Date.now()}`,
+      name: dloName,
+      type: 'dlo',
+      fields: dataStream.fields.map(f => ({
+        ...f,
+        id: `field-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      })),
+      sourceDataStreamId: dataStreamId,
+      dataCloudMetadata: {
+        objectType: 'DLO',
+        apiName: `${dataStream.name.replace(/\s/g, '_')}_DLO`,
+      },
+      position: {
+        x: dataStream.position?.x || 100,
+        y: (dataStream.position?.y || 100) + 220,
+      },
+    };
+
+    // Create relationship
+    const relationship: import("@shared/schema").Relationship = {
+      id: `rel-${Date.now()}`,
+      type: 'feeds-into',
+      sourceEntityId: dataStreamId,
+      targetEntityId: dlo.id,
+      label: 'Ingests',
+      fieldMappings: dataStream.fields.map((sourceField, index) => ({
+        sourceFieldId: sourceField.id,
+        targetFieldId: dlo.fields[index].id,
+      })),
+    };
+
+    updateCurrentProject({
+      entities: [...currentProject.entities, dlo],
+      relationships: [...(currentProject.relationships || []), relationship],
+    });
+
+    toast({
+      title: "DLO created",
+      description: `${dloName} created with ${dlo.fields.length} fields`,
+    });
+  };
+
+  const handleGenerateDMO = (dloId: string) => {
+    if (!currentProject) return;
+    
+    const dlo = currentProject.entities.find(e => e.id === dloId);
+    if (!dlo || dlo.type !== 'dlo') {
+      toast({
+        title: "Error",
+        description: "Can only generate DMO from DLO",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create DMO
+    const dmoName = `${dlo.name.replace('_DLO', '')}_DMO`;
+    const dmoFields = dlo.fields.map(f => ({
+      ...f,
+      id: `field-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    }));
+
+    const dmo: Entity = {
+      id: `entity-${Date.now()}`,
+      name: dmoName,
+      type: 'dmo',
+      fields: dmoFields,
+      sourceDLOIds: [dloId],
+      dataCloudMetadata: {
+        objectType: 'DMO',
+        profileObjectType: 'TBD',
+        apiName: `${dlo.name.replace('_DLO', '')}_DMO`,
+      },
+      fieldMappings: dlo.fields.map((dloField, index) => ({
+        targetFieldId: dmoFields[index].id,
+        sourceEntityId: dloId,
+        sourceFieldId: dloField.id,
+        transformDescription: 'Direct copy',
+      })),
+      position: {
+        x: dlo.position?.x || 100,
+        y: (dlo.position?.y || 100) + 220,
+      },
+    };
+
+    // Create relationship
+    const relationship: import("@shared/schema").Relationship = {
+      id: `rel-${Date.now()}`,
+      type: 'transforms-to',
+      sourceEntityId: dloId,
+      targetEntityId: dmo.id,
+      label: 'Transforms',
+      fieldMappings: dmo.fieldMappings?.map(fm => ({
+        sourceFieldId: fm.sourceFieldId,
+        targetFieldId: fm.targetFieldId,
+      })),
+    };
+
+    updateCurrentProject({
+      entities: [...currentProject.entities, dmo],
+      relationships: [...(currentProject.relationships || []), relationship],
+    });
+
+    toast({
+      title: "DMO created",
+      description: `${dmoName} created with ${dmo.fields.length} fields`,
+    });
+  };
+
   const handleExportJSON = () => {
     if (!currentProject) return;
     const dataStr = JSON.stringify(currentProject, null, 2);
@@ -365,10 +503,13 @@ export default function Home() {
         {viewMode === 'graph' ? (
           <GraphView
             entities={filteredEntities}
+            relationships={currentProject.relationships || []}
             selectedEntityId={selectedEntityId}
             searchQuery={searchQuery}
             onSelectEntity={setSelectedEntityId}
             onUpdateEntityPosition={handleUpdateEntityPosition}
+            onGenerateDLO={handleGenerateDLO}
+            onGenerateDMO={handleGenerateDMO}
             onEntityDoubleClick={handleEntityDoubleClick}
           />
         ) : (

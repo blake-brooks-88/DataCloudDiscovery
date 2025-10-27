@@ -3,15 +3,19 @@ import { Plus, Minus, Maximize2, RotateCcw, Target } from "lucide-react";
 import EntityNode from "./EntityNode";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import type { Entity } from "@shared/schema";
+import type { Entity, Relationship } from "@shared/schema";
+import { getRelationshipLineStyle } from "@/lib/dataCloudStyles";
 
 interface GraphViewProps {
   entities: Entity[];
+  relationships?: Relationship[];
   selectedEntityId: string | null;
   searchQuery?: string;
   onSelectEntity: (entityId: string | null) => void;
   onUpdateEntityPosition: (entityId: string, position: { x: number; y: number }) => void;
   onEntityDoubleClick: (entityId: string) => void;
+  onGenerateDLO?: (entityId: string) => void;
+  onGenerateDMO?: (entityId: string) => void;
 }
 
 interface DragState {
@@ -24,11 +28,14 @@ interface DragState {
 
 export default function GraphView({
   entities,
+  relationships = [],
   selectedEntityId,
   searchQuery = '',
   onSelectEntity,
   onUpdateEntityPosition,
   onEntityDoubleClick,
+  onGenerateDLO,
+  onGenerateDMO,
 }: GraphViewProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -220,31 +227,87 @@ export default function GraphView({
   const renderRelationshipLines = () => {
     const lines: JSX.Element[] = [];
 
-    const formatCardinality = (cardinality: string) => {
-      switch (cardinality) {
-        case 'one-to-one': return '1:1';
-        case 'one-to-many': return '1:M';
-        case 'many-to-one': return 'M:1';
-        default: return cardinality;
-      }
-    };
+    // Render new Relationship objects
+    relationships.forEach((rel) => {
+      const sourceEntity = entities.find(e => e.id === rel.sourceEntityId);
+      const targetEntity = entities.find(e => e.id === rel.targetEntityId);
+      if (!sourceEntity || !targetEntity) return;
 
+      const style = getRelationshipLineStyle(rel.type);
+      
+      const sourcePos = sourceEntity.position || { x: 100, y: 100 };
+      const targetPos = targetEntity.position || { x: 400, y: 100 };
+
+      const startX = sourcePos.x + 140;
+      const startY = sourcePos.y + 75;
+      const endX = targetPos.x + 140;
+      const endY = targetPos.y + 75;
+
+      const markerEndId = rel.type === 'feeds-into' ? 'arrow-blue' : 
+                          rel.type === 'transforms-to' ? 'arrow-green' : 
+                          'arrow-gray';
+
+      lines.push(
+        <g key={rel.id}>
+          {/* Main relationship line */}
+          <line
+            x1={startX}
+            y1={startY}
+            x2={endX}
+            y2={endY}
+            stroke={style.stroke}
+            strokeWidth={style.strokeWidth}
+            strokeDasharray={style.strokeDasharray}
+            markerEnd={`url(#${markerEndId})`}
+          />
+          
+          {/* Animated overlay for feeds-into */}
+          {style.animated && (
+            <line
+              x1={startX}
+              y1={startY}
+              x2={endX}
+              y2={endY}
+              stroke="url(#data-flow)"
+              strokeWidth={style.strokeWidth}
+            />
+          )}
+          
+          {/* Label */}
+          <text
+            x={(startX + endX) / 2}
+            y={(startY + endY) / 2 - 5}
+            fill="#64748B"
+            fontSize="11"
+            fontWeight="600"
+            textAnchor="middle"
+          >
+            {rel.label || style.label}
+          </text>
+        </g>
+      );
+    });
+
+    // Also render legacy FK references for backward compatibility
     entities.forEach((entity) => {
       entity.fields.forEach((field) => {
         if (field.isFK && field.fkReference && field.visibleInERD !== false) {
           const targetEntity = entities.find(e => e.id === field.fkReference!.targetEntityId);
           if (!targetEntity) return;
 
+          // Check if this relationship is already in the relationships array
+          const hasRelationship = relationships.some(r =>
+            r.sourceEntityId === entity.id && r.targetEntityId === field.fkReference!.targetEntityId
+          );
+          if (hasRelationship) return; // Skip if already rendered
+
           const sourcePos = entity.position || { x: 100, y: 100 };
           const targetPos = targetEntity.position || { x: 400, y: 100 };
 
-          const startX = sourcePos.x + 160;
-          const startY = sourcePos.y + 60;
-          const endX = targetPos.x;
-          const endY = targetPos.y + 60;
-
-          const cardinalityLabel = formatCardinality(field.fkReference.cardinality);
-          const relationshipLabel = field.fkReference.relationshipLabel;
+          const startX = sourcePos.x + 140;
+          const startY = sourcePos.y + 75;
+          const endX = targetPos.x + 140;
+          const endY = targetPos.y + 75;
 
           lines.push(
             <g key={`${entity.id}-${field.id}`}>
@@ -253,32 +316,19 @@ export default function GraphView({
                 y1={startY}
                 x2={endX}
                 y2={endY}
-                stroke="#94A3B8"
+                stroke="#64748B"
                 strokeWidth="2"
-                markerEnd="url(#arrowhead)"
+                markerEnd="url(#arrow-gray)"
               />
               <text
                 x={(startX + endX) / 2}
-                y={(startY + endY) / 2 - 8}
+                y={(startY + endY) / 2 - 5}
                 fill="#64748B"
                 fontSize="11"
-                className="font-mono font-semibold"
                 textAnchor="middle"
               >
-                {cardinalityLabel}
+                {field.fkReference.relationshipLabel || 'FK'}
               </text>
-              {relationshipLabel && (
-                <text
-                  x={(startX + endX) / 2}
-                  y={(startY + endY) / 2 + 8}
-                  fill="#64748B"
-                  fontSize="10"
-                  className="italic"
-                  textAnchor="middle"
-                >
-                  "{relationshipLabel}"
-                </text>
-              )}
             </g>
           );
         }
@@ -310,16 +360,44 @@ export default function GraphView({
     >
       <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
         <defs>
+          {/* Arrow markers for different relationship types */}
           <marker
-            id="arrowhead"
+            id="arrow-blue"
             markerWidth="10"
             markerHeight="10"
             refX="9"
             refY="3"
             orient="auto"
           >
-            <polygon points="0 0, 10 3, 0 6" fill="#94A3B8" />
+            <polygon points="0 0, 10 3, 0 6" fill="#4AA0D9" />
           </marker>
+          <marker
+            id="arrow-green"
+            markerWidth="10"
+            markerHeight="10"
+            refX="9"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="0 0, 10 3, 0 6" fill="#BED163" />
+          </marker>
+          <marker
+            id="arrow-gray"
+            markerWidth="10"
+            markerHeight="10"
+            refX="9"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="0 0, 10 3, 0 6" fill="#64748B" />
+          </marker>
+          
+          {/* Animated pattern for data flow */}
+          <pattern id="data-flow" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="5" cy="10" r="2" fill="#4AA0D9" opacity="0.6">
+              <animate attributeName="cx" from="5" to="25" dur="2s" repeatCount="indefinite" />
+            </circle>
+          </pattern>
         </defs>
         <g transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoom})`}>
           {renderRelationshipLines()}
@@ -338,6 +416,14 @@ export default function GraphView({
         {entities.map((entity) => {
           const isMatch = hasSearchQuery && matchingEntities.some(e => e.id === entity.id);
           const shouldDim = hasSearchQuery && !isMatch;
+          
+          // Check if this entity has linked DLO or DMO
+          const hasLinkedDLO = relationships.some(r => 
+            r.type === 'feeds-into' && r.sourceEntityId === entity.id
+          );
+          const hasLinkedDMO = relationships.some(r => 
+            r.type === 'transforms-to' && r.sourceEntityId === entity.id
+          );
 
           return (
             <EntityNode
@@ -351,6 +437,10 @@ export default function GraphView({
               onDrag={handleEntityDrag}
               onDragEnd={handleEntityDragEnd}
               onDoubleClick={() => onEntityDoubleClick(entity.id)}
+              onGenerateDLO={onGenerateDLO}
+              onGenerateDMO={onGenerateDMO}
+              hasLinkedDLO={hasLinkedDLO}
+              hasLinkedDMO={hasLinkedDMO}
               style={{
                 left: entity.position?.x || 100,
                 top: entity.position?.y || 100,
