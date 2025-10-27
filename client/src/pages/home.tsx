@@ -7,6 +7,7 @@ import TableView from "@/components/TableView";
 import EntityModal from "@/components/EntityModal";
 import ProjectDialog from "@/components/ProjectDialog";
 import SourceSystemDialog from "@/components/SourceSystemDialog";
+import SourceSystemManagementDialog from "@/components/SourceSystemManagementDialog";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -40,6 +41,7 @@ export default function Home() {
   const [projectDialogMode, setProjectDialogMode] = useState<'create' | 'rename'>('create');
   
   const [isSourceSystemDialogOpen, setIsSourceSystemDialogOpen] = useState(false);
+  const [isSourceSystemManagementOpen, setIsSourceSystemManagementOpen] = useState(false);
   const [editingSourceSystem, setEditingSourceSystem] = useState<SourceSystem | null>(null);
   
   const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
@@ -369,10 +371,7 @@ export default function Home() {
           setIsProjectDialogOpen(true);
         }}
         onDeleteProject={() => setIsDeleteProjectDialogOpen(true)}
-        onManageSourceSystems={() => {
-          setEditingSourceSystem(null);
-          setIsSourceSystemDialogOpen(true);
-        }}
+        onManageSourceSystems={() => setIsSourceSystemManagementOpen(true)}
         onImportCSV={handleImportCSV}
         onImportJSON={handleImportJSON}
         onExportJSON={handleExportJSON}
@@ -456,6 +455,21 @@ export default function Home() {
         sourceSystem={editingSourceSystem}
         onSave={handleSaveSourceSystem}
         title={editingSourceSystem ? 'Edit Source System' : 'Create Source System'}
+      />
+
+      <SourceSystemManagementDialog
+        isOpen={isSourceSystemManagementOpen}
+        onClose={() => setIsSourceSystemManagementOpen(false)}
+        sourceSystems={currentProject?.sourceSystems || []}
+        onCreateSourceSystem={() => {
+          setEditingSourceSystem(null);
+          setIsSourceSystemDialogOpen(true);
+        }}
+        onEditSourceSystem={(sourceSystem) => {
+          setEditingSourceSystem(sourceSystem);
+          setIsSourceSystemDialogOpen(true);
+        }}
+        onDeleteSourceSystem={handleDeleteSourceSystem}
       />
 
       <AlertDialog open={isDeleteProjectDialogOpen} onOpenChange={setIsDeleteProjectDialogOpen}>
