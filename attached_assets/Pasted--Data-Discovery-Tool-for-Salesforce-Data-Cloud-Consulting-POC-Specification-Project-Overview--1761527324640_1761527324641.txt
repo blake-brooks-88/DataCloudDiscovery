@@ -1,0 +1,1546 @@
+# Data Discovery Tool for Salesforce Data Cloud Consulting - POC Specification
+
+## Project Overview
+Build a web-based data discovery and documentation tool for consultants implementing Salesforce Data Cloud. The tool helps consultants map client data sources, define relationships, and generate client-facing deliverables (ERD diagrams and data dictionaries) for approval.
+
+## Core Problem Being Solved
+Consultants currently juggle separate tools (Lucidchart for ERDs, Excel for data dictionaries, Word for blueprints) that get out of sync. This tool provides a single source of truth where one update propagates to all outputs automatically.
+
+---
+
+## Technical Stack & Architecture
+
+### Frontend
+- **Framework**: React 18+ with TypeScript
+- **Styling**: Tailwind CSS (custom config provided below)
+- **State Management**: React Context API with custom hooks
+- **Data Persistence**: localStorage (Repository pattern for future backend swap)
+- **Key Libraries**:
+  - `react-resizable-panels` - Split panel layouts
+  - `lucide-react` - Icons
+  - `uuid` - Generate unique IDs
+  - `mermaid` - ERD rendering
+  - `papaparse` - CSV parsing
+  - `jspdf` or `html2pdf.js` - PDF export
+
+### Data Models
+
+```typescript
+type FieldType = 'string' | 'text' | 'int' | 'float' | 'number' | 'decimal' | 
+  'boolean' | 'date' | 'datetime' | 'timestamp' | 'json' | 'jsonb' | 
+  'uuid' | 'enum' | 'phone' | 'email';
+
+type SourceSystemType = 'salesforce' | 'database' | 'api' | 'csv' | 
+  'erp' | 'marketing_tool' | 'custom';
+
+type Cardinality = 'one-to-one' | 'one-to-many' | 'many-to-one';
+
+type DataCloudObjectType = 'Profile' | 'Engagement' | 'Other' | 'TBD';
+
+interface FKReference {
+  targetEntityId: string;
+  targetFieldId: string;
+  cardinality: Cardinality;
+  relationshipLabel?: string;
+}
+
+interface Field {
+  id: string;
+  name: string;
+  type: FieldType;
+  isPK: boolean;
+  isFK: boolean;
+  fkReference?: FKReference;
+  businessName?: string;
+  description?: string;
+  sampleValues?: string[];
+  notes?: string;
+  flag?: 'caution' | 'critical' | null;
+  containsPII?: boolean;
+}
+
+interface SourceSystem {
+  type: SourceSystemType;
+  name: string;
+  connectionDetails?: string;
+}
+
+interface DataCloudIntent {
+  objectType: DataCloudObjectType;
+  notes?: string;
+}
+
+interface Entity {
+  id: string;
+  name: string;
+  fields: Field[];
+  sourceSystem: SourceSystem;
+  businessPurpose?: string;
+  dataCloudIntent?: DataCloudIntent;
+  position?: { x: number; y: number };
+  implementationStatus?: 'not-started' | 'in-progress' | 'completed';
+  implementationNotes?: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  clientName?: string;
+  consultant?: string;
+  createdAt: number;
+  lastModified: number;
+  entities: Entity[];
+}
+```
+
+### Repository Pattern (Abstraction for Storage)
+
+```typescript
+interface IProjectRepository {
+  getProject(id: string): Promise<Project>;
+  listProjects(): Promise<Project[]>;
+  createProject(project: Project): Promise<void>;
+  updateProject(id: string, updates: Partial<Project>): Promise<void>;
+  deleteProject(id: string): Promise<void>;
+  addEntity(projectId: string, entity: Entity): Promise<void>;
+  updateEntity(projectId: string, entityId: string, updates: Partial<Entity>): Promise<void>;
+  deleteEntity(projectId: string, entityId: string): Promise<void>;
+  importEntities(projectId: string, entities: Entity[]): Promise<void>;
+}
+
+class LocalStorageRepository implements IProjectRepository {
+  private STORAGE_KEY = 'data-discovery-projects';
+  
+  // Implement all methods using localStorage
+  // All methods return Promises for consistency with future async backends
+}
+```
+
+---
+
+## Brand Guidelines & Design System
+
+### Tailwind Config (MUST USE EXACTLY AS PROVIDED)
+
+```javascript
+module.exports = {
+  content: [
+    './src/**/*.{js,jsx,ts,tsx}',
+  ],
+  theme: {
+    colors: {
+      transparent: 'transparent',
+      current: 'currentColor',
+      white: '#FFFFFF',
+      black: '#000000',
+
+      // Neutral Palette (CoolGray)
+      coolgray: {
+        50: '#F8FAFC',
+        100: '#F1F5F9',
+        200: '#E2E8F0',
+        300: '#CBD5E1',
+        400: '#94A3B8',
+        500: '#64748B',
+        600: '#475569',
+        700: '#334155',
+        800: '#1E293B',
+        900: '#0F172A',
+        950: '#020617',
+      },
+
+      // Primary Palette (Orange - CTA/Action)
+      primary: {
+        50: '#FFF6EB',
+        100: '#FEE7C8',
+        200: '#F9D09B',
+        300: '#F0B369',
+        400: '#E8A658',
+        500: '#E49A43',
+        600: '#C78235',
+        700: '#A06727',
+        800: '#7C501C',
+        900: '#5C3810',
+        950: '#3A2304',
+      },
+
+      // Secondary Palette (Blue - Navigation/Info)
+      secondary: {
+        50: '#E6F3FB',
+        100: '#C0E0F4',
+        200: '#99CCEA',
+        300: '#73B9E0',
+        400: '#5FB1E5',
+        500: '#4AA0D9',
+        600: '#3B7FB0',
+        700: '#2E648B',
+        800: '#224967',
+        900: '#162F43',
+        950: '#09161F',
+      },
+
+      // Tertiary Palette (Green - Accent Only)
+      tertiary: {
+        50: '#F9FCEA',
+        100: '#EBF2C4',
+        200: '#DCE79F',
+        300: '#CBDD7A',
+        400: '#BEDA59',
+        500: '#BED163',
+        600: '#9AB04E',
+        700: '#7A893D',
+        800: '#5B662C',
+        900: '#3B431B',
+        950: '#1B200A',
+      },
+
+      // Utility Colors
+      success: {
+        50: '#D8F7DB',
+        500: '#2ABF3C',
+        700: '#1F8E2E',
+      },
+      danger: {
+        50: '#FEEAEB',
+        500: '#E74B3C',
+        700: '#BF3428',
+      },
+      warning: {
+        50: '#FFF7E6',
+        500: '#FFC700',
+        700: '#D8A500',
+      },
+      info: {
+        50: '#E6F3FB',
+        500: '#4AA0D9',
+        700: '#2E648B',
+      },
+    },
+
+    spacing: {
+      0: '0',
+      1: '4px',
+      2: '8px',
+      3: '12px',
+      4: '16px',
+      5: '20px',
+      6: '24px',
+      8: '32px',
+      10: '40px',
+      12: '48px',
+      16: '64px',
+      20: '80px',
+      24: '96px',
+      32: '128px',
+    },
+
+    fontFamily: {
+      sans: ['Inter', 'system-ui', 'sans-serif'],
+      mono: ['JetBrains Mono', 'Courier New', 'monospace'],
+    },
+
+    borderRadius: {
+      none: '0',
+      sm: '2px',
+      md: '4px',
+      lg: '8px',
+      xl: '12px',
+      full: '9999px',
+    },
+
+    extend: {
+      boxShadow: {
+        sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        md: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+        lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+      },
+    },
+  },
+  plugins: [],
+};
+```
+
+### Design Tokens Semantic Mapping
+
+```css
+/* Use these semantic class names throughout the app */
+.bg-page-bg { @apply bg-coolgray-50; }
+.bg-base { @apply bg-coolgray-100; }
+.border-border { @apply border-coolgray-200; }
+.text-text { @apply text-coolgray-600; }
+.text-neutral { @apply text-coolgray-500; }
+.text-error { @apply text-danger-500; }
+
+/* Component-specific patterns */
+.btn-primary { @apply bg-primary-500 hover:bg-primary-600 text-white rounded-lg shadow-md; }
+.btn-secondary { @apply bg-secondary-500 hover:bg-secondary-600 text-white rounded-lg shadow-md; }
+.card { @apply bg-white rounded-xl shadow-md border border-border; }
+```
+
+### Typography Scale
+- **Page Title**: `text-2xl font-bold text-text`
+- **Section Header**: `text-xl font-bold text-text`
+- **Card Title**: `text-lg font-semibold text-text`
+- **Body Text**: `text-base text-text`
+- **Label**: `text-sm font-medium text-neutral`
+- **Caption**: `text-xs text-neutral`
+- **Code/Technical**: `font-mono text-sm`
+
+### Color Usage Rules
+- **Primary Orange**: CTAs, save buttons, primary actions only
+- **Secondary Blue**: Navigation, informational elements, secondary actions
+- **Tertiary Green**: Decorative accents only (NOT for success states)
+- **Success Green**: Use utility success color for checkmarks, completed status
+- **Danger Red**: Delete actions, critical flags, errors
+- **Warning Yellow**: Caution flags, important notes
+- **CoolGray**: All backgrounds, text, borders (90% of the UI)
+
+### Shape & Elevation
+- **Buttons**: `rounded-lg` (8px)
+- **Cards**: `rounded-xl` (12px)
+- **Inputs**: `rounded-md` (4px)
+- **Badges**: `rounded-full`
+- **Standard elevation**: `shadow-md`
+- **Modal elevation**: `shadow-lg`
+
+---
+
+## UI Layout & Components
+
+### Overall Layout
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Navbar (sticky top)                                    │
+│  - Logo + "Schema Builder"                              │
+│  - Project selector dropdown                            │
+│  - Import/Export dropdowns                              │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Main Workspace                                         │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ Toolbar                                          │  │
+│  │ [Graph View / Table View Toggle]                │  │
+│  │ [Source Filter] [Type Filter] [Flag Filter]     │  │
+│  │ [Search: "Search entities or fields..."]        │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                         │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ Content Area (Graph View OR Table View)         │  │
+│  │                                                  │  │
+│  │ [Dynamically switches based on toggle]          │  │
+│  │                                                  │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                         │
+│  [+ Add Entity FAB] (bottom-right floating button)     │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Component Specifications
+
+#### 1. Navbar Component
+
+```tsx
+// Location: src/components/Navbar.tsx
+
+<nav className="bg-page-bg border-b border-border shadow-md sticky top-0 z-50 px-4 py-3">
+  {/* Left: Branding + Project Selector */}
+  <div className="flex items-center gap-6">
+    <div className="flex items-center gap-2">
+      <div className="h-8 w-8 rounded-lg bg-primary-500 flex items-center justify-center">
+        <Database className="h-5 w-5 text-white" />
+      </div>
+      <h1 className="text-xl font-bold text-text">Schema Builder</h1>
+    </div>
+
+    {/* Project Dropdown */}
+    <DropdownMenu>
+      <DropdownMenuTrigger>
+        <Button variant="outline" className="border-border">
+          <Layers3 className="h-4 w-4 mr-2" />
+          {currentProject?.name || 'Select Project'}
+          <ChevronDown className="h-4 w-4 ml-2" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        {/* List projects */}
+        <DropdownMenuItem onClick={onCreateProject}>
+          <FilePlus className="h-4 w-4 mr-2" />
+          Create New Project
+        </DropdownMenuItem>
+        {/* Rename/Delete current project if selected */}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>
+
+  {/* Right: Import/Export */}
+  <div className="flex items-center gap-2">
+    <DropdownMenu>
+      <DropdownMenuTrigger>
+        <Button variant="outline" className="border-secondary-500 text-secondary-500">
+          <Upload className="h-4 w-4 mr-2" />
+          Import
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuItem>Import from CSV</DropdownMenuItem>
+        <DropdownMenuItem>Import Project (JSON)</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+
+    <DropdownMenu>
+      <DropdownMenuTrigger>
+        <Button variant="outline" className="border-primary-500 text-primary-500">
+          <Download className="h-4 w-4 mr-2" />
+          Export
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuItem>Export Project (JSON)</DropdownMenuItem>
+        <DropdownMenuItem>Export Data Dictionary (Excel)</DropdownMenuItem>
+        <DropdownMenuItem>Export Blueprint (PDF)</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>
+</nav>
+```
+
+#### 2. Main Workspace Toolbar
+
+```tsx
+// Location: src/components/Toolbar.tsx
+
+<div className="bg-white border-b border-border px-6 py-3 flex items-center justify-between">
+  {/* Left: View Toggle */}
+  <div className="flex items-center gap-2 bg-base rounded-lg p-1">
+    <Button
+      variant={view === 'graph' ? 'default' : 'ghost'}
+      size="sm"
+      onClick={() => setView('graph')}
+      className={view === 'graph' ? 'bg-primary-500 text-white' : ''}
+    >
+      <Network className="h-4 w-4 mr-2" />
+      Graph View
+    </Button>
+    <Button
+      variant={view === 'table' ? 'default' : 'ghost'}
+      size="sm"
+      onClick={() => setView('table')}
+      className={view === 'table' ? 'bg-primary-500 text-white' : ''}
+    >
+      <Table className="h-4 w-4 mr-2" />
+      Table View
+    </Button>
+  </div>
+
+  {/* Center: Filters */}
+  <div className="flex items-center gap-2">
+    <Select value={sourceFilter} onValueChange={setSourceFilter}>
+      <SelectTrigger className="w-48">
+        <SelectValue placeholder="All Sources" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Sources</SelectItem>
+        <SelectItem value="salesforce">Salesforce</SelectItem>
+        <SelectItem value="database">Database</SelectItem>
+        {/* Dynamic based on project */}
+      </SelectContent>
+    </Select>
+
+    <Select value={flagFilter} onValueChange={setFlagFilter}>
+      <SelectTrigger className="w-48">
+        <SelectValue placeholder="All Fields" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Fields</SelectItem>
+        <SelectItem value="flagged">Flagged Only</SelectItem>
+        <SelectItem value="critical">Critical Only</SelectItem>
+        <SelectItem value="pii">PII Only</SelectItem>
+      </SelectContent>
+    </Select>
+  </div>
+
+  {/* Right: Search */}
+  <div className="relative">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral" />
+    <Input
+      placeholder="Search entities or fields..."
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      className="pl-9 w-80"
+    />
+  </div>
+</div>
+```
+
+#### 3. Graph View (Interactive ERD)
+
+```tsx
+// Location: src/components/GraphView.tsx
+
+<div className="relative h-full w-full bg-white overflow-auto">
+  {/* Grid background (subtle dots) */}
+  <div className="absolute inset-0 bg-[radial-gradient(circle,_#CBD5E1_1px,_transparent_1px)] bg-[size:20px_20px] opacity-30" />
+
+  {/* Entity Cards */}
+  <div className="relative p-8">
+    {entities.map(entity => (
+      <EntityCard
+        key={entity.id}
+        entity={entity}
+        isFocused={focusedEntityId === entity.id}
+        isDimmed={focusedEntityId && focusedEntityId !== entity.id && !isRelatedToFocused(entity.id)}
+        onClick={() => setFocusedEntityId(entity.id)}
+        onDoubleClick={() => openEntityModal(entity)}
+        position={entity.position || { x: 100, y: 100 }}
+        onDragEnd={(newPos) => updateEntityPosition(entity.id, snapToGrid(newPos))}
+      />
+    ))}
+  </div>
+
+  {/* Relationship Lines (SVG Overlay) */}
+  <svg className="absolute inset-0 pointer-events-none">
+    {/* Render lines for FK relationships */}
+    {entities.flatMap(entity =>
+      entity.fields
+        .filter(f => f.isFK && f.fkReference)
+        .map(field => {
+          const targetEntity = findEntityById(field.fkReference!.targetEntityId);
+          const isHighlighted = 
+            focusedEntityId === entity.id || 
+            focusedEntityId === targetEntity?.id;
+          
+          return (
+            <line
+              key={field.id}
+              x1={entity.position.x}
+              y1={entity.position.y}
+              x2={targetEntity.position.x}
+              y2={targetEntity.position.y}
+              className={cn(
+                'stroke-2 transition-all duration-300',
+                isHighlighted ? 'stroke-primary-500 stroke-[3] opacity-100' : 'stroke-coolgray-300 opacity-50'
+              )}
+              markerEnd="url(#arrowhead)"
+            />
+          );
+        })
+    )}
+  </svg>
+
+  {/* Floating Action Button */}
+  <button
+    onClick={openNewEntityModal}
+    className="fixed bottom-6 right-6 bg-primary-500 hover:bg-primary-600 text-white rounded-full h-14 w-14 shadow-lg flex items-center justify-center transition-all hover:scale-110"
+  >
+    <Plus className="h-6 w-6" />
+  </button>
+
+  {/* Quick Actions Menu (when entity is focused) */}
+  {focusedEntityId && (
+    <FloatingMenu entityId={focusedEntityId}>
+      <MenuItem onClick={() => openEntityModal(focusedEntity)}>
+        <Edit className="h-4 w-4" />
+        Edit Entity
+      </MenuItem>
+      <MenuItem onClick={() => duplicateEntity(focusedEntity)}>
+        <Copy className="h-4 w-4" />
+        Duplicate
+      </MenuItem>
+      <MenuDivider />
+      <MenuItem variant="danger" onClick={() => deleteEntity(focusedEntity)}>
+        <Trash className="h-4 w-4" />
+        Delete
+      </MenuItem>
+    </FloatingMenu>
+  )}
+</div>
+```
+
+#### 4. Entity Card Component
+
+```tsx
+// Location: src/components/EntityCard.tsx
+
+<div
+  className={cn(
+    'card absolute cursor-pointer select-none transition-all duration-300',
+    'min-w-[280px] max-w-[320px]',
+    isFocused && 'ring-4 ring-primary-500 shadow-2xl scale-105 z-20',
+    isDimmed && 'opacity-30 scale-95'
+  )}
+  style={{ left: position.x, top: position.y }}
+  draggable
+  onDragEnd={onDragEnd}
+>
+  {/* Header */}
+  <div className="px-4 py-3 border-b border-border bg-base flex items-center justify-between">
+    <div className="flex items-center gap-2 flex-1 min-w-0">
+      {/* Source System Badge */}
+      <SourceBadge 
+        type={entity.sourceSystem.type} 
+        className={getSourceColor(entity.sourceSystem.type)}
+      />
+      <h3 className="font-semibold text-text truncate">{entity.name}</h3>
+    </div>
+    
+    {/* Expand/Collapse Fields */}
+    <button 
+      onClick={(e) => { e.stopPropagation(); toggleFieldsExpanded(); }}
+      className="text-neutral hover:text-text"
+    >
+      {fieldsExpanded ? <ChevronUp /> : <ChevronDown />}
+    </button>
+  </div>
+
+  {/* Metadata Row */}
+  <div className="px-4 py-2 border-b border-border bg-white flex items-center gap-4 text-xs text-neutral">
+    <span className="flex items-center gap-1">
+      <Hash className="h-3 w-3" />
+      {entity.fields.length} fields
+    </span>
+    <span className="flex items-center gap-1">
+      <Link className="h-3 w-3" />
+      {entity.fields.filter(f => f.isFK).length} relationships
+    </span>
+    {entity.implementationStatus === 'completed' && (
+      <Badge variant="success" size="sm">✓ Done</Badge>
+    )}
+  </div>
+
+  {/* Field List (Collapsible) */}
+  {fieldsExpanded && (
+    <div className="px-4 py-2 max-h-60 overflow-y-auto">
+      {entity.fields.slice(0, 5).map(field => (
+        <div key={field.id} className="py-1.5 flex items-center gap-2 text-sm">
+          {field.isPK && <Key className="h-3 w-3 text-primary-500" />}
+          {field.isFK && <Link className="h-3 w-3 text-warning-500" />}
+          <span className="font-mono text-text truncate flex-1">{field.name}</span>
+          <span className="text-xs text-neutral">{field.type}</span>
+          {field.flag === 'critical' && <span className="text-danger-500">🔴</span>}
+          {field.flag === 'caution' && <span className="text-warning-500">⚠️</span>}
+        </div>
+      ))}
+      {entity.fields.length > 5 && (
+        <div className="text-xs text-neutral text-center py-1">
+          +{entity.fields.length - 5} more fields
+        </div>
+      )}
+    </div>
+  )}
+
+  {/* Footer Actions */}
+  <div className="px-4 py-2 border-t border-border bg-base">
+    <button
+      onClick={(e) => { e.stopPropagation(); viewRelationships(); }}
+      className="text-xs text-secondary-500 hover:text-secondary-600 flex items-center gap-1"
+    >
+      <LinkIcon className="h-3 w-3" />
+      View Relationships
+    </button>
+  </div>
+</div>
+```
+
+**Source Badge Colors (Important):**
+```tsx
+function getSourceColor(type: SourceSystemType) {
+  const colors = {
+    salesforce: 'bg-secondary-100 text-secondary-700 border-secondary-300',
+    database: 'bg-tertiary-100 text-tertiary-700 border-tertiary-300',
+    api: 'bg-primary-100 text-primary-700 border-primary-300',
+    csv: 'bg-coolgray-200 text-coolgray-700 border-coolgray-400',
+    erp: 'bg-warning-100 text-warning-700 border-warning-400',
+    marketing_tool: 'bg-info-100 text-info-700 border-info-400',
+    custom: 'bg-coolgray-200 text-coolgray-700 border-coolgray-400',
+  };
+  return colors[type];
+}
+```
+
+#### 5. Table View (Data Dictionary)
+
+```tsx
+// Location: src/components/TableView.tsx
+
+<div className="h-full flex flex-col bg-white">
+  {/* Action Bar */}
+  <div className="px-6 py-3 border-b border-border flex items-center justify-between">
+    <h2 className="text-xl font-bold text-text">Data Dictionary</h2>
+    <div className="flex items-center gap-2">
+      <Button variant="ghost" size="sm" onClick={copyTableToClipboard}>
+        <Copy className="h-4 w-4 mr-2" />
+        Copy Table
+      </Button>
+      <Button variant="ghost" size="sm" onClick={exportToExcel}>
+        <FileSpreadsheet className="h-4 w-4 mr-2" />
+        Export Excel
+      </Button>
+    </div>
+  </div>
+
+  {/* Table */}
+  <div className="flex-1 overflow-auto">
+    <table className="w-full">
+      <thead className="sticky top-0 bg-white border-b-2 border-primary-500 z-10">
+        <tr className="text-xs uppercase tracking-wide text-text font-semibold">
+          <th className="px-6 py-3 text-left cursor-pointer hover:bg-base" onClick={() => sortBy('source')}>
+            Source System
+          </th>
+          <th className="px-6 py-3 text-left cursor-pointer hover:bg-base" onClick={() => sortBy('entity')}>
+            Entity
+          </th>
+          <th className="px-6 py-3 text-left cursor-pointer hover:bg-base" onClick={() => sortBy('field')}>
+            Field Name
+          </th>
+          <th className="px-6 py-3 text-left">Business Name</th>
+          <th className="px-6 py-3 text-left cursor-pointer hover:bg-base" onClick={() => sortBy('type')}>
+            Type
+          </th>
+          <th className="px-6 py-3 text-left">Keys</th>
+          <th className="px-6 py-3 text-left">Flags</th>
+          <th className="px-6 py-3 text-left">Sample Values</th>
+          <th className="px-6 py-3 text-left">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {filteredFields.map((row, index) => (
+          <tr
+            key={row.fieldId}
+            className={cn(
+              'border-b border-border hover:bg-base cursor-pointer transition-colors',
+              index % 2 === 0 ? 'bg-white' : 'bg-coolgray-50'
+            )}
+            onClick={() => jumpToEntityInGraphView(row.entityId)}
+          >
+            <td className="px-6 py-3">
+              <SourceBadge type={row.sourceType} size="sm" />
+            </td>
+            <td className="px-6 py-3 font-semibold text-text">{row.entityName}</td>
+            <td className="px-6 py-3 font-mono text-sm">{row.fieldName}</td>
+            <td className="px-6 py-3 text-neutral text-sm">{row.businessName || '—'}</td>
+            <td className="px-6 py-3">
+              <Badge variant="neutral" size="sm" className="font-mono">
+                {row.fieldType}
+              </Badge>
+            </td>
+            <td className="px-6 py-3">
+              <div className="flex gap-1">
+                {row.isPK && <Badge variant="primary" size="sm">PK</Badge>}
+                {row.isFK && <Badge variant="warning" size="sm">FK</Badge>}
+              </div>
+            </td>
+            <td className="px-6 py-3">
+              {row.flag === 'critical' && <span className="text-danger-500 text-lg">🔴</span>}
+              {row.flag === 'caution' && <span className="text-warning-500 text-lg">⚠️</span>}
+              {row.containsPII && <Badge variant="info" size="sm">PII</Badge>}
+            </td>
+            <td className="px-6 py-3 text-xs text-neutral max-w-xs truncate">
+              {row.sampleValues?.join(', ') || '—'}
+            </td>
+            <td className="px-6 py-3">
+              {row.notes && (
+                <Tooltip content={row.notes}>
+                  <InfoIcon className="h-4 w-4 text-neutral cursor-help" />
+                </Tooltip>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
+```
+
+#### 6. Entity Editor Modal
+
+```tsx
+// Location: src/components/EntityEditorModal.tsx
+
+<Dialog open={isOpen} onOpenChange={onClose}>
+  <DialogContent className="max-w-5xl h-[80vh] flex flex-col">
+    {/* Header */}
+    <DialogHeader className="border-b border-border px-6 py-4">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <Label className="text-xs uppercase tracking-wide text-neutral mb-1">
+            Entity Name
+          </Label>
+          <Input
+            value={entityName}
+            onChange={(e) => setEntityName(e.target.value)}
+            className="text-2xl font-bold border-none focus:ring-2 focus:ring-primary-500 px-0"
+            placeholder="Enter entity name"
+          />
+        </div>
+      </div>
+      <DialogDescription className="text-neutral text-sm mt-2">
+        Define fields and relationships for this entity
+      </DialogDescription>
+    </DialogHeader>
+
+    {/* Source System & Metadata */}
+    <div className="px-6 py-3 bg-base border-b border-border grid grid-cols-2 gap-4">
+      <div>
+        <Label className="text-xs text-neutral">Source System</Label>
+        <Select value={sourceSystem.type} onValueChange={updateSourceType}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="salesforce">Salesforce</SelectItem>
+            <SelectItem value="database">Database</SelectItem>
+            <SelectItem value="api">API</SelectItem>
+            <SelectItem value="csv">CSV Import</SelectItem>
+            <SelectItem value="erp">ERP System</SelectItem>
+            <SelectItem value="marketing_tool">Marketing Tool</SelectItem>
+            <SelectItem value="custom">Custom</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label className="text-xs text-neutral">Data Cloud Intent</Label>
+        <Select value={dataCloudIntent?.objectType} onValueChange={updateDataCloudIntent}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select target object type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Profile">Profile Object</SelectItem>
+            <SelectItem value="Engagement">Engagement Object</SelectItem>
+            <SelectItem value="Other">Other Object</SelectItem>
+            <SelectItem value="TBD">TBD</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+
+    {/* Field List Header */}
+    <div className="grid grid-cols-12 gap-2 px-6 py-3 bg-base border-b-2 border-primary-500 text-xs uppercase tracking-wide font-semibold text-text">
+      <div className="col-span-3">Field Name</div>
+      <div className="col-span-2">Business Name</div>
+      <div className="col-span-2">Type</div>
+      <div className="col-span-1">PK</div>
+      <div className="col-span-1">FK</div>
+      <div className="col-span-2">Notes/Flags</div>
+      <div className="col-span-1"></div>
+    </div>
+
+    {/* Scrollable Field List */}
+    <div className="flex-1 overflow-y-auto px-6 py-2">
+      {fields.map((field, index) => (
+        <div key={field.id} className="mb-3">
+          {/* Main Field Row */}
+          <div className="grid grid-cols-12 gap-2 items-center">
+            <Input
+              value={field.name}
+              onChange={(e) => updateField(field.id, { name: e.target.value })}
+              placeholder="field_name"
+              className="col-span-3 font-mono"
+            />
+            <Input
+              value={field.businessName || ''}
+              onChange={(e) => updateField(field.id, { businessName: e.target.value })}
+              placeholder="Friendly Name"
+              className="col-span-2"
+            />
+            <Select
+              value={field.type}
+              onValueChange={(type) => updateField(field.id, { type })}
+            >
+              <SelectTrigger className="col-span-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="string">String</SelectItem>
+                <SelectItem value="int">Integer</SelectItem>
+                <SelectItem value="float">Float</SelectItem>
+                <SelectItem value="boolean">Boolean</SelectItem>
+                <SelectItem value="date">Date</SelectItem>
+                <SelectItem value="datetime">DateTime</SelectItem>
+                <SelectItem value="uuid">UUID</SelectItem>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="phone">Phone</SelectItem>
+                <SelectItem value="json">JSON</SelectItem>
+              </SelectContent>
+            </Select>
+            <Checkbox
+              checked={field.isPK}
+              onCheckedChange={(checked) => updateField(field.id, { isPK: checked })}
+              className="col-span-1 mx-auto"
+            />
+            <Checkbox
+              checked={field.isFK}
+              onCheckedChange={(checked) => updateField(field.id, { 
+                isFK: checked,
+                fkReference: checked ? { targetEntityId: '', targetFieldId: '', cardinality: 'many-to-one' } : undefined
+              })}
+              className="col-span-1 mx-auto"
+            />
+            <div className="col-span-2 flex items-center gap-2">
+              <Select
+                value={field.flag || 'none'}
+                onValueChange={(flag) => updateField(field.id, { flag: flag === 'none' ? null : flag })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Flag</SelectItem>
+                  <SelectItem value="caution">⚠️ Caution</SelectItem>
+                  <SelectItem value="critical">🔴 Critical</SelectItem>
+                </SelectContent>
+              </Select>
+              <Checkbox
+                checked={field.containsPII}
+                onCheckedChange={(checked) => updateField(field.id, { containsPII: checked })}
+                title="Contains PII"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => deleteField(field.id)}
+              className="col-span-1 text-danger-500 hover:bg-danger-50"
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Expandable FK Details */}
+          {field.isFK && field.fkReference && (
+            <div className="ml-3 mt-2 p-3 bg-secondary-50 border border-secondary-200 rounded-lg">
+              <Label className="text-xs font-semibold text-secondary-700 mb-2">
+                Relationship Details
+              </Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">Target Entity</Label>
+                  <Select
+                    value={field.fkReference.targetEntityId}
+                    onValueChange={(val) => updateField(field.id, {
+                      fkReference: { ...field.fkReference!, targetEntityId: val }
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select entity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableEntities.map(entity => (
+                        <SelectItem key={entity.id} value={entity.id}>
+                          {entity.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Target Field</Label>
+                  <Select
+                    value={field.fkReference.targetFieldId}
+                    onValueChange={(val) => updateField(field.id, {
+                      fkReference: { ...field.fkReference!, targetFieldId: val }
+                    })}
+                    disabled={!field.fkReference.targetEntityId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select field" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getTargetEntityFields(field.fkReference.targetEntityId).map(f => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Cardinality</Label>
+                  <Select
+                    value={field.fkReference.cardinality}
+                    onValueChange={(val) => updateField(field.id, {
+                      fkReference: { ...field.fkReference!, cardinality: val }
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="one-to-one">One-to-One</SelectItem>
+                      <SelectItem value="one-to-many">One-to-Many</SelectItem>
+                      <SelectItem value="many-to-one">Many-to-One</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="mt-2">
+                <Label className="text-xs">Relationship Label (optional)</Label>
+                <Input
+                  value={field.fkReference.relationshipLabel || ''}
+                  onChange={(e) => updateField(field.id, {
+                    fkReference: { ...field.fkReference!, relationshipLabel: e.target.value }
+                  })}
+                  placeholder='e.g., "places", "has", "belongs to"'
+                  className="text-sm"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Notes/Description/Sample Values */}
+          <div className="ml-3 mt-2 grid grid-cols-3 gap-2">
+            <Input
+              value={field.notes || ''}
+              onChange={(e) => updateField(field.id, { notes: e.target.value })}
+              placeholder="Notes (e.g., 'No data before 2021')"
+              className="col-span-2 text-xs"
+            />
+            <Input
+              value={field.sampleValues?.join(', ') || ''}
+              onChange={(e) => updateField(field.id, { 
+                sampleValues: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+              })}
+              placeholder="Sample values (comma-separated)"
+              className="text-xs"
+            />
+          </div>
+        </div>
+      ))}
+
+      {fields.length === 0 && (
+        <div className="text-center py-12 text-neutral">
+          <Database className="h-12 w-12 mx-auto mb-3 opacity-30" />
+          <p>No fields defined yet. Click "Add Field" to start.</p>
+        </div>
+      )}
+    </div>
+
+    {/* Footer */}
+    <DialogFooter className="border-t border-border px-6 py-4 flex items-center justify-between">
+      <Button
+        variant="outline"
+        onClick={addField}
+        className="text-secondary-500 border-secondary-500"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Add Field
+      </Button>
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSave}
+          className="bg-primary-500 hover:bg-primary-600 text-white"
+        >
+          Save Entity
+        </Button>
+      </div>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+```
+
+---
+
+## Key Features Implementation
+
+### 1. Grid Snapping
+
+```typescript
+const GRID_SIZE = 20;
+
+function snapToGrid(position: { x: number; y: number }) {
+  return {
+    x: Math.round(position.x / GRID_SIZE) * GRID_SIZE,
+    y: Math.round(position.y / GRID_SIZE) * GRID_SIZE,
+  };
+}
+```
+
+### 2. Focus Mode (Highlight Related Entities)
+
+```typescript
+function getFocusState(entityId: string, focusedId: string | null, entities: Entity[]) {
+  if (!focusedId) return { isFocused: false, isDimmed: false };
+  
+  if (entityId === focusedId) return { isFocused: true, isDimmed: false };
+  
+  const isRelated = isEntityRelatedToFocused(entityId, focusedId, entities);
+  return { isFocused: false, isDimmed: !isRelated };
+}
+
+function isEntityRelatedToFocused(entityId: string, focusedId: string, entities: Entity[]): boolean {
+  const focusedEntity = entities.find(e => e.id === focusedId);
+  const currentEntity = entities.find(e => e.id === entityId);
+  
+  if (!focusedEntity || !currentEntity) return false;
+  
+  // Check if focusedEntity references currentEntity
+  const focusedReferencesThis = focusedEntity.fields.some(
+    f => f.isFK && f.fkReference?.targetEntityId === entityId
+  );
+  
+  // Check if currentEntity references focusedEntity
+  const thisReferencesFocused = currentEntity.fields.some(
+    f => f.isFK && f.fkReference?.targetEntityId === focusedId
+  );
+  
+  return focusedReferencesThis || thisReferencesFocused;
+}
+```
+
+### 3. CSV Import with Validation
+
+```typescript
+// Template CSV structure (exact columns required):
+// source_system,entity_name,field_name,field_type,is_pk,is_fk,fk_target_entity,fk_target_field,business_name,sample_values,notes,flag,contains_pii
+
+function importFromCSV(file: File): Promise<ImportResult> {
+  return new Promise((resolve) => {
+    Papa.parse(file, {
+      header: true,
+      complete: (results) => {
+        // Validate required columns
+        const requiredColumns = [
+          'source_system', 'entity_name', 'field_name', 'field_type'
+        ];
+        
+        const hasAllColumns = requiredColumns.every(col =>
+          results.meta.fields?.includes(col)
+        );
+        
+        if (!hasAllColumns) {
+          resolve({
+            success: false,
+            error: `Missing required columns. Download the template for correct format.`,
+          });
+          return;
+        }
+        
+        // Validate FK references
+        const errors: string[] = [];
+        results.data.forEach((row: any, index) => {
+          if (row.is_fk === 'Y' || row.is_fk === 'true') {
+            if (!row.fk_target_entity || !row.fk_target_field) {
+              errors.push(
+                `Row ${index + 2}: Field "${row.field_name}" is FK but missing target entity/field`
+              );
+            }
+          }
+        });
+        
+        if (errors.length > 0) {
+          resolve({ success: false, errors });
+          return;
+        }
+        
+        // Build entities
+        const entities = buildEntitiesFromCSV(results.data);
+        resolve({ success: true, entities });
+      },
+    });
+  });
+}
+
+function buildEntitiesFromCSV(rows: any[]): Entity[] {
+  const entityMap = new Map<string, Entity>();
+  
+  rows.forEach(row => {
+    const entityKey = `${row.source_system}__${row.entity_name}`;
+    
+    if (!entityMap.has(entityKey)) {
+      entityMap.set(entityKey, {
+        id: uuidv4(),
+        name: row.entity_name,
+        fields: [],
+        sourceSystem: {
+          type: row.source_system as SourceSystemType,
+          name: row.source_system,
+        },
+        position: { x: 100, y: 100 }, // Will be auto-arranged
+      });
+    }
+    
+    const entity = entityMap.get(entityKey)!;
+    
+    const field: Field = {
+      id: uuidv4(),
+      name: row.field_name,
+      type: row.field_type as FieldType,
+      isPK: row.is_pk === 'Y' || row.is_pk === 'true',
+      isFK: row.is_fk === 'Y' || row.is_fk === 'true',
+      businessName: row.business_name || undefined,
+      notes: row.notes || undefined,
+      flag: row.flag as 'caution' | 'critical' | null,
+      containsPII: row.contains_pii === 'Y' || row.contains_pii === 'true',
+      sampleValues: row.sample_values 
+        ? row.sample_values.split('|').map((s: string) => s.trim())
+        : undefined,
+    };
+    
+    // Handle FK reference (will need second pass to link IDs)
+    if (field.isFK && row.fk_target_entity && row.fk_target_field) {
+      field.fkReference = {
+        targetEntityId: `${row.source_system}__${row.fk_target_entity}`, // Temporary
+        targetFieldId: row.fk_target_field, // Temporary
+        cardinality: 'many-to-one',
+      };
+    }
+    
+    entity.fields.push(field);
+  });
+  
+  const entities = Array.from(entityMap.values());
+  
+  // Second pass: resolve FK references to actual entity/field IDs
+  entities.forEach(entity => {
+    entity.fields.forEach(field => {
+      if (field.fkReference) {
+        const targetEntity = entities.find(e =>
+          `${e.sourceSystem.type}__${e.name}` === field.fkReference!.targetEntityId
+        );
+        if (targetEntity) {
+          const targetField = targetEntity.fields.find(
+            f => f.name === field.fkReference!.targetFieldId
+          );
+          if (targetField) {
+            field.fkReference.targetEntityId = targetEntity.id;
+            field.fkReference.targetFieldId = targetField.id;
+          }
+        }
+      }
+    });
+  });
+  
+  return entities;
+}
+```
+
+### 4. Blueprint PDF Export
+
+```typescript
+// Use markdown template with variable substitution
+
+const blueprintTemplate = `
+# Data Cloud Implementation Blueprint
+
+**Client:** {{clientName}}
+**Consultant:** {{consultant}}
+**Date:** {{date}}
+
+---
+
+## Executive Summary
+
+This blueprint outlines the data architecture for {{clientName}}'s Data Cloud implementation. 
+We have identified **{{entityCount}}** data entities across **{{sourceCount}}** source systems.
+
+---
+
+## Data Sources
+
+{{#each sources}}
+### {{name}} ({{type}})
+- **Entities:** {{entityCount}}
+- **Purpose:** {{purpose}}
+{{/each}}
+
+---
+
+## Data Entities
+
+{{#each entities}}
+### {{name}}
+**Source:** {{sourceSystem.name}}
+**Fields:** {{fields.length}}
+{{#if dataCloudIntent}}
+**Data Cloud Mapping:** {{dataCloudIntent.objectType}}
+{{/if}}
+
+#### Fields:
+| Field Name | Type | Keys | Notes |
+|------------|------|------|-------|
+{{#each fields}}
+| {{name}} | {{type}} | {{#if isPK}}PK{{/if}} {{#if isFK}}FK{{/if}} | {{notes}} |
+{{/each}}
+
+---
+
+{{/each}}
+
+## Implementation Checklist
+
+{{#each entities}}
+- [ ] {{name}} → Data Cloud {{dataCloudIntent.objectType}}
+{{/each}}
+
+---
+
+**Prepared by:** {{consultant}}
+**Signature:** ____________________
+**Date:** ____________________
+`;
+
+function generateBlueprint(project: Project): string {
+  const sources = getUniqueSources(project.entities);
+  
+  const data = {
+    clientName: project.clientName || 'Client Name',
+    consultant: project.consultant || 'Consultant Name',
+    date: new Date().toLocaleDateString(),
+    entityCount: project.entities.length,
+    sourceCount: sources.length,
+    sources: sources.map(s => ({
+      name: s.name,
+      type: s.type,
+      entityCount: project.entities.filter(e => e.sourceSystem.name === s.name).length,
+    })),
+    entities: project.entities,
+  };
+  
+  // Use Handlebars or simple string replacement
+  return renderTemplate(blueprintTemplate, data);
+}
+
+function exportBlueprintToPDF(markdown: string, projectName: string) {
+  // Convert markdown to HTML
+  const html = markdownToHTML(markdown);
+  
+  // Generate PDF using html2pdf or jsPDF
+  const options = {
+    margin: 1,
+    filename: `${projectName}_Blueprint.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+  };
+  
+  html2pdf().set(options).from(html).save();
+}
+```
+
+### 5. Mermaid ERD Generation
+
+```typescript
+function generateMermaidCode(entities: Entity[]): string {
+  let mermaid = 'erDiagram\n';
+  
+  entities.forEach(entity => {
+    mermaid += `  ${entity.name} {\n`;
+    
+    entity.fields.forEach(field => {
+      const type = field.type.toUpperCase();
+      const keyIndicator = field.isPK ? 'PK' : field.isFK ? 'FK' : '';
+      mermaid += `    ${type} ${field.name} ${keyIndicator}\n`;
+    });
+    
+    mermaid += `  }\n`;
+  });
+  
+  // Add relationships
+  entities.forEach(entity => {
+    entity.fields
+      .filter(f => f.isFK && f.fkReference)
+      .forEach(field => {
+        const targetEntity = entities.find(
+          e => e.id === field.fkReference!.targetEntityId
+        );
+        if (targetEntity) {
+          const cardinality = field.fkReference!.cardinality;
+          const label = field.fkReference!.relationshipLabel || '';
+          
+          // Mermaid relationship syntax
+          let relationshipSymbol = '';
+          if (cardinality === 'one-to-one') relationshipSymbol = '||--||';
+          else if (cardinality === 'one-to-many') relationshipSymbol = '||--o{';
+          else if (cardinality === 'many-to-one') relationshipSymbol = '}o--||';
+          
+          mermaid += `  ${entity.name} ${relationshipSymbol} ${targetEntity.name} : "${label}"\n`;
+        }
+      });
+  });
+  
+  return mermaid;
+}
+```
+
+---
+
+## UX Patterns & Interactions
+
+### Drag and Drop
+- Entity cards are draggable in Graph View
+- On drag end, snap position to 20px grid
+- Update entity position in state
+- Persist to localStorage
+
+### Focus Mode
+- Click entity → enters focus mode
+- Focused entity: scale 105%, primary ring, z-index 20
+- Related entities: stay normal
+- Unrelated entities: opacity 30%, scale 95%
+- Relationship lines: highlighted in primary color with pulse animation
+- Click background or another entity → transition smoothly
+- All transitions: 300ms cubic-bezier(0.4, 0, 0.2, 1)
+
+### Quick Actions Menu
+- Appears when entity is focused
+- Floats near entity (position: fixed)
+- Contains: Edit, Duplicate, Delete, Clear Focus
+- Click outside → closes menu
+
+### View Toggle State Persistence
+- When user toggles Graph ↔ Table view, preserve:
+  - Active filters
+  - Search query
+  - Sort order (in table view)
+  - Focused entity ID
+- Switching back shows same filtered/searched results
+
+### Smart Defaults
+- New entity: position = center of visible viewport
+- New field: type = 'string', isPK/isFK = false
+- New project: createdAt = now, entities = []
+- Source system dropdown: default to last used
+
+---
+
+## Performance Considerations
+
+### Large Datasets
+- Virtualize table rows if > 500 fields (use react-window)
+- Limit ERD to render only visible entities in viewport (use react-virtualized)
+- Debounce search input (300ms)
+- Memoize filtered/sorted data with useMemo
+- Use React.memo for EntityCard component
+
+### State Management
+- Use Context API for global state (projects, current project)
+- Use local state for UI-only state (focused entity, expanded fields)
+- Batch localStorage writes (debounce 500ms)
+
+### Rendering Optimization
+```typescript
+const EntityCard = React.memo(({ entity, isFocused, isDimmed, ...props }) => {
+  // Component implementation
+}, (prev, next) => {
+  // Only re-render if these props change
+  return (
+    prev.entity.id === next.entity.id &&
+    prev.isFocused === next.isFocused &&
+    prev.isDimmed === next.isDimmed &&
+    prev.entity.fields.length === next.entity.fields.length
+  );
+});
+```
+
+---
+
+## Error Handling
+
+### User-Facing Errors
+- Use toast notifications for all user actions
+- Success: green toast, 3s duration
+- Error: red toast, 5s duration with retry option
+- Warning: yellow toast, 4s duration
+
+### Validation
+- Entity name: required, max 100 chars
+- Field name: required, max 50 chars, alphanumeric + underscore
+- FK reference: must reference existing entity and field
+- CSV import: strict validation with clear error messages
+
+### Edge Cases
+- Empty project: show helpful empty state with CTA
+- Circular FK references: detect and warn user
+- Duplicate entity names: allow but show warning badge
+- Large entity (>50 fields): show "Show more" in card
+- No relationships: ERD shows entities without lines
+
+---
+
+## Testing Checklist
+
+### Core Flows to Test
+1. Create project → Add entity → Add fields → Save → View in ERD
+2. Import CSV → Validate → View entities → Edit entity → Save
+3. Create multiple entities → Define FKs → View relationships in focus mode
+4. Toggle Graph ↔ Table views → Apply filters → Search → Export
+5. Edit entity → Add/remove fields → Save → Verify in both views
+6. Delete entity → Confirm → Verify cascade (FKs broken)
+7. Export blueprint PDF → Verify all data present and formatted
+8. Close and reopen app → Verify all data persisted
+
+### Browser Compatibility
+- Chrome/Edge (Chromium): Primary target
+- Firefox: Test basic functionality
+- Safari: Test basic functionality
+- Mobile: Responsive layout (optional, nice-to-have)
+
+---
+
+## Deliverables Checklist
+
+### ✅ POC Must-Haves
+1. Project CRUD (create, rename, delete, switch)
+2. Entity CRUD with source system tagging
+3. Field CRUD with all metadata (business name, samples, notes, flags, PII)
+4. Graph View with draggable entity cards
+5. Table View with filters and search
+6. View toggle (Graph ↔ Table) with state persistence
+7. Focus mode with highlighted relationships
+8. Entity modal for detailed editing
+9. CSV import with strict template validation
+10. Blueprint PDF export
+11. Data dictionary Excel export
+12. localStorage persistence
+13. Repository pattern abstraction
+
+### 🎨 Visual Polish
+1. All colors match brand guidelines exactly
+2. Consistent spacing (4px grid)
+3. Smooth transitions (300ms)
+4. Hover states on all interactive elements
+5. Loading states (spinner for async operations)
+6. Empty states with helpful messaging
+7. Error states with clear actions
+
+### 📋 Documentation
+1. README with setup instructions
+2. CSV template file included in project
+3. Comments in complex functions
+4. TypeScript types for all data structures
+
+---
+
+## Final Notes
+
+**DO:**
+- Use exact Tailwind config provided
+- Follow color usage rules strictly (primary for CTAs only)
+- Implement Repository pattern for future flexibility
+- Add smooth transitions to all state changes
+- Show helpful empty states
+- Validate user input before saving
+- Use toast notifications for feedback
+
+**DON'T:**
+- Use default Tailwind colors (all overridden)
+- Use tertiary green for success states (use utility success color)
+- Implement real-time collaboration yet (out of scope)
+- Add user auth (out of scope)
+- Over-engineer the line routing (straight lines are fine)
+- Add features not in this spec (stay focused on POC)
+
+**MOST IMPORTANT:**
+- This tool must feel FAST and RESPONSIVE
+- Consultants will use this during client calls—no lag
+- Every interaction should have immediate visual feedback
+- Data must never be lost (autosave to localStorage)
+
+---
+
+Build a clean, focused POC that solves the core problem: unified data discovery with auto-synced deliverables. Ship it fast, get feedback, iterate.
