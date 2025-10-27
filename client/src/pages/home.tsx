@@ -746,8 +746,24 @@ export default function Home() {
         entity={editingEntity}
         entities={currentProject?.entities || []}
         dataSources={currentProject?.dataSources || []}
+        relationships={currentProject?.relationships || []}
         onSave={handleSaveEntity}
         onCreateDataSource={handleCreateDataSource}
+        onOpenRelationshipBuilder={(prefilledEntityId?: string) => {
+          setIsEntityModalOpen(false);
+          setEditingRelationship(null);
+          if (prefilledEntityId) {
+            const sourceEntity = currentProject?.entities.find(e => e.id === prefilledEntityId);
+            if (sourceEntity) {
+              setIsRelationshipBuilderOpen(true);
+            }
+          }
+        }}
+        onEditRelationship={(relationship: Relationship) => {
+          setIsEntityModalOpen(false);
+          setEditingRelationship(relationship);
+          setIsRelationshipBuilderOpen(true);
+        }}
       />
 
       <ProjectDialog
@@ -796,6 +812,7 @@ export default function Home() {
         entities={currentProject?.entities || []}
         relationships={currentProject?.relationships || []}
         editingRelationship={editingRelationship}
+        prefilledSourceEntityId={editingRelationship ? undefined : editingEntity?.id}
         onSaveRelationship={handleSaveRelationship}
         onDeleteRelationship={handleDeleteRelationship}
       />

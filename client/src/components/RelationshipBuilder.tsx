@@ -79,13 +79,15 @@ export default function RelationshipBuilder({
   }, [editingRelationship]);
 
   useEffect(() => {
-    if (prefilledSourceEntityId && !editingRelationship) {
-      setSourceEntityId(prefilledSourceEntityId);
+    if (isOpen && !editingRelationship) {
+      if (prefilledSourceEntityId) {
+        setSourceEntityId(prefilledSourceEntityId);
+      }
+      if (prefilledTargetEntityId) {
+        setTargetEntityId(prefilledTargetEntityId);
+      }
     }
-    if (prefilledTargetEntityId && !editingRelationship) {
-      setTargetEntityId(prefilledTargetEntityId);
-    }
-  }, [prefilledSourceEntityId, prefilledTargetEntityId, editingRelationship]);
+  }, [isOpen, prefilledSourceEntityId, prefilledTargetEntityId, editingRelationship]);
 
   const resetForm = () => {
     setRelationshipType('references');

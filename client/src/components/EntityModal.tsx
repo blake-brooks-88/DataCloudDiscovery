@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Plus, Trash2, Key, Link as LinkIcon, Lock, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Plus, Trash2, Key, Link as LinkIcon, Lock, Eye, EyeOff, ChevronDown, ChevronUp, Edit } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { Entity, Field, FieldType, EntityType, Cardinality, DataSource } from "@shared/schema";
-import { getEntityTypeLabel } from "@/lib/dataCloudStyles";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import type { Entity, Field, FieldType, EntityType, Cardinality, DataSource, Relationship } from "@shared/schema";
+import { getEntityTypeLabel, getEntityCardStyle } from "@/lib/dataCloudStyles";
 
 interface EntityModalProps {
   isOpen: boolean;
@@ -16,11 +18,15 @@ interface EntityModalProps {
   entity: Entity | null;
   entities: Entity[];
   dataSources: DataSource[];
+  relationships?: Relationship[];
   onSave: (entity: Partial<Entity>) => void;
   onCreateDataSource: (dataSource: Partial<DataSource>) => void;
+  onOpenRelationshipBuilder?: (prefilledEntityId?: string) => void;
+  onEditRelationship?: (relationship: Relationship) => void;
 }
 
-export default function EntityModal({ isOpen, onClose, entity, entities, dataSources, onSave, onCreateDataSource }: EntityModalProps) {
+export default function EntityModal({ isOpen, onClose, entity, entities, dataSources, relationships, onSave, onCreateDataSource, onOpenRelationshipBuilder, onEditRelationship }: EntityModalProps) {
+  const [activeTab, setActiveTab] = useState("details");
   const [name, setName] = useState("");
   const [entityType, setEntityType] = useState<EntityType>("dmo");
   const [dataSource, setDataSource] = useState("");
@@ -126,7 +132,20 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="mx-6">
+            <TabsTrigger value="details" data-testid="tab-details">Details</TabsTrigger>
+            <TabsTrigger value="relationships" data-testid="tab-relationships">
+              Relationships
+              {entity && relationships && relationships.filter(r => r.sourceEntityId === entity.id || r.targetEntityId === entity.id).length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {relationships.filter(r => r.sourceEntityId === entity.id || r.targetEntityId === entity.id).length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="details" className="flex-1 overflow-y-auto px-6 py-4 space-y-6 mt-0">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="entity-name" className="text-sm font-medium text-coolgray-500">
@@ -351,7 +370,153 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
               )}
             </div>
           </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="relationships" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
+            {!entity ? (
+              <div className="text-center py-12 text-coolgray-400">
+                <LinkIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p>Save the entity first to manage relationships</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-coolgray-600">
+                    Entity Relationships
+                  </h3>
+                  {onOpenRelationshipBuilder && (
+                    <Button
+                      size="sm"
+                      onClick={() => onOpenRelationshipBuilder(entity.id)}
+                      className="bg-primary-500 hover:bg-primary-600 text-white"
+                      data-testid="button-add-relationship"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Relationship
+                    </Button>
+                  )}
+                </div>
+
+                {relationships && relationships.filter(r => r.sourceEntityId === entity.id || r.targetEntityId === entity.id).length > 0 ? (
+                  <div className="space-y-2">
+                    {relationships
+                      .filter(r => r.sourceEntityId === entity.id || r.targetEntityId === entity.id)
+                      .map(rel => {
+                        const isSource = rel.sourceEntityId === entity.id;
+                        const otherEntity = entities.find(e => 
+                          e.id === (isSource ? rel.targetEntityId : rel.sourceEntityId)
+                        );
+                        
+                        const typeColors = {
+                          'feeds-into': 'bg-blue-100 text-blue-700 border-blue-300',
+                          'transforms-to': 'bg-green-100 text-green-700 border-green-300',
+                          'references': 'bg-gray-100 text-gray-700 border-gray-300',
+                        };
+
+                        return (
+                          <div
+                            key={rel.id}
+                            className="border border-coolgray-200 rounded-lg p-3 bg-white hover:bg-coolgray-50 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge className={`text-xs ${typeColors[rel.type]}`}>
+                                    {rel.type}
+                                  </Badge>
+                                  {rel.label && (
+                                    <span className="text-xs text-coolgray-500 italic">
+                                      "{rel.label}"
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  {isSource ? (
+                                    <>
+                                      <div className="flex items-center gap-1">
+                                        <div 
+                                          className="h-2 w-2 rounded-full" 
+                                          style={{ backgroundColor: getEntityCardStyle(entity.type).borderColor }}
+                                        />
+                                        <span className="font-medium text-coolgray-700">{entity.name}</span>
+                                        <span className="text-coolgray-400">({entity.type})</span>
+                                      </div>
+                                      <span className="text-coolgray-400">→</span>
+                                      <div className="flex items-center gap-1">
+                                        <div 
+                                          className="h-2 w-2 rounded-full" 
+                                          style={{ backgroundColor: otherEntity ? getEntityCardStyle(otherEntity.type).borderColor : '#ccc' }}
+                                        />
+                                        <span className="text-coolgray-600">{otherEntity?.name || 'Unknown'}</span>
+                                        <span className="text-coolgray-400">({otherEntity?.type || 'unknown'})</span>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="flex items-center gap-1">
+                                        <div 
+                                          className="h-2 w-2 rounded-full" 
+                                          style={{ backgroundColor: otherEntity ? getEntityCardStyle(otherEntity.type).borderColor : '#ccc' }}
+                                        />
+                                        <span className="text-coolgray-600">{otherEntity?.name || 'Unknown'}</span>
+                                        <span className="text-coolgray-400">({otherEntity?.type || 'unknown'})</span>
+                                      </div>
+                                      <span className="text-coolgray-400">→</span>
+                                      <div className="flex items-center gap-1">
+                                        <div 
+                                          className="h-2 w-2 rounded-full" 
+                                          style={{ backgroundColor: getEntityCardStyle(entity.type).borderColor }}
+                                        />
+                                        <span className="font-medium text-coolgray-700">{entity.name}</span>
+                                        <span className="text-coolgray-400">({entity.type})</span>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                                {rel.fieldMappings && rel.fieldMappings.length > 0 && (
+                                  <div className="mt-2 text-xs text-coolgray-500">
+                                    <span className="font-medium">Key mappings:</span>
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {rel.fieldMappings.map((fm, idx) => {
+                                        const sourceField = (isSource ? entity : otherEntity)?.fields.find(f => f.id === fm.sourceFieldId);
+                                        const targetField = (isSource ? otherEntity : entity)?.fields.find(f => f.id === fm.targetFieldId);
+                                        return (
+                                          <Badge key={idx} variant="outline" className="text-xs">
+                                            {sourceField?.name || '?'} → {targetField?.name || '?'}
+                                          </Badge>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              {onEditRelationship && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onEditRelationship(rel)}
+                                  className="text-coolgray-500 hover:text-coolgray-700"
+                                  data-testid={`button-edit-relationship-${rel.id}`}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-coolgray-400 border border-dashed border-coolgray-200 rounded-lg">
+                    <LinkIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p className="mb-2">No relationships defined yet</p>
+                    <p className="text-xs">Click "Add Relationship" to connect this entity to others</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
 
         <div className="border-t border-coolgray-200 px-6 py-4 flex justify-end gap-2">
           <Button
