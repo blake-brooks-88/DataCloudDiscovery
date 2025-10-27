@@ -1,0 +1,335 @@
+Implement a toggle between Graph View (primary, visual ERD) and List View (detailed, scannable) as two distinct ways to interact with the same data. Both views share filters, search, and maintain state when toggling.
+
+View Toggle Component
+Toolbar Layout
+tsx<Toolbar>
+  {/* Left: View Toggle */}
+  <div className="bg-base rounded-lg p-1 flex">
+    <Button variant={view === 'graph' ? 'default' : 'ghost'}>
+      <Network /> Graph View
+    </Button>
+    <Button variant={view === 'list' ? 'default' : 'ghost'}>
+      <List /> List View
+    </Button>
+  </div>
+  
+  {/* Center: Source Filter (works in both views) */}
+  <Select value={sourceFilter}>
+    <SelectItem value="all">All Sources</SelectItem>
+    {/* Dynamic source list */}
+  </Select>
+  
+  {/* Right: Search (works in both views) */}
+  <Input placeholder="Search entities or fields..." />
+</Toolbar>
+
+Graph View Enhancements
+Zoom & Pan Controls
+
+Zoom controls (top-right floating panel):
+
+Zoom In button (+)
+Current zoom percentage display (e.g., "100%")
+Zoom Out button (-)
+Fit to Screen button
+Reset View button (1:1 zoom, center)
+
+
+Zoom interactions:
+
+Mouse wheel + Ctrl/Cmd to zoom (toward cursor position)
+Keyboard: Ctrl/Cmd + Plus/Minus to zoom
+Keyboard: Ctrl/Cmd + 0 to reset
+Pinch gesture on trackpad
+
+
+Pan interactions:
+
+Click and drag canvas background to pan
+Arrow keys to pan (when not focused on input)
+Show "Click and drag to pan" hint when zoomed
+
+
+Zoom range: 10% to 500%
+
+Search with Highlighting
+When user types in search box while in Graph View:
+
+Matching entities get highlighted:
+
+Add pulsing primary-500 ring around matching entities
+Dim non-matching entities (opacity 30%)
+Show count: "3 entities match 'account'"
+
+
+Search result panel (floating, top-left):
+
+tsx   <div className="absolute top-20 left-4 bg-white shadow-lg rounded-lg p-3 w-80">
+     <div className="text-sm font-semibold mb-2">
+       Found {matchCount} entities
+     </div>
+     {matches.map(entity => (
+       <div 
+         className="p-2 hover:bg-base rounded cursor-pointer flex items-center justify-between"
+         onClick={() => centerOnEntity(entity.id)}
+       >
+         <div>
+           <div className="font-medium">{entity.name}</div>
+           <div className="text-xs text-neutral">
+             {entity.sourceSystem.name}
+           </div>
+         </div>
+         <Button size="sm" variant="ghost">
+           <Target className="h-4 w-4" />
+           Center
+         </Button>
+       </div>
+     ))}
+   </div>
+
+"Center on Entity" action:
+
+Smoothly pan to entity (300ms animation)
+Zoom to comfortable level if too zoomed out (aim for entity taking ~20% of viewport)
+Add temporary emphasis animation (scale pulse 1.0 → 1.1 → 1.0)
+Clear search after centering (optional, or keep highlighted)
+
+
+Keyboard navigation through search results:
+
+Arrow Up/Down to navigate results
+Enter to center on selected result
+
+
+
+
+List View - Detailed Specification
+Layout
+Vertical scrolling list of expandable entity cards. Each card shows summary when collapsed, full details when expanded.
+Collapsed Entity Card
+tsx<div className="card mb-4 cursor-pointer hover:shadow-md transition-shadow">
+  <div className="p-4 flex items-center justify-between">
+    <div className="flex items-center gap-3">
+      <SourceBadge type={entity.sourceSystem.type} />
+      <div>
+        <h3 className="text-lg font-semibold">{entity.name}</h3>
+        <p className="text-xs text-neutral">
+          {entity.fields.length} fields • {relationshipCount} relationships
+        </p>
+      </div>
+    </div>
+    <ChevronDown className="h-5 w-5 text-neutral" />
+  </div>
+</div>
+```
+
+### Expanded Entity Card
+
+When clicked, card expands to show:
+
+**1. Metadata Section** (top, gray background):
+- Source System name
+- Data Cloud Intent (Profile/Engagement/Other/TBD)
+- Implementation Status (Not Started/In Progress/Completed)
+
+**2. Tab Navigation** (Fields | Relationships):
+
+#### Fields Tab
+- List all fields with:
+  - PK/FK badges (left)
+  - Field name (monospace font)
+  - Business name (if exists, in parentheses)
+  - Type badge
+  - Flag icons (🔴 critical, ⚠️ caution)
+  - PII badge
+  - Notes icon (hover for tooltip)
+- Show first 5 fields, "Show All X Fields" button to expand
+- Hover row to highlight
+
+#### Relationships Tab
+- **Cardinality filter dropdown** (top):
+  - All Relationships
+  - One-to-One Only (1:1)
+  - One-to-Many Only (1:M)
+  - Many-to-One Only (M:1)
+
+- **Two grouped sections**:
+
+  **a) References** (outgoing FKs):
+```
+  ┌─ References (2) ─────────────────────────┐
+  │ Account → User                           │
+  │   via owner_id (many-to-one)             │
+  │   [View User →]                          │
+  │                                          │
+  │ Account → RecordType                     │
+  │   via record_type_id (many-to-one)       │
+  │   [View RecordType →]                    │
+  └──────────────────────────────────────────┘
+```
+  
+  **b) Referenced By** (incoming FKs):
+```
+  ┌─ Referenced By (3) ──────────────────────┐
+  │ Contact → Account                        │
+  │   via account_id (many-to-one)           │
+  │   [View Contact →]                       │
+  │                                          │
+  │ Opportunity → Account                    │
+  │   via account_id (many-to-one)           │
+  │   [View Opportunity →]                   │
+  │                                          │
+  │ Case → Account                           │
+  │   via account_id (many-to-one)           │
+  │   [View Case →]                          │
+  └──────────────────────────────────────────┘
+
+Relationship cards are clickable:
+
+Click entire card → scroll to and expand that entity
+Smooth scroll animation
+Collapse current entity, expand target entity
+
+
+
+3. Action Buttons (bottom):
+
+[Edit Entity] (primary-500 border)
+[Duplicate]
+[Delete] (danger-500 text, right-aligned)
+
+
+Relationship Card Component
+tsx<div 
+  className="p-3 border border-border rounded-lg hover:bg-base hover:border-primary-300 cursor-pointer transition-all group"
+  onClick={() => scrollToAndExpandEntity(targetEntityId)}
+>
+  {/* Top row: Entity names with arrow */}
+  <div className="flex items-center justify-between mb-1">
+    <div className="flex items-center gap-2">
+      <span className="font-semibold text-text">{sourceEntity}</span>
+      <ArrowRight className="h-4 w-4 text-neutral group-hover:text-primary-500" />
+      <span className="font-semibold text-primary-500">{targetEntity}</span>
+    </div>
+    <Badge variant={getCardinalityColor(cardinality)}>
+      {formatCardinality(cardinality)} {/* "1:1", "1:M", "M:1" */}
+    </Badge>
+  </div>
+  
+  {/* Bottom row: Field name */}
+  <div className="flex items-center gap-2 text-xs text-neutral">
+    <span>via</span>
+    <code className="font-mono bg-base px-1.5 py-0.5 rounded">{fieldName}</code>
+    {relationshipLabel && (
+      <>
+        <span>•</span>
+        <span className="italic">"{relationshipLabel}"</span>
+      </>
+    )}
+  </div>
+</div>
+Cardinality badge colors:
+
+one-to-one → secondary (blue)
+one-to-many → tertiary (green)
+many-to-one → warning (yellow/orange)
+
+
+State Persistence Between Views
+Critical: When user toggles views, maintain context:
+
+Selected entity ID → If entity was focused in Graph View, auto-expand it in List View
+Search query → Keep search active in both views
+Source filter → Apply same filter in both views
+Scroll/zoom position → Remember Graph View zoom/pan when returning from List View
+
+Example flow:
+
+User in Graph View, searches "account" (3 results)
+User clicks Account entity (focused)
+User toggles to List View
+
+Same 3 filtered entities shown
+Account entity auto-expanded
+
+
+User toggles back to Graph View
+
+Same 3 entities visible
+Account still focused
+Zoom level preserved
+
+
+
+
+Graph View Grid Snapping
+typescriptconst GRID_SIZE = 20; // pixels
+
+function snapToGrid(position: { x: number; y: number }) {
+  return {
+    x: Math.round(position.x / GRID_SIZE) * GRID_SIZE,
+    y: Math.round(position.y / GRID_SIZE) * GRID_SIZE,
+  };
+}
+
+// On entity drag end:
+const snappedPosition = snapToGrid(newPosition);
+updateEntityPosition(entityId, snappedPosition);
+Visual grid background (subtle):
+tsx<div className="absolute inset-0 bg-[radial-gradient(circle,_#CBD5E1_1px,_transparent_1px)] bg-[size:20px_20px] opacity-30" />
+
+Interaction Patterns Summary
+Graph View Interactions:
+
+Click entity → Focus mode (highlight entity + related entities, dim others)
+Double-click entity → Open edit modal
+Drag entity → Reposition (snaps to grid on release)
+Drag canvas → Pan view
+Ctrl+Scroll → Zoom toward cursor
+Search → Highlight matches, show "Center" buttons
+Click "Center" button → Pan/zoom to show entity prominently
+
+List View Interactions:
+
+Click collapsed card → Expand entity
+Click expanded card header → Collapse entity
+Click Fields/Relationships tab → Switch tab content
+Change cardinality filter → Update visible relationships
+Click relationship card → Scroll to and expand target entity
+Click "Edit Entity" → Open edit modal
+Click "Show All Fields" → Expand field list
+
+
+Visual Polish
+Transitions:
+
+View toggle: Instant switch (no animation)
+Graph zoom/pan: 300ms ease-out
+List expand/collapse: 300ms ease-in-out
+Scroll to entity: 500ms smooth scroll
+Search highlight: Pulse animation (1s loop)
+
+Empty States:
+
+No entities in project: Show centered empty state with "Add Entity" CTA
+No search results: "No entities match 'xyz'" with "Clear Search" button
+No relationships: Show icon + "No relationships defined" in Relationships tab
+
+Loading States:
+
+Searching: Show spinner in search input
+Zooming: Smooth transform, no flicker
+Expanding entity: Progressive render (don't wait for all data)
+
+
+Key Implementation Notes
+
+Search algorithm: Match against entity name, field names, and business names (case-insensitive)
+Relationship calculations: Pre-compute incoming relationships (entities that reference this one) for performance
+Virtualization: If List View has 50+ entities, use react-window for performance
+Memoization: Use React.memo and useMemo for entity cards to prevent unnecessary re-renders
+Zoom performance: Only render entities visible in viewport when zoomed in far
+Graph layout: Store entity positions in entity model, persist to localStorage
+
+
+This specification adds to the existing detailed prompt. The core value proposition is: Graph View for visual thinkers and presentations, List View for detailed analysis and complex schemas. Both views are powerful, users pick their preference, and state is preserved when switching.
