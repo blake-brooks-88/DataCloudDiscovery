@@ -63,6 +63,7 @@ export const streamConfigSchema = z.object({
   refreshType: z.enum(['full', 'incremental']),
   schedule: z.enum(['real-time', 'hourly', 'daily', 'weekly', 'custom']),
   customSchedule: z.string().optional(),
+  dataSourceId: z.string().optional(),
   sourceObjectName: z.string(),
   connectorType: z.enum(['native', 'mulesoft', 'csv', 'ftp', 'api']).optional(),
 });

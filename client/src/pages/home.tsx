@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { Project, Entity, FieldType, Relationship } from "@shared/schema";
+import type { Project, Entity, FieldType, Relationship, DataSource } from "@shared/schema";
 
 type ViewMode = 'graph' | 'table';
 
@@ -260,6 +260,25 @@ export default function Home() {
       return entity;
     });
     updateCurrentProject({ entities: updatedEntities });
+  };
+
+  const handleCreateDataSource = (dataSourceData: Partial<DataSource>) => {
+    if (!currentProject) return;
+    const newDataSource: DataSource = {
+      id: `datasource-${Date.now()}`,
+      name: dataSourceData.name || 'New Data Source',
+      type: dataSourceData.type || 'salesforce',
+      description: dataSourceData.description,
+      environment: dataSourceData.environment,
+      contactPerson: dataSourceData.contactPerson,
+    };
+    updateCurrentProject({ 
+      dataSources: [...(currentProject.dataSources || []), newDataSource] 
+    });
+    toast({
+      title: "Data source created",
+      description: `${newDataSource.name} has been created successfully.`,
+    });
   };
 
   const handleGenerateDLO = (dataStreamId: string) => {
@@ -567,7 +586,9 @@ export default function Home() {
         }}
         entity={editingEntity}
         entities={currentProject?.entities || []}
+        dataSources={currentProject?.dataSources || []}
         onSave={handleSaveEntity}
+        onCreateDataSource={handleCreateDataSource}
       />
 
       <ProjectDialog

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { Entity, Field, FieldType, EntityType, Cardinality } from "@shared/schema";
+import type { Entity, Field, FieldType, EntityType, Cardinality, DataSource } from "@shared/schema";
 import { getEntityTypeLabel } from "@/lib/dataCloudStyles";
 
 interface EntityModalProps {
@@ -15,10 +15,12 @@ interface EntityModalProps {
   onClose: () => void;
   entity: Entity | null;
   entities: Entity[];
+  dataSources: DataSource[];
   onSave: (entity: Partial<Entity>) => void;
+  onCreateDataSource: (dataSource: Partial<DataSource>) => void;
 }
 
-export default function EntityModal({ isOpen, onClose, entity, entities, onSave }: EntityModalProps) {
+export default function EntityModal({ isOpen, onClose, entity, entities, dataSources, onSave, onCreateDataSource }: EntityModalProps) {
   const [name, setName] = useState("");
   const [entityType, setEntityType] = useState<EntityType>("dmo");
   const [dataSource, setDataSource] = useState("");
@@ -30,6 +32,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
   const [apiName, setApiName] = useState("");
   const [refreshType, setRefreshType] = useState<"full" | "incremental">("full");
   const [schedule, setSchedule] = useState<"real-time" | "hourly" | "daily" | "weekly" | "custom">("daily");
+  const [dataSourceId, setDataSourceId] = useState("");
   const [sourceObjectName, setSourceObjectName] = useState("");
 
   useEffect(() => {
@@ -43,6 +46,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
       setApiName(entity.dataCloudMetadata?.apiName || "");
       setRefreshType(entity.dataCloudMetadata?.streamConfig?.refreshType || "full");
       setSchedule(entity.dataCloudMetadata?.streamConfig?.schedule || "daily");
+      setDataSourceId(entity.dataCloudMetadata?.streamConfig?.dataSourceId || "");
       setSourceObjectName(entity.dataCloudMetadata?.streamConfig?.sourceObjectName || "");
     } else {
       setName("");
@@ -54,6 +58,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
       setApiName("");
       setRefreshType("full");
       setSchedule("daily");
+      setDataSourceId("");
       setSourceObjectName("");
     }
   }, [entity, isOpen]);
@@ -98,6 +103,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
           streamConfig: {
             refreshType,
             schedule,
+            dataSourceId: dataSourceId || undefined,
             sourceObjectName,
           },
         }),
@@ -191,6 +197,28 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
             {entityType === 'data-stream' && (
               <>
                 <div>
+                  <Label htmlFor="data-source-select" className="text-sm font-medium text-coolgray-500">
+                    Data Source *
+                  </Label>
+                  <Select value={dataSourceId} onValueChange={(value) => setDataSourceId(value)}>
+                    <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-data-source">
+                      <SelectValue placeholder="Select data source..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-coolgray-200">
+                      {dataSources.map(ds => (
+                        <SelectItem key={ds.id} value={ds.id}>{ds.name} ({ds.type})</SelectItem>
+                      ))}
+                      {dataSources.length === 0 && (
+                        <div className="px-2 py-1.5 text-xs text-coolgray-400">No data sources yet</div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-coolgray-400 mt-1">
+                    Select the external system (Salesforce, Marketing Cloud, etc.)
+                  </p>
+                </div>
+
+                <div>
                   <Label htmlFor="source-object-name" className="text-sm font-medium text-coolgray-500">
                     Source Object Name *
                   </Label>
@@ -202,6 +230,9 @@ export default function EntityModal({ isOpen, onClose, entity, entities, onSave 
                     className="mt-1 border-coolgray-200 focus:border-secondary-500"
                     data-testid="input-source-object-name"
                   />
+                  <p className="text-xs text-coolgray-400 mt-1">
+                    The table/object name from the selected data source
+                  </p>
                 </div>
 
                 <div>
