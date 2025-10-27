@@ -340,6 +340,7 @@ export default function Home() {
         ) : (
           <ListView
             entities={filteredEntities}
+            selectedEntityId={selectedEntityId}
             onEntityClick={handleEntityDoubleClick}
           />
         )}

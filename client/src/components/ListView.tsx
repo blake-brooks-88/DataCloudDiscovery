@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Key, Link as LinkIcon, Lock, FileText, ArrowRight, Edit, Copy, Trash2 } from "lucide-react";
 import type { Entity, Cardinality } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 interface ListViewProps {
   entities: Entity[];
+  selectedEntityId?: string | null;
   onEntityClick: (entityId: string) => void;
 }
 
@@ -26,11 +27,23 @@ type RelationshipInfo = {
 
 type CardinalityFilter = 'all' | 'one-to-one' | 'one-to-many' | 'many-to-one';
 
-export default function ListView({ entities, onEntityClick }: ListViewProps) {
+export default function ListView({ entities, selectedEntityId, onEntityClick }: ListViewProps) {
   const [expandedEntityIds, setExpandedEntityIds] = useState<Set<string>>(new Set());
   const [activeTabPerEntity, setActiveTabPerEntity] = useState<Record<string, string>>({});
   const [cardinalityFilterPerEntity, setCardinalityFilterPerEntity] = useState<Record<string, CardinalityFilter>>({});
   const [showAllFieldsPerEntity, setShowAllFieldsPerEntity] = useState<Record<string, boolean>>({});
+
+  // Auto-expand selected entity when switching to List View
+  useEffect(() => {
+    if (selectedEntityId && entities.find(e => e.id === selectedEntityId)) {
+      setExpandedEntityIds(prev => {
+        if (!prev.has(selectedEntityId)) {
+          return new Set([selectedEntityId]);
+        }
+        return prev;
+      });
+    }
+  }, [selectedEntityId, entities]);
 
   const toggleExpanded = (entityId: string) => {
     const newExpanded = new Set(expandedEntityIds);
