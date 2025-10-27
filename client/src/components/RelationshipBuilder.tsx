@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowRight, Plus, Trash2, Link2 } from "lucide-react";
+import { ArrowRight, Plus, Trash2, Link2, Check, ChevronsUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,10 +16,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import type { Entity, Relationship, RelationshipType } from "@shared/schema";
 import { getEntityCardStyle } from "@/lib/dataCloudStyles";
+import { cn } from "@/lib/utils";
 
 interface RelationshipBuilderProps {
   isOpen: boolean;
@@ -27,6 +41,8 @@ interface RelationshipBuilderProps {
   entities: Entity[];
   relationships: Relationship[];
   editingRelationship?: Relationship | null;
+  prefilledSourceEntityId?: string;
+  prefilledTargetEntityId?: string;
   onSaveRelationship: (relationship: Omit<Relationship, 'id'> | Relationship) => void;
   onDeleteRelationship?: (id: string) => void;
 }
@@ -37,6 +53,8 @@ export default function RelationshipBuilder({
   entities,
   relationships,
   editingRelationship,
+  prefilledSourceEntityId,
+  prefilledTargetEntityId,
   onSaveRelationship,
   onDeleteRelationship,
 }: RelationshipBuilderProps) {
@@ -45,6 +63,8 @@ export default function RelationshipBuilder({
   const [targetEntityId, setTargetEntityId] = useState('');
   const [label, setLabel] = useState('');
   const [fieldMappings, setFieldMappings] = useState<Array<{ sourceFieldId: string; targetFieldId: string }>>([]);
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [targetOpen, setTargetOpen] = useState(false);
 
   useEffect(() => {
     if (editingRelationship) {
@@ -58,10 +78,19 @@ export default function RelationshipBuilder({
     }
   }, [editingRelationship]);
 
+  useEffect(() => {
+    if (prefilledSourceEntityId && !editingRelationship) {
+      setSourceEntityId(prefilledSourceEntityId);
+    }
+    if (prefilledTargetEntityId && !editingRelationship) {
+      setTargetEntityId(prefilledTargetEntityId);
+    }
+  }, [prefilledSourceEntityId, prefilledTargetEntityId, editingRelationship]);
+
   const resetForm = () => {
     setRelationshipType('references');
-    setSourceEntityId('');
-    setTargetEntityId('');
+    setSourceEntityId(prefilledSourceEntityId || '');
+    setTargetEntityId(prefilledTargetEntityId || '');
     setLabel('');
     setFieldMappings([]);
   };
@@ -79,7 +108,7 @@ export default function RelationshipBuilder({
       case 'feeds-into':
         return entities.filter(e => source.type === 'data-stream' && e.type === 'dlo');
       case 'transforms-to':
-        return entities.filter(e => (source.type === 'dlo' || source.type === 'dmo') && e.type === 'dmo');
+        return entities.filter(e => source.type === 'dlo' && e.type === 'dmo');
       case 'references':
         return entities.filter(e => e.type === 'dmo' && e.id !== sourceEntityId);
       default:
@@ -92,7 +121,7 @@ export default function RelationshipBuilder({
       case 'feeds-into':
         return entities.filter(e => e.type === 'data-stream');
       case 'transforms-to':
-        return entities.filter(e => e.type === 'dlo' || e.type === 'dmo');
+        return entities.filter(e => e.type === 'dlo');
       case 'references':
         return entities.filter(e => e.type === 'dmo');
       default:
@@ -117,13 +146,19 @@ export default function RelationshipBuilder({
   const handleSave = () => {
     if (!sourceEntityId || !targetEntityId) return;
 
+    const validFieldMappings = fieldMappings.filter(fm => fm.sourceFieldId && fm.targetFieldId);
+    
+    if (relationshipType === 'references' && validFieldMappings.length === 0) {
+      return;
+    }
+
     const relationship: Omit<Relationship, 'id'> | Relationship = {
       ...(editingRelationship?.id && { id: editingRelationship.id }),
       type: relationshipType,
       sourceEntityId,
       targetEntityId,
       label: label.trim() || undefined,
-      fieldMappings: fieldMappings.length > 0 ? fieldMappings.filter(fm => fm.sourceFieldId && fm.targetFieldId) : undefined,
+      fieldMappings: validFieldMappings.length > 0 ? validFieldMappings : undefined,
     };
 
     onSaveRelationship(relationship);
@@ -152,7 +187,7 @@ export default function RelationshipBuilder({
         return {
           name: 'Transforms To',
           color: 'bg-green-500',
-          description: 'DLO/DMO → DMO (transformation)',
+          description: 'DLO → DMO (transformation)',
           example: 'Contact_DLO transforms to UnifiedContact_DMO',
         };
       case 'references':
@@ -165,7 +200,12 @@ export default function RelationshipBuilder({
     }
   };
 
-  const canSave = sourceEntityId && targetEntityId && getValidTargetEntities().some(e => e.id === targetEntityId);
+  const validFieldMappings = fieldMappings.filter(fm => fm.sourceFieldId && fm.targetFieldId);
+  const canSave = 
+    sourceEntityId && 
+    targetEntityId && 
+    getValidTargetEntities().some(e => e.id === targetEntityId) &&
+    (relationshipType !== 'references' || validFieldMappings.length > 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -218,26 +258,62 @@ export default function RelationshipBuilder({
 
           <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-start">
             <div className="space-y-2">
-              <Label htmlFor="source-entity">Source Entity *</Label>
-              <Select value={sourceEntityId} onValueChange={setSourceEntityId}>
-                <SelectTrigger id="source-entity" data-testid="select-source-entity">
-                  <SelectValue placeholder="Select source..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {getValidSourceEntities().map((entity) => {
-                    const style = getEntityCardStyle(entity.type);
-                    return (
-                      <SelectItem key={entity.id} value={entity.id}>
-                        <div className="flex items-center gap-2">
-                          <div className={`h-2 w-2 rounded-full`} style={{ backgroundColor: style.borderColor }} />
-                          {entity.name}
-                          <span className="text-xs text-coolgray-400">({entity.type})</span>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              <Label>Source Entity *</Label>
+              <Popover open={sourceOpen} onOpenChange={setSourceOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={sourceOpen}
+                    className="w-full justify-between"
+                    data-testid="select-source-entity"
+                  >
+                    {sourceEntity ? (
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full`} style={{ backgroundColor: getEntityCardStyle(sourceEntity.type).borderColor }} />
+                        {sourceEntity.name}
+                      </div>
+                    ) : (
+                      "Select source..."
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search entities..." />
+                    <CommandList>
+                      <CommandEmpty>No entities found.</CommandEmpty>
+                      <CommandGroup>
+                        {getValidSourceEntities().map((entity) => {
+                          const style = getEntityCardStyle(entity.type);
+                          return (
+                            <CommandItem
+                              key={entity.id}
+                              value={`${entity.name} ${entity.type}`}
+                              onSelect={() => {
+                                setSourceEntityId(entity.id);
+                                setTargetEntityId('');
+                                setSourceOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  sourceEntityId === entity.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className={`h-2 w-2 rounded-full mr-2`} style={{ backgroundColor: style.borderColor }} />
+                              <span className="flex-1">{entity.name}</span>
+                              <span className="text-xs text-coolgray-400">({entity.type})</span>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               {sourceEntity && (
                 <div className="mt-2 p-2 rounded bg-coolgray-50 border border-coolgray-200">
                   <div className="text-xs font-medium text-coolgray-600 mb-1">
@@ -264,35 +340,62 @@ export default function RelationshipBuilder({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="target-entity">Target Entity *</Label>
-              <Select 
-                value={targetEntityId} 
-                onValueChange={setTargetEntityId}
-                disabled={!sourceEntityId}
-              >
-                <SelectTrigger id="target-entity" data-testid="select-target-entity">
-                  <SelectValue placeholder="Select target..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {getValidTargetEntities().map((entity) => {
-                    const style = getEntityCardStyle(entity.type);
-                    return (
-                      <SelectItem key={entity.id} value={entity.id}>
-                        <div className="flex items-center gap-2">
-                          <div className={`h-2 w-2 rounded-full`} style={{ backgroundColor: style.borderColor }} />
-                          {entity.name}
-                          <span className="text-xs text-coolgray-400">({entity.type})</span>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                  {sourceEntityId && getValidTargetEntities().length === 0 && (
-                    <div className="px-2 py-1.5 text-xs text-coolgray-400">
-                      No valid targets for this relationship type
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
+              <Label>Target Entity *</Label>
+              <Popover open={targetOpen} onOpenChange={setTargetOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={targetOpen}
+                    className="w-full justify-between"
+                    disabled={!sourceEntityId}
+                    data-testid="select-target-entity"
+                  >
+                    {targetEntity ? (
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full`} style={{ backgroundColor: getEntityCardStyle(targetEntity.type).borderColor }} />
+                        {targetEntity.name}
+                      </div>
+                    ) : (
+                      "Select target..."
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search entities..." />
+                    <CommandList>
+                      <CommandEmpty>No valid target entities found.</CommandEmpty>
+                      <CommandGroup>
+                        {getValidTargetEntities().map((entity) => {
+                          const style = getEntityCardStyle(entity.type);
+                          return (
+                            <CommandItem
+                              key={entity.id}
+                              value={`${entity.name} ${entity.type}`}
+                              onSelect={() => {
+                                setTargetEntityId(entity.id);
+                                setTargetOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  targetEntityId === entity.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className={`h-2 w-2 rounded-full mr-2`} style={{ backgroundColor: style.borderColor }} />
+                              <span className="flex-1">{entity.name}</span>
+                              <span className="text-xs text-coolgray-400">({entity.type})</span>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               {targetEntity && (
                 <div className="mt-2 p-2 rounded bg-coolgray-50 border border-coolgray-200">
                   <div className="text-xs font-medium text-coolgray-600 mb-1">
@@ -330,7 +433,7 @@ export default function RelationshipBuilder({
             <div className="space-y-3 pt-4 border-t">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium text-coolgray-600">
-                  Field Mappings {relationshipType === 'transforms-to' && '(recommended)'}
+                  {relationshipType === 'references' ? 'Key Mappings *' : 'Field Mappings (optional)'}
                 </Label>
                 <Button
                   variant="outline"
@@ -343,7 +446,13 @@ export default function RelationshipBuilder({
                 </Button>
               </div>
 
-              {fieldMappings.length === 0 ? (
+              {relationshipType === 'references' && fieldMappings.length === 0 && (
+                <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded p-2">
+                  DMO→DMO relationships require at least one key mapping. Click "Add Mapping" to specify which fields join these entities.
+                </p>
+              )}
+
+              {fieldMappings.length === 0 && relationshipType !== 'references' ? (
                 <p className="text-xs text-coolgray-400 text-center py-4">
                   No field mappings defined. Click "Add Mapping" to connect specific fields.
                 </p>
