@@ -24,10 +24,11 @@ export default function RelationshipLine({
   const sourcePos = sourceEntity.position || { x: 100, y: 100 };
   const targetPos = targetEntity.position || { x: 400, y: 100 };
 
-  const startX = sourcePos.x + 140;
-  const startY = sourcePos.y + 75;
-  const endX = targetPos.x;
-  const endY = targetPos.y + 75;
+  // Connect from right edge of source to left edge of target
+  const startX = sourcePos.x + 280; // Right edge of 280px wide entity
+  const startY = sourcePos.y + 75;  // Middle of entity height
+  const endX = targetPos.x;         // Left edge of target
+  const endY = targetPos.y + 75;    // Middle of entity height
 
   const waypoints = field.fkReference?.waypoints || [];
   const cardinality = field.fkReference?.cardinality || 'many-to-one';
