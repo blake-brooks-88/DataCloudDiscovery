@@ -261,10 +261,10 @@ export default function Home() {
 
   const handleExportDataDictionary = () => {
     if (!currentProject) return;
-    let csv = 'Entity,Field Name,Type,Business Name,Notes,Data Source,Data Cloud Type,Is PK,Is FK,Contains PII,Visible in ERD\n';
+    let csv = 'Entity,Entity Type,Field Name,Type,Business Name,Notes,Data Source,Data Cloud Type,Is PK,Is FK,Contains PII,Visible in ERD\n';
     currentProject.entities.forEach(entity => {
       entity.fields.forEach(field => {
-        csv += `"${entity.name}","${field.name}","${field.type}","${field.businessName || ''}","${field.notes || ''}","${entity.dataSource || ''}","${entity.dataCloudIntent?.objectType || ''}",${field.isPK},${field.isFK},${field.containsPII || false},${field.visibleInERD !== false}\n`;
+        csv += `"${entity.name}","${entity.type}","${field.name}","${field.type}","${field.businessName || ''}","${field.notes || ''}","${entity.dataSource || ''}","${entity.dataCloudMetadata?.profileObjectType || ''}",${field.isPK},${field.isFK},${field.containsPII || false},${field.visibleInERD !== false}\n`;
       });
     });
     const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
