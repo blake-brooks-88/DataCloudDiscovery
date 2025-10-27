@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getEntityCardStyle } from "@/lib/dataCloudStyles";
 
 interface ListViewProps {
   entities: Entity[];
@@ -192,15 +193,21 @@ export default function ListView({ entities, selectedEntityId, onEntityClick }: 
                   data-testid={`button-toggle-entity-${entity.id}`}
                 >
                   <div className="flex items-center gap-3">
-                    <Badge className="bg-secondary-50 text-secondary-700 border border-secondary-500 text-xs">
-                      {entity.dataSource || 'No Source'}
-                    </Badge>
+                    {(() => {
+                      const style = getEntityCardStyle(entity.type || 'dmo');
+                      return (
+                        <Badge className={`${style.badgeClass} text-xs font-semibold border`}>
+                          {style.label}
+                        </Badge>
+                      );
+                    })()}
                     <div>
                       <h3 className="text-lg font-semibold text-coolgray-600" data-testid={`text-entity-name-${entity.id}`}>
                         {entity.name}
                       </h3>
                       <p className="text-xs text-coolgray-500">
                         {entity.fields.length} fields • {relationshipCount} relationships
+                        {entity.dataSource && <> • {entity.dataSource}</>}
                       </p>
                     </div>
                   </div>
