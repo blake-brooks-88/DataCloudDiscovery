@@ -34,12 +34,10 @@ export default function RelationshipLine({
   const endX = targetPos.x;         // Left edge of target
   const endY = targetPos.y + ENTITY_HEIGHT / 2;    // Middle of entity height
 
-  console.log(`RelationshipLine coords: start(${startX}, ${startY}) -> end(${endX}, ${endY})`);
-  console.log(`Source entity: ${sourceEntity.name} at (${sourcePos.x}, ${sourcePos.y})`);
-  console.log(`Target entity: ${targetEntity.name} at (${targetPos.x}, ${targetPos.y})`);
-
   const waypoints = field.fkReference?.waypoints || [];
   const cardinality = field.fkReference?.cardinality || 'many-to-one';
+  
+  const GRID_SIZE = 20;
 
   // Create path through all waypoints
   const createPath = () => {
@@ -80,10 +78,14 @@ export default function RelationshipLine({
   const handleWaypointMouseMove = (e: MouseEvent) => {
     if (draggedWaypointIndex === null) return;
 
+    // Calculate position with snap-to-grid
+    const rawX = (e.clientX - panOffset.x) / zoom;
+    const rawY = (e.clientY - panOffset.y) / zoom;
+    
     const newWaypoints = [...waypoints];
     newWaypoints[draggedWaypointIndex] = {
-      x: (e.clientX - panOffset.x) / zoom,
-      y: (e.clientY - panOffset.y) / zoom,
+      x: Math.round(rawX / GRID_SIZE) * GRID_SIZE,
+      y: Math.round(rawY / GRID_SIZE) * GRID_SIZE,
     };
     onUpdateWaypoints(field.id, newWaypoints);
   };
@@ -95,12 +97,15 @@ export default function RelationshipLine({
   const handleLineClick = (e: React.MouseEvent) => {
     if (e.detail === 2) return; // Ignore double clicks
 
-    // Add waypoint at click position
+    // Add waypoint at click position with snap-to-grid
     const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-    const x = (e.clientX - rect.left - panOffset.x) / zoom;
-    const y = (e.clientY - rect.top - panOffset.y) / zoom;
+    const rawX = (e.clientX - rect.left - panOffset.x) / zoom;
+    const rawY = (e.clientY - rect.top - panOffset.y) / zoom;
 
-    const newWaypoints = [...waypoints, { x, y }];
+    const snappedX = Math.round(rawX / GRID_SIZE) * GRID_SIZE;
+    const snappedY = Math.round(rawY / GRID_SIZE) * GRID_SIZE;
+
+    const newWaypoints = [...waypoints, { x: snappedX, y: snappedY }];
     onUpdateWaypoints(field.id, newWaypoints);
   };
 
@@ -134,7 +139,6 @@ export default function RelationshipLine({
   }
 
   const pathData = createPath();
-  console.log(`Path data: ${pathData}`);
   
   // Calculate midpoint for label
   const midX = waypoints.length > 0 
@@ -149,12 +153,6 @@ export default function RelationshipLine({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Test circle at start point */}
-      <circle cx={startX} cy={startY} r="10" fill="red" opacity="0.7" />
-      
-      {/* Test circle at end point */}
-      <circle cx={endX} cy={endY} r="10" fill="blue" opacity="0.7" />
-      
       {/* Invisible thick line for easier clicking */}
       <path
         d={pathData}

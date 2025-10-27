@@ -234,12 +234,7 @@ export default function GraphView({
       entity.fields.forEach((field) => {
         if (field.isFK && field.fkReference && field.visibleInERD !== false) {
           const targetEntity = entities.find(e => e.id === field.fkReference!.targetEntityId);
-          if (!targetEntity) {
-            console.warn(`Target entity not found for FK relationship: ${field.fkReference!.targetEntityId}`);
-            return;
-          }
-
-          console.log(`Rendering relationship line from ${entity.name}.${field.name} to ${targetEntity.name}`);
+          if (!targetEntity) return;
 
           lines.push(
             <RelationshipLine
@@ -258,7 +253,6 @@ export default function GraphView({
       });
     });
 
-    console.log(`Total relationship lines to render: ${lines.length}`);
     return lines;
   };
 
@@ -321,10 +315,6 @@ export default function GraphView({
             <line x1="8" y1="8" x2="2" y2="12" stroke="#64748B" strokeWidth="2" />
           </marker>
         </defs>
-        
-        {/* Test rectangle to verify SVG is rendering */}
-        <rect x="0" y="0" width="200" height="200" fill="rgba(255, 0, 0, 0.3)" />
-        <rect x="300" y="100" width="300" height="100" fill="rgba(0, 255, 0, 0.3)" />
         
         <g transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoom})`} style={{ pointerEvents: 'auto' }}>
           {renderRelationshipLines()}
