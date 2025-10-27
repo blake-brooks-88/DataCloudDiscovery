@@ -34,6 +34,10 @@ export default function RelationshipLine({
   const endX = targetPos.x;         // Left edge of target
   const endY = targetPos.y + ENTITY_HEIGHT / 2;    // Middle of entity height
 
+  console.log(`RelationshipLine coords: start(${startX}, ${startY}) -> end(${endX}, ${endY})`);
+  console.log(`Source entity: ${sourceEntity.name} at (${sourcePos.x}, ${sourcePos.y})`);
+  console.log(`Target entity: ${targetEntity.name} at (${targetPos.x}, ${targetPos.y})`);
+
   const waypoints = field.fkReference?.waypoints || [];
   const cardinality = field.fkReference?.cardinality || 'many-to-one';
 
@@ -130,6 +134,7 @@ export default function RelationshipLine({
   }
 
   const pathData = createPath();
+  console.log(`Path data: ${pathData}`);
   
   // Calculate midpoint for label
   const midX = waypoints.length > 0 
@@ -144,6 +149,12 @@ export default function RelationshipLine({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {/* Test circle at start point */}
+      <circle cx={startX} cy={startY} r="10" fill="red" opacity="0.7" />
+      
+      {/* Test circle at end point */}
+      <circle cx={endX} cy={endY} r="10" fill="blue" opacity="0.7" />
+      
       {/* Invisible thick line for easier clicking */}
       <path
         d={pathData}
