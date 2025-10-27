@@ -237,6 +237,31 @@ export default function Home() {
     }
   };
 
+  const handleUpdateRelationshipWaypoints = (entityId: string, fieldId: string, waypoints: { x: number; y: number }[]) => {
+    if (!currentProject) return;
+    const updatedEntities = currentProject.entities.map(entity => {
+      if (entity.id === entityId) {
+        return {
+          ...entity,
+          fields: entity.fields.map(field => {
+            if (field.id === fieldId && field.fkReference) {
+              return {
+                ...field,
+                fkReference: {
+                  ...field.fkReference,
+                  waypoints,
+                },
+              };
+            }
+            return field;
+          }),
+        };
+      }
+      return entity;
+    });
+    updateCurrentProject({ entities: updatedEntities });
+  };
+
   const handleGenerateDLO = (dataStreamId: string) => {
     if (!currentProject) return;
     
@@ -510,6 +535,7 @@ export default function Home() {
             onGenerateDLO={handleGenerateDLO}
             onGenerateDMO={handleGenerateDMO}
             onEntityDoubleClick={handleEntityDoubleClick}
+            onUpdateRelationshipWaypoints={handleUpdateRelationshipWaypoints}
           />
         ) : (
           <ListView

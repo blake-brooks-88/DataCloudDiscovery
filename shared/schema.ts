@@ -36,6 +36,7 @@ export const fkReferenceSchema = z.object({
   targetFieldId: z.string(),
   cardinality: z.enum(['one-to-one', 'one-to-many', 'many-to-one']),
   relationshipLabel: z.string().optional(),
+  waypoints: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
 });
 
 export type FKReference = z.infer<typeof fkReferenceSchema>;

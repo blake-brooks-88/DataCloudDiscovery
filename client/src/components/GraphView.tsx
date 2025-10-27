@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Plus, Minus, Maximize2, RotateCcw, Target } from "lucide-react";
 import EntityNode from "./EntityNode";
+import RelationshipLine from "./RelationshipLine";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { Entity } from "@shared/schema";
@@ -14,6 +15,7 @@ interface GraphViewProps {
   onEntityDoubleClick: (entityId: string) => void;
   onGenerateDLO?: (entityId: string) => void;
   onGenerateDMO?: (entityId: string) => void;
+  onUpdateRelationshipWaypoints: (entityId: string, fieldId: string, waypoints: { x: number; y: number }[]) => void;
 }
 
 interface DragState {
@@ -33,6 +35,7 @@ export default function GraphView({
   onEntityDoubleClick,
   onGenerateDLO,
   onGenerateDMO,
+  onUpdateRelationshipWaypoints,
 }: GraphViewProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -224,85 +227,25 @@ export default function GraphView({
   const renderRelationshipLines = () => {
     const lines: JSX.Element[] = [];
 
-    // Render FK relationships with crow's foot notation
+    // Render FK relationships with draggable waypoints
     entities.forEach((entity) => {
       entity.fields.forEach((field) => {
         if (field.isFK && field.fkReference && field.visibleInERD !== false) {
           const targetEntity = entities.find(e => e.id === field.fkReference!.targetEntityId);
           if (!targetEntity) return;
 
-          const sourcePos = entity.position || { x: 100, y: 100 };
-          const targetPos = targetEntity.position || { x: 400, y: 100 };
-
-          const startX = sourcePos.x + 140;
-          const startY = sourcePos.y + 75;
-          const endX = targetPos.x + 140;
-          const endY = targetPos.y + 75;
-
-          const cardinality = field.fkReference.cardinality || 'many-to-one';
-          
-          // Determine markers based on cardinality
-          let markerStart = '';
-          let markerEnd = '';
-          let cardinalityLabel = '';
-          
-          switch (cardinality) {
-            case 'one-to-one':
-              markerStart = 'url(#one)';
-              markerEnd = 'url(#one)';
-              cardinalityLabel = '1:1';
-              break;
-            case 'one-to-many':
-              markerStart = 'url(#one)';
-              markerEnd = 'url(#many)';
-              cardinalityLabel = '1:M';
-              break;
-            case 'many-to-one':
-              markerStart = 'url(#many)';
-              markerEnd = 'url(#one)';
-              cardinalityLabel = 'M:1';
-              break;
-            default:
-              markerStart = 'url(#many)';
-              markerEnd = 'url(#many)';
-              cardinalityLabel = 'M:M';
-          }
-
           lines.push(
-            <g key={`${entity.id}-${field.id}`}>
-              <line
-                x1={startX}
-                y1={startY}
-                x2={endX}
-                y2={endY}
-                stroke="#64748B"
-                strokeWidth="2"
-                markerStart={markerStart}
-                markerEnd={markerEnd}
-              />
-              <text
-                x={(startX + endX) / 2}
-                y={(startY + endY) / 2 - 8}
-                fill="#334155"
-                fontSize="11"
-                fontWeight="600"
-                textAnchor="middle"
-              >
-                {cardinalityLabel}
-              </text>
-              {field.fkReference.relationshipLabel && (
-                <text
-                  x={(startX + endX) / 2}
-                  y={(startY + endY) / 2 + 8}
-                  fill="#64748B"
-                  fontSize="10"
-                  fontStyle="italic"
-                  textAnchor="middle"
-                >
-                  {field.fkReference.relationshipLabel}
-                </text>
-              )}
-            </g>
+            <RelationshipLine
+              key={`${entity.id}-${field.id}`}
+              sourceEntity={entity}
+              targetEntity={targetEntity}
+              field={field}
+              zoom={zoom}
+              panOffset={panOffset}
+              onUpdateWaypoints={(fieldId, waypoints) => 
+                onUpdateRelationshipWaypoints(entity.id, fieldId, waypoints)
+              }
+            />
           );
         }
       });
@@ -337,7 +280,7 @@ export default function GraphView({
           
           {/* "One" marker - single perpendicular line */}
           <marker
-            id="one"
+            id="cf-one"
             markerWidth="16"
             markerHeight="16"
             refX="8"
@@ -349,7 +292,7 @@ export default function GraphView({
           
           {/* "Many" marker - crow's foot (three lines) */}
           <marker
-            id="many"
+            id="cf-many"
             markerWidth="16"
             markerHeight="16"
             refX="8"
