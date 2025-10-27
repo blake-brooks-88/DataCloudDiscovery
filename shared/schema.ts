@@ -4,9 +4,6 @@ export type FieldType = 'string' | 'text' | 'int' | 'float' | 'number' | 'decima
   'boolean' | 'date' | 'datetime' | 'timestamp' | 'json' | 'jsonb' | 
   'uuid' | 'enum' | 'phone' | 'email';
 
-export type SourceSystemType = 'salesforce' | 'database' | 'api' | 'csv' | 
-  'erp' | 'marketing_tool' | 'custom';
-
 export type Cardinality = 'one-to-one' | 'one-to-many' | 'many-to-one';
 
 export type DataCloudObjectType = 'Profile' | 'Engagement' | 'Other' | 'TBD';
@@ -40,19 +37,6 @@ export const fieldSchema = z.object({
 
 export type Field = z.infer<typeof fieldSchema>;
 
-export const sourceSystemSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1, "Source system name is required"),
-  type: z.enum(['salesforce', 'database', 'api', 'csv', 'erp', 'marketing_tool', 'custom']),
-  connectionDetails: z.string().optional(),
-  color: z.string().optional(),
-});
-
-export type SourceSystem = z.infer<typeof sourceSystemSchema>;
-
-export const insertSourceSystemSchema = sourceSystemSchema.omit({ id: true });
-export type InsertSourceSystem = z.infer<typeof insertSourceSystemSchema>;
-
 export const dataCloudIntentSchema = z.object({
   objectType: z.enum(['Profile', 'Engagement', 'Other', 'TBD']),
   notes: z.string().optional(),
@@ -64,7 +48,7 @@ export const entitySchema = z.object({
   id: z.string(),
   name: z.string().min(1, "Entity name is required"),
   fields: z.array(fieldSchema),
-  sourceSystemId: z.string(),
+  dataSource: z.string().optional(),
   businessPurpose: z.string().optional(),
   dataCloudIntent: dataCloudIntentSchema.optional(),
   position: z.object({ x: z.number(), y: z.number() }).optional(),
@@ -82,7 +66,6 @@ export const projectSchema = z.object({
   createdAt: z.number(),
   lastModified: z.number(),
   entities: z.array(entitySchema),
-  sourceSystems: z.array(sourceSystemSchema).default([]),
 });
 
 export type Project = z.infer<typeof projectSchema>;
