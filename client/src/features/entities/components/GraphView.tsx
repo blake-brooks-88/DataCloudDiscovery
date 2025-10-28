@@ -1,8 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Plus, Minus, Maximize2, RotateCcw, Target } from "lucide-react";
 import EntityNode from "./EntityNode";
-import EntityLevelLine from "./EntityLevelLine";
-import FieldLevelLine from "@/features/relationships/components/FieldLevelLine";
+import { EntityLevelLine, FieldLevelLine } from "@/features/relationships";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { Entity, Relationship } from "@shared/schema";

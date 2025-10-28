@@ -1,8 +1,7 @@
-export type { StorageService } from './StorageService.interface';
-export { LocalStorageService } from './LocalStorageService';
-export { StorageProvider, useStorage } from './StorageContext';
+export { StorageProvider } from './StorageContext';
+export { useStorage } from './StorageContext';
+
 export {
-    storageKeys,
     useProjects,
     useProject,
     useCreateProject,
@@ -18,3 +17,7 @@ export {
     useUpdateDataSource,
     useDeleteDataSource,
 } from './useStorage.hooks';
+
+export { LocalStorageService } from './LocalStorageService';
+
+export type { StorageService } from './StorageService.interface';

@@ -10,7 +10,7 @@ interface RelationshipLineProps {
   onUpdateWaypoints: (fieldId: string, waypoints: { x: number; y: number }[]) => void;
 }
 
-export default function RelationshipLine({
+export function RelationshipLine({
   sourceEntity,
   targetEntity,
   field,

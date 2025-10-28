@@ -15,7 +15,7 @@ interface FieldLevelLineProps {
   waypoints?: { x: number; y: number }[];
 }
 
-export default function FieldLevelLine({
+export function FieldLevelLine({
   sourceEntity,
   targetEntity,
   sourceField,

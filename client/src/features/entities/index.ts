@@ -1,6 +1,3 @@
-export { default as EntityLevelLine } from "./components/EntityLevelLine";
-export type { EntityLevelLineProps } from "./components/EntityLevelLine";
-
 export { default as EntityModal } from "./components/EntityModal";
 export type { EntityModalProps } from "./components/EntityModal";
 

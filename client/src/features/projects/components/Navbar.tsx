@@ -23,7 +23,7 @@ interface NavbarProps {
   onExportDataDictionary: () => void;
 }
 
-export default function Navbar({
+export function Navbar({
   currentProject,
   projects,
   onSelectProject,

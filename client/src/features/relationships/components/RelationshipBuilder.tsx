@@ -47,7 +47,7 @@ interface RelationshipBuilderProps {
   onDeleteRelationship?: (id: string) => void;
 }
 
-export default function RelationshipBuilder({
+export function RelationshipBuilder({
   isOpen,
   onClose,
   entities,

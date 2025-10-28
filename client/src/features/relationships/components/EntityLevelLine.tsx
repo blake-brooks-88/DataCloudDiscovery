@@ -8,7 +8,7 @@ export interface EntityLevelLineProps {
   panOffset: { x: number; y: number };
 }
 
-export default function EntityLevelLine({
+export function EntityLevelLine({
   relationship,
   sourceEntity,
   targetEntity,

@@ -47,7 +47,7 @@ interface DataSourceManagerProps {
   onDeleteDataSource: (id: string) => void;
 }
 
-export default function DataSourceManager({
+export function DataSourceManager({
   isOpen,
   onClose,
   dataSources,

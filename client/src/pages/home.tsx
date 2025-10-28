@@ -1,25 +1,38 @@
-import { GraphView, ListView, EntityModal, useEntityActions, useEntityViewState } from "@/features/entities";
-import Navbar from "@/features/projects/components/Navbar";
-import Toolbar from "@/features/projects/components/Toolbar";
-import ProjectDialog from "@/features/projects/components/ProjectDialog";
 import {
   useProjects,
   useProject,
-  useCreateDataSource,
-  useUpdateDataSource,
-  useDeleteDataSource,
-  useCreateRelationship,
-  useDeleteRelationship
 } from '@/lib/storage';
-import DataSourceManager from "@/features/data-sources/components/DataSourceManager";
-import RelationshipBuilder from "@/features/relationships/components/RelationshipBuilder";
+import {
+  GraphView,
+  ListView,
+  EntityModal,
+  useEntityActions,
+  useEntityViewState
+} from "@/features/entities";
+
+import {
+  Navbar,
+  Toolbar,
+  ProjectDialog,
+  useProjectActions
+} from "@/features/projects";
+
+import {
+  DataSourceManager,
+  useDataSourceActions
+} from "@/features/data-sources";
+
+import {
+  RelationshipBuilder,
+  useRelationshipActions
+} from "@/features/relationships";
+
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
-import { useProjectActions } from "@/features/projects/hooks/useProjectActions";
 
 
 import { useState, useEffect } from 'react';
-import type { Project, Entity, InsertProject, InsertEntity, DataSource, FieldType } from '@shared/schema';
+import type { Project, Entity, InsertProject, InsertDataSource, InsertEntity, DataSource, FieldType } from '@shared/schema';
 
 export default function Home() {
   const { data: projects = [], isLoading } = useProjects();
@@ -29,11 +42,8 @@ export default function Home() {
   const [isDataSourceManagerOpen, setIsDataSourceManagerOpen] = useState(false);
   const [isRelationshipBuilderOpen, setIsRelationshipBuilderOpen] = useState(false);
   const [editingRelationship, setEditingRelationship] = useState<import("@shared/schema").Relationship | null>(null);
-  const createDataSource = useCreateDataSource(currentProjectId || '');
-  const updateDataSource = useUpdateDataSource(currentProjectId || '');
-  const deleteDataSource = useDeleteDataSource(currentProjectId || '');
-  const createRelationship = useCreateRelationship(currentProjectId || '');
-  const deleteRelationship = useDeleteRelationship(currentProjectId || '');
+  const dataSourceActions = useDataSourceActions(currentProjectId || '');
+  const relationshipActions = useRelationshipActions(currentProjectId || '');
 
   const { toast } = useToast();
 
@@ -182,9 +192,9 @@ export default function Home() {
           entities={currentProject.entities || []}
           dataSources={currentProject.dataSources || []}
           relationships={currentProject.relationships || []}
-          onCreateDataSource={async (dataSource) => {
-            await createDataSource.mutateAsync(dataSource as any);
-            toast({ title: 'Data source created' });
+          onCreateDataSource={(dataSource) => {
+            // Type assertion since EntityModal should only pass valid complete data sources
+            dataSourceActions.handleCreate(dataSource as InsertDataSource);
           }}
         />
       )}
@@ -194,18 +204,9 @@ export default function Home() {
           isOpen={isDataSourceManagerOpen}
           onClose={() => setIsDataSourceManagerOpen(false)}
           dataSources={currentProject.dataSources || []}
-          onCreateDataSource={async (dataSource) => {
-            await createDataSource.mutateAsync(dataSource);
-            toast({ title: 'Data source created' });
-          }}
-          onUpdateDataSource={async (id, updates) => {
-            await updateDataSource.mutateAsync({ dataSourceId: id, updates });
-            toast({ title: 'Data source updated' });
-          }}
-          onDeleteDataSource={async (id) => {
-            await deleteDataSource.mutateAsync(id);
-            toast({ title: 'Data source deleted' });
-          }}
+          onCreateDataSource={dataSourceActions.handleCreate}
+          onUpdateDataSource={dataSourceActions.handleUpdate}
+          onDeleteDataSource={dataSourceActions.handleDelete}
         />
       )}
       <RelationshipBuilder
@@ -218,14 +219,8 @@ export default function Home() {
         relationships={currentProject?.relationships || []}
         editingRelationship={editingRelationship}
         prefilledSourceEntityId={editingRelationship ? undefined : viewState.editingEntity?.id}
-        onSaveRelationship={async (dataSource) => {
-          await createRelationship.mutateAsync(dataSource);
-          toast({ title: 'Data source created' });
-        }}
-        onDeleteRelationship={async (id) => {
-          await deleteRelationship.mutateAsync(id);
-          toast({ title: 'Data source deleted' });
-        }}
+        onSaveRelationship={relationshipActions.handleCreate}
+        onDeleteRelationship={relationshipActions.handleDelete}
       />
     </div>
   );

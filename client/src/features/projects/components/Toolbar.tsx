@@ -16,7 +16,7 @@ interface ToolbarProps {
   onOpenRelationships?: () => void;
 }
 
-export default function Toolbar({
+export function Toolbar({
   viewMode,
   onViewModeChange,
   searchQuery,

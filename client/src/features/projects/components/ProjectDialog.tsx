@@ -13,7 +13,7 @@ interface ProjectDialogProps {
   title: string;
 }
 
-export default function ProjectDialog({ isOpen, onClose, project, onSave, title }: ProjectDialogProps) {
+export function ProjectDialog({ isOpen, onClose, project, onSave, title }: ProjectDialogProps) {
   const [name, setName] = useState(project?.name || "");
   const [clientName, setClientName] = useState(project?.clientName || "");
   const [consultant, setConsultant] = useState(project?.consultant || "");
