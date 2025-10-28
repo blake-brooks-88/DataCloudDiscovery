@@ -11,36 +11,12 @@ import type {
     InsertDataSource,
 } from '@shared/schema';
 
-/**
- * Storage Hooks
- * 
- * These hooks integrate the storage service with React Query for:
- * - Automatic caching
- * - Optimistic updates
- * - Background refetching
- * - Loading/error states
- */
-
-// =============================================================================
-// QUERY KEYS
-// =============================================================================
-
 export const storageKeys = {
     all: ['storage'] as const,
     projects: () => [...storageKeys.all, 'projects'] as const,
     project: (id: string) => [...storageKeys.projects(), id] as const,
-    entities: (projectId: string) => [...storageKeys.project(projectId), 'entities'] as const,
-    relationships: (projectId: string) => [...storageKeys.project(projectId), 'relationships'] as const,
-    dataSources: (projectId: string) => [...storageKeys.project(projectId), 'dataSources'] as const,
 };
 
-// =============================================================================
-// PROJECT HOOKS
-// =============================================================================
-
-/**
- * Fetch all projects
- */
 export function useProjects() {
     const storage = useStorage();
 
@@ -50,9 +26,6 @@ export function useProjects() {
     });
 }
 
-/**
- * Fetch a single project by ID
- */
 export function useProject(projectId: string | null) {
     const storage = useStorage();
 
@@ -63,9 +36,6 @@ export function useProject(projectId: string | null) {
     });
 }
 
-/**
- * Create a new project
- */
 export function useCreateProject() {
     const storage = useStorage();
     const queryClient = useQueryClient();
@@ -73,15 +43,11 @@ export function useCreateProject() {
     return useMutation({
         mutationFn: (project: InsertProject) => storage.createProject(project),
         onSuccess: () => {
-            // Invalidate projects list to trigger refetch
             queryClient.invalidateQueries({ queryKey: storageKeys.projects() });
         },
     });
 }
 
-/**
- * Update an existing project
- */
 export function useUpdateProject() {
     const storage = useStorage();
     const queryClient = useQueryClient();
@@ -90,20 +56,12 @@ export function useUpdateProject() {
         mutationFn: ({ id, updates }: { id: string; updates: Partial<Project> }) =>
             storage.updateProject(id, updates),
         onSuccess: (updatedProject) => {
-            // Update specific project in cache
-            queryClient.setQueryData(
-                storageKeys.project(updatedProject.id),
-                updatedProject
-            );
-            // Invalidate projects list
+            queryClient.setQueryData(storageKeys.project(updatedProject.id), updatedProject);
             queryClient.invalidateQueries({ queryKey: storageKeys.projects() });
         },
     });
 }
 
-/**
- * Delete a project
- */
 export function useDeleteProject() {
     const storage = useStorage();
     const queryClient = useQueryClient();
@@ -111,21 +69,12 @@ export function useDeleteProject() {
     return useMutation({
         mutationFn: (projectId: string) => storage.deleteProject(projectId),
         onSuccess: (_, projectId) => {
-            // Remove from cache
             queryClient.removeQueries({ queryKey: storageKeys.project(projectId) });
-            // Invalidate projects list
             queryClient.invalidateQueries({ queryKey: storageKeys.projects() });
         },
     });
 }
 
-// =============================================================================
-// ENTITY HOOKS
-// =============================================================================
-
-/**
- * Create a new entity
- */
 export function useCreateEntity(projectId: string) {
     const storage = useStorage();
     const queryClient = useQueryClient();
@@ -133,15 +82,11 @@ export function useCreateEntity(projectId: string) {
     return useMutation({
         mutationFn: (entity: InsertEntity) => storage.createEntity(projectId, entity),
         onSuccess: () => {
-            // Invalidate project to trigger refetch with new entity
             queryClient.invalidateQueries({ queryKey: storageKeys.project(projectId) });
         },
     });
 }
 
-/**
- * Update an entity
- */
 export function useUpdateEntity(projectId: string) {
     const storage = useStorage();
     const queryClient = useQueryClient();
@@ -155,9 +100,6 @@ export function useUpdateEntity(projectId: string) {
     });
 }
 
-/**
- * Delete an entity
- */
 export function useDeleteEntity(projectId: string) {
     const storage = useStorage();
     const queryClient = useQueryClient();
@@ -170,13 +112,6 @@ export function useDeleteEntity(projectId: string) {
     });
 }
 
-// =============================================================================
-// RELATIONSHIP HOOKS
-// =============================================================================
-
-/**
- * Create a new relationship
- */
 export function useCreateRelationship(projectId: string) {
     const storage = useStorage();
     const queryClient = useQueryClient();
@@ -190,9 +125,6 @@ export function useCreateRelationship(projectId: string) {
     });
 }
 
-/**
- * Update a relationship
- */
 export function useUpdateRelationship(projectId: string) {
     const storage = useStorage();
     const queryClient = useQueryClient();
@@ -206,9 +138,6 @@ export function useUpdateRelationship(projectId: string) {
     });
 }
 
-/**
- * Delete a relationship
- */
 export function useDeleteRelationship(projectId: string) {
     const storage = useStorage();
     const queryClient = useQueryClient();
@@ -222,13 +151,6 @@ export function useDeleteRelationship(projectId: string) {
     });
 }
 
-// =============================================================================
-// DATA SOURCE HOOKS
-// =============================================================================
-
-/**
- * Create a new data source
- */
 export function useCreateDataSource(projectId: string) {
     const storage = useStorage();
     const queryClient = useQueryClient();
@@ -242,9 +164,6 @@ export function useCreateDataSource(projectId: string) {
     });
 }
 
-/**
- * Update a data source
- */
 export function useUpdateDataSource(projectId: string) {
     const storage = useStorage();
     const queryClient = useQueryClient();
@@ -258,9 +177,6 @@ export function useUpdateDataSource(projectId: string) {
     });
 }
 
-/**
- * Delete a data source
- */
 export function useDeleteDataSource(projectId: string) {
     const storage = useStorage();
     const queryClient = useQueryClient();

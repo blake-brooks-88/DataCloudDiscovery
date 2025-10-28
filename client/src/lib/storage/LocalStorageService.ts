@@ -10,32 +10,9 @@ import type {
     InsertDataSource,
 } from '@shared/schema';
 
-/**
- * LocalStorage Implementation of StorageService
- * 
- * This implementation stores all project data in browser localStorage.
- * Advantages:
- * - No backend required for initial development
- * - Works offline by default
- * - Simple and fast for prototyping
- * 
- * Limitations:
- * - Data is local to one browser/device
- * - No collaboration features
- * - Storage size limits (~5-10MB)
- * 
- * Future: Replace with DatabaseService for production use
- */
 export class LocalStorageService implements StorageService {
     private readonly STORAGE_KEY = 'data-cloud-projects';
 
-    // ==========================================================================
-    // PRIVATE HELPER METHODS
-    // ==========================================================================
-
-    /**
-     * Load all projects from localStorage
-     */
     private loadProjects(): Project[] {
         try {
             const data = localStorage.getItem(this.STORAGE_KEY);
@@ -49,38 +26,22 @@ export class LocalStorageService implements StorageService {
         }
     }
 
-    /**
-     * Save all projects to localStorage
-     */
     private saveProjects(projects: Project[]): void {
         try {
-            localStorage.setItem(
-                this.STORAGE_KEY,
-                JSON.stringify({ projects })
-            );
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify({ projects }));
         } catch (error) {
             console.error('Failed to save projects to localStorage:', error);
             throw new Error('Storage quota exceeded or localStorage unavailable');
         }
     }
 
-    /**
-     * Find a project by ID
-     */
     private findProject(projects: Project[], projectId: string): Project | undefined {
         return projects.find(p => p.id === projectId);
     }
 
-    /**
-     * Update last modified timestamp
-     */
     private touchProject(project: Project): void {
         project.lastModified = Date.now();
     }
-
-    // ==========================================================================
-    // PROJECT OPERATIONS
-    // ==========================================================================
 
     async getAllProjects(): Promise<Project[]> {
         return this.loadProjects();
@@ -118,11 +79,10 @@ export class LocalStorageService implements StorageService {
             throw new Error(`Project with id ${id} not found`);
         }
 
-        // Apply updates
         Object.assign(project, updates);
         this.touchProject(project);
-
         this.saveProjects(projects);
+
         return project;
     }
 
@@ -136,10 +96,6 @@ export class LocalStorageService implements StorageService {
 
         this.saveProjects(filteredProjects);
     }
-
-    // ==========================================================================
-    // ENTITY OPERATIONS
-    // ==========================================================================
 
     async createEntity(projectId: string, insertEntity: InsertEntity): Promise<Entity> {
         const projects = this.loadProjects();
@@ -161,11 +117,7 @@ export class LocalStorageService implements StorageService {
         return newEntity;
     }
 
-    async updateEntity(
-        projectId: string,
-        entityId: string,
-        updates: Partial<Entity>
-    ): Promise<Entity> {
+    async updateEntity(projectId: string, entityId: string, updates: Partial<Entity>): Promise<Entity> {
         const projects = this.loadProjects();
         const project = this.findProject(projects, projectId);
 
@@ -178,7 +130,6 @@ export class LocalStorageService implements StorageService {
             throw new Error(`Entity with id ${entityId} not found`);
         }
 
-        // Apply updates
         Object.assign(entity, updates);
         this.touchProject(project);
         this.saveProjects(projects);
@@ -201,7 +152,7 @@ export class LocalStorageService implements StorageService {
             throw new Error(`Entity with id ${entityId} not found`);
         }
 
-        // Also remove any relationships involving this entity
+        // Clean up relationships that reference deleted entity
         if (project.relationships) {
             project.relationships = project.relationships.filter(
                 r => r.sourceEntityId !== entityId && r.targetEntityId !== entityId
@@ -212,14 +163,7 @@ export class LocalStorageService implements StorageService {
         this.saveProjects(projects);
     }
 
-    // ==========================================================================
-    // RELATIONSHIP OPERATIONS
-    // ==========================================================================
-
-    async createRelationship(
-        projectId: string,
-        insertRelationship: InsertRelationship
-    ): Promise<Relationship> {
+    async createRelationship(projectId: string, insertRelationship: InsertRelationship): Promise<Relationship> {
         const projects = this.loadProjects();
         const project = this.findProject(projects, projectId);
 
@@ -243,11 +187,7 @@ export class LocalStorageService implements StorageService {
         return newRelationship;
     }
 
-    async updateRelationship(
-        projectId: string,
-        relationshipId: string,
-        updates: Partial<Relationship>
-    ): Promise<Relationship> {
+    async updateRelationship(projectId: string, relationshipId: string, updates: Partial<Relationship>): Promise<Relationship> {
         const projects = this.loadProjects();
         const project = this.findProject(projects, projectId);
 
@@ -264,7 +204,6 @@ export class LocalStorageService implements StorageService {
             throw new Error(`Relationship with id ${relationshipId} not found`);
         }
 
-        // Apply updates
         Object.assign(relationship, updates);
         this.touchProject(project);
         this.saveProjects(projects);
@@ -295,14 +234,7 @@ export class LocalStorageService implements StorageService {
         this.saveProjects(projects);
     }
 
-    // ==========================================================================
-    // DATA SOURCE OPERATIONS
-    // ==========================================================================
-
-    async createDataSource(
-        projectId: string,
-        insertDataSource: InsertDataSource
-    ): Promise<DataSource> {
+    async createDataSource(projectId: string, insertDataSource: InsertDataSource): Promise<DataSource> {
         const projects = this.loadProjects();
         const project = this.findProject(projects, projectId);
 
@@ -326,11 +258,7 @@ export class LocalStorageService implements StorageService {
         return newDataSource;
     }
 
-    async updateDataSource(
-        projectId: string,
-        dataSourceId: string,
-        updates: Partial<DataSource>
-    ): Promise<DataSource> {
+    async updateDataSource(projectId: string, dataSourceId: string, updates: Partial<DataSource>): Promise<DataSource> {
         const projects = this.loadProjects();
         const project = this.findProject(projects, projectId);
 
@@ -347,7 +275,6 @@ export class LocalStorageService implements StorageService {
             throw new Error(`DataSource with id ${dataSourceId} not found`);
         }
 
-        // Apply updates
         Object.assign(dataSource, updates);
         this.touchProject(project);
         this.saveProjects(projects);

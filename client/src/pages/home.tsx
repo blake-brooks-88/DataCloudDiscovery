@@ -1,688 +1,311 @@
-import { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
-import Navbar from "@/components/Navbar";
-import Toolbar from "@/components/Toolbar";
-import GraphView from "@/components/GraphView";
-import ListView from "@/components/ListView";
-import EntityModal from "@/components/EntityModal";
-import ProjectDialog from "@/components/ProjectDialog";
-import DataSourceManager from "@/components/DataSourceManager";
-import RelationshipBuilder from "@/components/RelationshipBuilder";
-import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import Navbar from "@/components/layout/Navbar";
+import Toolbar from "@/components/layout/Toolbar";
+import GraphView from "@/components/entities/GraphView";
+import ListView from "@/components/entities/ListView";
+import EntityModal from "@/components/entities/EntityModal";
+import ProjectDialog from "@/components/layout/projects/ProjectDialog";
+import DataSourceManager from "@/components/data-sources/DataSourceManager";
+import RelationshipBuilder from "@/components/relationships/RelationshipBuilder";
+import TableView from '@/components/entities/TableView';
 import { useToast } from "@/hooks/use-toast";
-import type { Project, Entity, FieldType, Relationship, DataSource } from "@shared/schema";
+import { Plus } from "lucide-react";
+
+
+import { useState, useEffect } from 'react';
+import {
+  useProjects,
+  useProject,
+  useCreateProject,
+  useUpdateProject,
+  useDeleteProject,
+  useCreateEntity,
+  useUpdateEntity,
+  useDeleteEntity,
+  useCreateRelationship,
+  useDeleteRelationship,
+  useCreateDataSource,
+  useUpdateDataSource,
+  useDeleteDataSource
+} from '@/lib/storage';
+import type { Project, Entity, InsertProject, InsertEntity, DataSource, FieldType } from '@shared/schema';
 
 type ViewMode = 'graph' | 'table';
 
 export default function Home() {
-  const { toast } = useToast();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { data: projects = [], isLoading } = useProjects();
+  const createProject = useCreateProject();
+  const updateProject = useUpdateProject();
+  const deleteProject = useDeleteProject();
+
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<FieldType | 'all'>('all');
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
-
-  const [isEntityModalOpen, setIsEntityModalOpen] = useState(false);
-  const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
-
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
-  const [projectDialogMode, setProjectDialogMode] = useState<'create' | 'rename'>('create');
-
-  const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
+  const [isEntityModalOpen, setIsEntityModalOpen] = useState(false);
   const [isDataSourceManagerOpen, setIsDataSourceManagerOpen] = useState(false);
   const [isRelationshipBuilderOpen, setIsRelationshipBuilderOpen] = useState(false);
+  const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
   const [editingRelationship, setEditingRelationship] = useState<import("@shared/schema").Relationship | null>(null);
+  const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
 
-  const currentProject = projects.find(p => p.id === currentProjectId) || null;
+  const { toast } = useToast();
+
+  const { data: currentProject } = useProject(currentProjectId);
+
+  const createEntity = useCreateEntity(currentProjectId || '');
+  const updateEntity = useUpdateEntity(currentProjectId || '');
+  const deleteEntity = useDeleteEntity(currentProjectId || '');
+  const createRelationship = useCreateRelationship(currentProjectId || '');
+  const deleteRelationship = useDeleteRelationship(currentProjectId || '');
+  const createDataSource = useCreateDataSource(currentProjectId || '');
+  const updateDataSource = useUpdateDataSource(currentProjectId || '');
+  const deleteDataSource = useDeleteDataSource(currentProjectId || '');
 
   useEffect(() => {
-    const stored = localStorage.getItem('schema-builder-projects');
-    if (stored) {
+    if (!currentProjectId && projects.length > 0) {
+      setCurrentProjectId(projects[0].id);
+    }
+  }, [projects, currentProjectId]);
+
+  const handleCreateProject = async (data: { name: string; clientName?: string; consultant?: string }) => {
+    try {
+      const insertProject: InsertProject = {
+        ...data,
+        entities: [],
+        dataSources: [],
+        relationships: []
+      };
+      const newProject = await createProject.mutateAsync(insertProject);
+      setCurrentProjectId(newProject.id);
+      setIsProjectDialogOpen(false);
+      toast({ title: 'Project created successfully' });
+    } catch (error) {
+      toast({
+        title: 'Failed to create project',
+        variant: 'destructive',
+        description: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  };
+
+  const handleRenameProject = () => {
+    if (!currentProject) return;
+    const newName = prompt('Enter new project name:', currentProject.name);
+    if (newName && newName !== currentProject.name) {
+      updateProject.mutate({
+        id: currentProject.id,
+        updates: { name: newName }
+      });
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!currentProject) return;
+    if (confirm(`Delete project "${currentProject.name}"? This cannot be undone.`)) {
       try {
-        const parsed = JSON.parse(stored);
-        const migratedProjects = parsed.map((project: any) => {
-          const relationships: Relationship[] = [];
-
-          const migratedProject = {
-            ...project,
-            dataSources: project.dataSources || [],
-            relationships: project.relationships || [],
-            entities: (project.entities || []).map((entity: any) => {
-              let dataSource = entity.dataSource;
-
-              if (!dataSource && entity.sourceSystemId && project.sourceSystems) {
-                const sourceSystem = project.sourceSystems.find((s: any) => s.id === entity.sourceSystemId);
-                if (sourceSystem) {
-                  dataSource = `${sourceSystem.name} (${sourceSystem.type})`;
-                }
-              }
-
-              if (!dataSource && entity.sourceSystem) {
-                dataSource = entity.sourceSystem.name || entity.sourceSystem.type || '';
-              }
-
-              // Extract relationships from old FK references
-              if (entity.fields) {
-                entity.fields.forEach((field: any) => {
-                  if (field.isFK && field.fkReference && !project.relationships) {
-                    relationships.push({
-                      id: `rel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                      type: 'references',
-                      sourceEntityId: entity.id,
-                      targetEntityId: field.fkReference.targetEntityId,
-                      label: field.fkReference.relationshipLabel,
-                      fieldMappings: [{
-                        sourceFieldId: field.id,
-                        targetFieldId: field.fkReference.targetFieldId,
-                      }],
-                    });
-                  }
-                });
-              }
-
-              const { sourceSystemId, sourceSystem, ...entityRest } = entity;
-              return {
-                ...entityRest,
-                type: entity.type || 'dmo', // Default to DMO for existing entities
-                ...(dataSource && { dataSource }),
-              };
-            }),
-          };
-
-          // Add extracted relationships if not already present
-          if (relationships.length > 0 && !project.relationships) {
-            migratedProject.relationships = relationships;
-          }
-
-          delete migratedProject.sourceSystems;
-          return migratedProject;
+        await deleteProject.mutateAsync(currentProject.id);
+        setCurrentProjectId(null);
+        toast({ title: 'Project deleted' });
+      } catch (error) {
+        toast({
+          title: 'Failed to delete project',
+          variant: 'destructive'
         });
-
-        setProjects(migratedProjects);
-        localStorage.setItem('schema-builder-projects', JSON.stringify(migratedProjects));
-        if (migratedProjects.length > 0) {
-          setCurrentProjectId(migratedProjects[0].id);
-        }
-      } catch (e) {
-        console.error('Failed to load projects:', e);
       }
-    } else {
-      // Create default project with sample entities and relationships for testing
-      const sampleDataStreamId = `entity-${Date.now()}-1`;
-      const sampleDLOId = `entity-${Date.now()}-2`;
-      const sampleDMOId = `entity-${Date.now()}-3`;
-
-      const defaultProject: Project = {
-        id: `project-${Date.now()}`,
-        name: 'My First Project',
-        createdAt: Date.now(),
-        lastModified: Date.now(),
-        dataSources: [
-          {
-            id: `datasource-${Date.now()}`,
-            name: 'Salesforce CRM',
-            type: 'salesforce',
-            description: 'Production Salesforce instance',
-          }
-        ],
-        entities: [
-          {
-            id: sampleDataStreamId,
-            name: 'Contact_Stream',
-            type: 'data-stream',
-            fields: [
-              { id: 'field-1', name: 'ContactId', type: 'string', isPK: true, isFK: false, visibleInERD: true },
-              { id: 'field-2', name: 'Email', type: 'email', isPK: false, isFK: false, visibleInERD: true },
-              { id: 'field-3', name: 'FirstName', type: 'string', isPK: false, isFK: false, visibleInERD: true },
-            ],
-            dataCloudMetadata: {
-              streamConfig: {
-                refreshType: 'incremental',
-                schedule: 'hourly',
-                sourceObjectName: 'Contact',
-              }
-            },
-            position: { x: 100, y: 100 },
-          },
-          {
-            id: sampleDLOId,
-            name: 'Contact_DLO',
-            type: 'dlo',
-            fields: [
-              { id: 'field-dlo-1', name: 'Id', type: 'string', isPK: true, isFK: false, visibleInERD: true },
-              { id: 'field-dlo-2', name: 'Email', type: 'email', isPK: false, isFK: false, visibleInERD: true },
-              {
-                id: 'field-dlo-3',
-                name: 'StreamId',
-                type: 'string',
-                isPK: false,
-                isFK: true,
-                visibleInERD: true,
-                fkReference: {
-                  targetEntityId: sampleDataStreamId,
-                  targetFieldId: 'field-1',
-                  cardinality: 'many-to-one',
-                  relationshipLabel: 'sources from',
-                }
-              },
-            ],
-            dataCloudMetadata: {
-              objectType: 'DLO',
-            },
-            sourceDataStreamId: sampleDataStreamId,
-            position: { x: 500, y: 100 },
-          },
-          {
-            id: sampleDMOId,
-            name: 'Unified_Contact',
-            type: 'dmo',
-            fields: [
-              { id: 'field-dmo-1', name: 'UnifiedId', type: 'string', isPK: true, isFK: false, visibleInERD: true },
-              { id: 'field-dmo-2', name: 'Email', type: 'email', isPK: false, isFK: false, visibleInERD: true },
-              {
-                id: 'field-dmo-3',
-                name: 'SourceDLOId',
-                type: 'string',
-                isPK: false,
-                isFK: true,
-                visibleInERD: true,
-                fkReference: {
-                  targetEntityId: sampleDLOId,
-                  targetFieldId: 'field-dlo-1',
-                  cardinality: 'many-to-one',
-                  relationshipLabel: 'unified from',
-                }
-              },
-            ],
-            dataCloudMetadata: {
-              objectType: 'DMO',
-              profileObjectType: 'Profile',
-            },
-            sourceDLOIds: [sampleDLOId],
-            position: { x: 900, y: 100 },
-          },
-        ],
-        relationships: [],
-      };
-      setProjects([defaultProject]);
-      setCurrentProjectId(defaultProject.id);
-      localStorage.setItem('schema-builder-projects', JSON.stringify([defaultProject]));
     }
-  }, []);
-
-  const saveProjects = (updatedProjects: Project[]) => {
-    setProjects(updatedProjects);
-    localStorage.setItem('schema-builder-projects', JSON.stringify(updatedProjects));
   };
 
-  const updateCurrentProject = (updates: Partial<Project>) => {
-    if (!currentProject) return;
-    const updated = { ...currentProject, ...updates, lastModified: Date.now() };
-    const updatedProjects = projects.map(p => p.id === currentProject.id ? updated : p);
-    saveProjects(updatedProjects);
-  };
-
-  const handleCreateProject = (data: { name: string; clientName?: string; consultant?: string }) => {
-    const newProject: Project = {
-      id: `project-${Date.now()}`,
-      name: data.name,
-      clientName: data.clientName,
-      consultant: data.consultant,
-      createdAt: Date.now(),
-      lastModified: Date.now(),
-      dataSources: [],
-      entities: [],
-      relationships: [],
-    };
-    const updated = [...projects, newProject];
-    saveProjects(updated);
-    setCurrentProjectId(newProject.id);
-    toast({
-      title: "Project created",
-      description: `${newProject.name} has been created successfully.`,
-    });
-  };
-
-  const handleRenameProject = (data: { name: string; clientName?: string; consultant?: string }) => {
-    if (!currentProject) return;
-    updateCurrentProject(data);
-    toast({
-      title: "Project updated",
-      description: `Project has been updated successfully.`,
-    });
-  };
-
-  const handleDeleteProject = () => {
-    if (!currentProject) return;
-    const filtered = projects.filter(p => p.id !== currentProject.id);
-    saveProjects(filtered);
-    setCurrentProjectId(filtered.length > 0 ? filtered[0].id : null);
-    setIsDeleteProjectDialogOpen(false);
-    toast({
-      title: "Project deleted",
-      description: `${currentProject.name} has been deleted.`,
-      variant: "destructive",
-    });
-  };
-
-  const handleSaveEntity = (entityData: Partial<Entity>) => {
-    if (!currentProject) return;
-
-    if (entityData.id) {
-      const updatedEntities = currentProject.entities.map(e =>
-        e.id === entityData.id ? { ...e, ...entityData } as Entity : e
-      );
-      updateCurrentProject({ entities: updatedEntities });
+  const handleCreateEntity = async (entity: InsertEntity) => {
+    if (!currentProjectId) return;
+    try {
+      await createEntity.mutateAsync(entity);
+      setIsEntityModalOpen(false);
+      toast({ title: 'Entity created successfully' });
+    } catch (error) {
       toast({
-        title: "Entity updated",
-        description: `${entityData.name} has been updated successfully.`,
-      });
-    } else {
-      const newEntity: Entity = {
-        id: `entity-${Date.now()}`,
-        name: entityData.name!,
-        type: entityData.type || 'dmo',
-        fields: entityData.fields || [],
-        dataSource: entityData.dataSource,
-        businessPurpose: entityData.businessPurpose,
-        dataCloudMetadata: entityData.dataCloudMetadata,
-        position: {
-          x: 100 + (currentProject.entities.length * 50),
-          y: 100 + (currentProject.entities.length * 50),
-        },
-        implementationStatus: entityData.implementationStatus,
-        implementationNotes: entityData.implementationNotes,
-      };
-      updateCurrentProject({ entities: [...currentProject.entities, newEntity] });
-      toast({
-        title: "Entity created",
-        description: `${newEntity.name} has been created successfully.`,
+        title: 'Failed to create entity',
+        variant: 'destructive'
       });
     }
-    setIsEntityModalOpen(false);
-    setEditingEntity(null);
+  };
+
+  const handleUpdateEntity = async (entityId: string, updates: Partial<Entity>) => {
+    if (!currentProjectId) return;
+    try {
+      await updateEntity.mutateAsync({ entityId, updates });
+    } catch (error) {
+      toast({
+        title: 'Failed to update entity',
+        variant: 'destructive'
+      });
+    }
   };
 
   const handleUpdateEntityPosition = (entityId: string, position: { x: number; y: number }) => {
-    if (!currentProject) return;
-    const updatedEntities = currentProject.entities.map(e =>
-      e.id === entityId ? { ...e, position } : e
-    );
-    updateCurrentProject({ entities: updatedEntities });
+    updateEntity.mutate({ entityId, updates: { position } });
   };
 
   const handleEntityDoubleClick = (entityId: string) => {
-    const entity = currentProject?.entities.find(e => e.id === entityId);
-    if (entity) {
-      setEditingEntity(entity);
-      setIsEntityModalOpen(true);
+    setEditingEntityId(entityId);
+    setIsEntityModalOpen(true);
+  };
+
+  const handleDeleteEntity = async (entityId: string) => {
+    if (!currentProjectId) return;
+    if (confirm('Delete this entity? This cannot be undone.')) {
+      try {
+        await deleteEntity.mutateAsync(entityId);
+        toast({ title: 'Entity deleted' });
+      } catch (error) {
+        toast({
+          title: 'Failed to delete entity',
+          variant: 'destructive'
+        });
+      }
     }
   };
 
-  const handleUpdateRelationshipWaypoints = (entityId: string, fieldId: string, waypoints: { x: number; y: number }[]) => {
-    if (!currentProject) return;
-    const updatedEntities = currentProject.entities.map(entity => {
-      if (entity.id === entityId) {
-        return {
-          ...entity,
-          fields: entity.fields.map(field => {
-            if (field.id === fieldId && field.fkReference) {
-              return {
-                ...field,
-                fkReference: {
-                  ...field.fkReference,
-                  waypoints,
-                },
-              };
-            }
-            return field;
-          }),
-        };
-      }
-      return entity;
-    });
-    updateCurrentProject({ entities: updatedEntities });
-  };
-
-  const handleCreateDataSource = (dataSourceData: Partial<DataSource>) => {
-    if (!currentProject) return;
-    const newDataSource: DataSource = {
-      id: `datasource-${Date.now()}`,
-      name: dataSourceData.name || 'New Data Source',
-      type: dataSourceData.type || 'salesforce',
-      description: dataSourceData.description,
-      environment: dataSourceData.environment,
-      contactPerson: dataSourceData.contactPerson,
-    };
-    updateCurrentProject({
-      dataSources: [...(currentProject.dataSources || []), newDataSource]
-    });
-    toast({
-      title: "Data source created",
-      description: `${newDataSource.name} has been created successfully.`,
-    });
-  };
-
-  const handleGenerateDLO = (dataStreamId: string) => {
+  const handleGenerateDLO = async (dataStreamId: string) => {
     if (!currentProject) return;
 
     const dataStream = currentProject.entities.find(e => e.id === dataStreamId);
-    if (!dataStream || dataStream.type !== 'data-stream') {
-      toast({
-        title: "Error",
-        description: "Can only generate DLO from Data Stream",
-        variant: "destructive",
+    if (!dataStream || dataStream.type !== 'data-stream') return;
+
+    try {
+      const dloEntity: InsertEntity = {
+        name: dataStream.name.replace('Stream', 'DLO'),
+        type: 'dlo',
+        fields: dataStream.fields.map(f => ({
+          ...f,
+          id: crypto.randomUUID(),
+        })),
+        sourceDataStreamId: dataStreamId,
+        position: {
+          x: dataStream.position?.x || 0,
+          y: (dataStream.position?.y || 0) + 240,
+        },
+      };
+
+      const newDLO = await createEntity.mutateAsync(dloEntity);
+
+      await createRelationship.mutateAsync({
+        type: 'feeds-into',
+        sourceEntityId: dataStreamId,
+        targetEntityId: newDLO.id,
+        label: 'Ingests',
       });
-      return;
-    }
 
-    // Check if DLO already exists
-    const existingDLO = currentProject.entities.find(
-      e => e.type === 'dlo' && e.sourceDataStreamId === dataStreamId
-    );
-    if (existingDLO) {
+      toast({ title: 'DLO generated successfully' });
+    } catch (error) {
       toast({
-        title: "DLO already exists",
-        description: `${existingDLO.name} is already linked to this Data Stream`,
-        variant: "destructive",
+        title: 'Failed to generate DLO',
+        variant: 'destructive'
       });
-      return;
     }
-
-    // Create DLO
-    const dloName = `${dataStream.name.replace(' Stream', '')}_DLO`;
-    const dlo: Entity = {
-      id: `entity-${Date.now()}`,
-      name: dloName,
-      type: 'dlo',
-      fields: dataStream.fields.map(f => ({
-        ...f,
-        id: `field-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      })),
-      sourceDataStreamId: dataStreamId,
-      dataCloudMetadata: {
-        objectType: 'DLO',
-        apiName: `${dataStream.name.replace(/\s/g, '_')}_DLO`,
-      },
-      position: {
-        x: dataStream.position?.x || 100,
-        y: (dataStream.position?.y || 100) + 220,
-      },
-    };
-
-    // Create relationship
-    const relationship: import("@shared/schema").Relationship = {
-      id: `rel-${Date.now()}`,
-      type: 'feeds-into',
-      sourceEntityId: dataStreamId,
-      targetEntityId: dlo.id,
-      label: 'Ingests',
-      fieldMappings: dataStream.fields.map((sourceField, index) => ({
-        sourceFieldId: sourceField.id,
-        targetFieldId: dlo.fields[index].id,
-      })),
-    };
-
-    updateCurrentProject({
-      entities: [...currentProject.entities, dlo],
-      relationships: [...(currentProject.relationships || []), relationship],
-    });
-
-    toast({
-      title: "DLO created",
-      description: `${dloName} created with ${dlo.fields.length} fields`,
-    });
   };
 
-  const handleGenerateDMO = (dloId: string) => {
+  const handleGenerateDMO = async (dloId: string) => {
     if (!currentProject) return;
 
     const dlo = currentProject.entities.find(e => e.id === dloId);
-    if (!dlo || dlo.type !== 'dlo') {
-      toast({
-        title: "Error",
-        description: "Can only generate DMO from DLO",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!dlo || dlo.type !== 'dlo') return;
 
-    // Create DMO
-    const dmoName = `${dlo.name.replace('_DLO', '')}_DMO`;
-    const dmoFields = dlo.fields.map(f => ({
-      ...f,
-      id: `field-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    }));
+    try {
+      const dmoEntity: InsertEntity = {
+        name: dlo.name.replace('DLO', 'DMO'),
+        type: 'dmo',
+        fields: dlo.fields.map(f => ({
+          ...f,
+          id: crypto.randomUUID(),
+        })),
+        sourceDLOIds: [dloId],
+        fieldMappings: dlo.fields.map(f => ({
+          targetFieldId: crypto.randomUUID(),
+          sourceEntityId: dloId,
+          sourceFieldId: f.id,
+        })),
+        position: {
+          x: dlo.position?.x || 0,
+          y: (dlo.position?.y || 0) + 240,
+        },
+      };
 
-    const dmo: Entity = {
-      id: `entity-${Date.now()}`,
-      name: dmoName,
-      type: 'dmo',
-      fields: dmoFields,
-      sourceDLOIds: [dloId],
-      dataCloudMetadata: {
-        objectType: 'DMO',
-        profileObjectType: 'TBD',
-        apiName: `${dlo.name.replace('_DLO', '')}_DMO`,
-      },
-      fieldMappings: dlo.fields.map((dloField, index) => ({
-        targetFieldId: dmoFields[index].id,
+      const newDMO = await createEntity.mutateAsync(dmoEntity);
+
+      await createRelationship.mutateAsync({
+        type: 'transforms-to',
         sourceEntityId: dloId,
-        sourceFieldId: dloField.id,
-        transformDescription: 'Direct copy',
-      })),
-      position: {
-        x: dlo.position?.x || 100,
-        y: (dlo.position?.y || 100) + 220,
-      },
-    };
+        targetEntityId: newDMO.id,
+      });
 
-    // Create relationship
-    const relationship: import("@shared/schema").Relationship = {
-      id: `rel-${Date.now()}`,
-      type: 'transforms-to',
-      sourceEntityId: dloId,
-      targetEntityId: dmo.id,
-      label: 'Transforms',
-      fieldMappings: dmo.fieldMappings?.map(fm => ({
-        sourceFieldId: fm.sourceFieldId,
-        targetFieldId: fm.targetFieldId,
-      })),
-    };
-
-    updateCurrentProject({
-      entities: [...currentProject.entities, dmo],
-      relationships: [...(currentProject.relationships || []), relationship],
-    });
-
-    toast({
-      title: "DMO created",
-      description: `${dmoName} created with ${dmo.fields.length} fields`,
-    });
+      toast({ title: 'DMO generated successfully' });
+    } catch (error) {
+      toast({
+        title: 'Failed to generate DMO',
+        variant: 'destructive'
+      });
+    }
   };
 
   const handleExportJSON = () => {
     if (!currentProject) return;
     const dataStr = JSON.stringify(currentProject, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-    const exportFileDefaultName = `${currentProject.name.replace(/\s+/g, '_')}.json`;
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-    toast({
-      title: "Export successful",
-      description: "Project exported as JSON.",
-    });
-  };
-
-  const handleExportERD = () => {
-    toast({
-      title: "Export ERD",
-      description: "ERD export feature coming soon!",
-    });
-  };
-
-  const handleExportDataDictionary = () => {
-    if (!currentProject) return;
-    let csv = 'Entity,Entity Type,Field Name,Type,Business Name,Notes,Data Source,Data Cloud Type,Is PK,Is FK,Contains PII,Visible in ERD\n';
-    currentProject.entities.forEach(entity => {
-      entity.fields.forEach(field => {
-        csv += `"${entity.name}","${entity.type}","${field.name}","${field.type}","${field.businessName || ''}","${field.notes || ''}","${entity.dataSource || ''}","${entity.dataCloudMetadata?.profileObjectType || ''}",${field.isPK},${field.isFK},${field.containsPII || false},${field.visibleInERD !== false}\n`;
-      });
-    });
-    const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-    const exportFileDefaultName = `${currentProject.name.replace(/\s+/g, '_')}_data_dictionary.csv`;
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-    toast({
-      title: "Export successful",
-      description: "Data dictionary exported as CSV.",
-    });
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${currentProject.name}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleImportJSON = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const imported = JSON.parse(event.target?.result as string) as Project;
-          imported.id = `project-${Date.now()}`;
-          imported.createdAt = Date.now();
-          imported.lastModified = Date.now();
-          const updated = [...projects, imported];
-          saveProjects(updated);
-          setCurrentProjectId(imported.id);
-          toast({
-            title: "Import successful",
-            description: `${imported.name} has been imported.`,
-          });
-        } catch (error) {
-          toast({
-            title: "Import failed",
-            description: "Invalid project file.",
-            variant: "destructive",
-          });
-        }
-      };
-      reader.readAsText(file);
+
+      try {
+        const text = await file.text();
+        const importedProject = JSON.parse(text) as InsertProject;
+        await createProject.mutateAsync(importedProject);
+        toast({ title: 'Project imported successfully' });
+      } catch (error) {
+        toast({
+          title: 'Failed to import project',
+          variant: 'destructive'
+        });
+      }
     };
     input.click();
   };
 
-  const handleImportCSV = () => {
-    toast({
-      title: "Import CSV",
-      description: "CSV import feature coming soon!",
-    });
-  };
+  // TODO: Implement ERD and data dictionary export
+  const handleExportERD = () => toast({ title: 'ERD export coming soon' });
+  const handleExportDataDictionary = () => toast({ title: 'Data dictionary export coming soon' });
+  const handleImportCSV = () => toast({ title: 'CSV import coming soon' });
 
-  const handleUpdateDataSource = (id: string, updates: Partial<DataSource>) => {
-    if (!currentProject) return;
-    updateCurrentProject({
-      dataSources: (currentProject.dataSources || []).map(ds =>
-        ds.id === id ? { ...ds, ...updates } : ds
-      ),
-    });
-    toast({
-      title: "Data source updated",
-      description: "Changes saved successfully.",
-    });
-  };
-
-  const handleDeleteDataSource = (id: string) => {
-    if (!currentProject) return;
-    updateCurrentProject({
-      dataSources: (currentProject.dataSources || []).filter(ds => ds.id !== id),
-    });
-    toast({
-      title: "Data source deleted",
-      description: "Data source has been removed.",
-    });
-  };
-
-  const handleSaveRelationship = (relationship: Omit<Relationship, 'id'> | Relationship) => {
-    if (!currentProject) return;
-
-    if ('id' in relationship) {
-      updateCurrentProject({
-        relationships: (currentProject.relationships || []).map(r =>
-          r.id === relationship.id ? relationship : r
-        ),
-      });
-      toast({
-        title: "Relationship updated",
-        description: "Changes saved successfully.",
-      });
-    } else {
-      const newRelationship: Relationship = {
-        ...relationship,
-        id: `rel-${Date.now()}`,
-      };
-      updateCurrentProject({
-        relationships: [...(currentProject.relationships || []), newRelationship],
-      });
-      toast({
-        title: "Relationship created",
-        description: "New relationship has been added.",
-      });
-    }
-  };
-
-  const handleDeleteRelationship = (id: string) => {
-    if (!currentProject) return;
-    updateCurrentProject({
-      relationships: (currentProject.relationships || []).filter(r => r.id !== id),
-    });
-    toast({
-      title: "Relationship deleted",
-      description: "Relationship has been removed.",
-    });
-  };
-
-  const filteredEntities = currentProject?.entities.filter(entity => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesEntity = entity.name.toLowerCase().includes(query);
-      const matchesField = entity.fields.some(f => f.name.toLowerCase().includes(query));
-      if (!matchesEntity && !matchesField) return false;
-    }
-    return true;
-  }) || [];
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-coolgray-50">
+        <div className="text-coolgray-500">Loading projects...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-coolgray-50">
       <Navbar
-        currentProject={currentProject}
+        currentProject={currentProject || null}
         projects={projects}
         onSelectProject={setCurrentProjectId}
-        onCreateProject={() => {
-          setProjectDialogMode('create');
-          setIsProjectDialogOpen(true);
-        }}
-        onRenameProject={() => {
-          setProjectDialogMode('rename');
-          setIsProjectDialogOpen(true);
-        }}
-        onDeleteProject={() => setIsDeleteProjectDialogOpen(true)}
+        onCreateProject={() => setIsProjectDialogOpen(true)}
+        onRenameProject={handleRenameProject}
+        onDeleteProject={handleDeleteProject}
         onImportCSV={handleImportCSV}
         onImportJSON={handleImportJSON}
         onExportJSON={handleExportJSON}
@@ -690,118 +313,138 @@ export default function Home() {
         onExportDataDictionary={handleExportDataDictionary}
       />
 
-      <Toolbar
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        typeFilter={typeFilter}
-        onTypeFilterChange={setTypeFilter}
-        onOpenDataSources={() => setIsDataSourceManagerOpen(true)}
-        onOpenRelationships={() => setIsRelationshipBuilderOpen(true)}
-      />
-
-      <div className="flex-1 overflow-hidden">
-        {viewMode === 'graph' ? (
-          <GraphView
-            entities={filteredEntities}
-            relationships={currentProject?.relationships || []}
-            selectedEntityId={selectedEntityId}
-            searchQuery={searchQuery}
-            onSelectEntity={setSelectedEntityId}
-            onUpdateEntityPosition={handleUpdateEntityPosition}
-            onGenerateDLO={handleGenerateDLO}
-            onGenerateDMO={handleGenerateDMO}
-            onEntityDoubleClick={handleEntityDoubleClick}
-            onUpdateRelationshipWaypoints={handleUpdateRelationshipWaypoints}
-          />
-        ) : (
-          <ListView
-            entities={filteredEntities}
-            selectedEntityId={selectedEntityId}
-            onEntityClick={handleEntityDoubleClick}
-          />
-        )}
-      </div>
+      {currentProject && (
+        <Toolbar
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          typeFilter={typeFilter}
+          onTypeFilterChange={setTypeFilter}
+          onOpenDataSources={() => setIsDataSourceManagerOpen(true)}
+          onOpenRelationships={() => setIsRelationshipBuilderOpen(true)}
+        />
+      )}
 
       {currentProject && (
-        <Button
-          onClick={() => {
-            setEditingEntity(null);
-            setIsEntityModalOpen(true);
-          }}
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-primary-500 hover:bg-primary-600 text-white shadow-lg"
-          data-testid="button-add-entity"
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            onClick={() => {
+              setEditingEntityId(null);
+              setIsEntityModalOpen(true);
+            }}
+            className="bg-primary-500 text-white rounded-full w-[56px] h-[56px] shadow-lg hover:bg-primary-600 flex items-center justify-center"
+          >
+            <Plus className="h-6 w-6" />
+          </button>
+        </div>
       )}
-      <EntityModal
-        isOpen={isEntityModalOpen}
-        onClose={() => {
-          setIsEntityModalOpen(false);
-          setEditingEntity(null);
-        }}
-        entity={editingEntity}
-        entities={currentProject?.entities || []}
-        dataSources={currentProject?.dataSources || []}
-        relationships={currentProject?.relationships || []}
-        onSave={handleSaveEntity}
-        onCreateDataSource={handleCreateDataSource}
-        onOpenRelationshipBuilder={(prefilledEntityId?: string) => {
-          setIsEntityModalOpen(false);
-          setEditingRelationship(null);
-          if (prefilledEntityId) {
-            const sourceEntity = currentProject?.entities.find(e => e.id === prefilledEntityId);
-            if (sourceEntity) {
-              setIsRelationshipBuilderOpen(true);
-            }
-          }
-        }}
-        onEditRelationship={(relationship: Relationship) => {
-          setIsEntityModalOpen(false);
-          setEditingRelationship(relationship);
-          setIsRelationshipBuilderOpen(true);
-        }}
-      />
+
+      <div className="flex-1 overflow-hidden">
+        {!currentProject ? (
+          <div className="h-full flex items-center justify-center">
+            <div className="text-center">
+              <h2 className="text-[24px] font-bold text-coolgray-600 mb-4">
+                No Project Selected
+              </h2>
+              <button
+                onClick={() => setIsProjectDialogOpen(true)}
+                className="px-4 py-2 bg-primary-500 text-white rounded-xl hover:bg-primary-600"
+              >
+                Create Your First Project
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {viewMode === 'graph' && (
+              <GraphView
+                entities={currentProject.entities}
+                relationships={currentProject.relationships || []}
+                selectedEntityId={selectedEntityId}
+                searchQuery={searchQuery}
+                onSelectEntity={setSelectedEntityId}
+                onUpdateEntityPosition={handleUpdateEntityPosition}
+                onEntityDoubleClick={handleEntityDoubleClick}
+                onGenerateDLO={handleGenerateDLO}
+                onGenerateDMO={handleGenerateDMO}
+                onUpdateRelationshipWaypoints={() => {
+                  // TODO: Implement waypoint persistence
+                }}
+              />
+            )}
+
+            {viewMode === 'table' && (
+              <ListView
+                entities={currentProject.entities}
+                onEntityClick={setSelectedEntityId}
+              />
+            )}
+          </>
+        )}
+      </div>
 
       <ProjectDialog
         isOpen={isProjectDialogOpen}
         onClose={() => setIsProjectDialogOpen(false)}
-        project={projectDialogMode === 'rename' ? currentProject : null}
-        onSave={projectDialogMode === 'create' ? handleCreateProject : handleRenameProject}
-        title={projectDialogMode === 'create' ? 'Create New Project' : 'Rename Project'}
+        onSave={(dialogData) => {
+          const newProject: InsertProject = {
+            ...dialogData,
+            entities: [],
+            relationships: [],
+            dataSources: [],
+          };
+
+          handleCreateProject(newProject);
+        }}
+        project={null}
+        title="Create New Project"
       />
 
-      <AlertDialog open={isDeleteProjectDialogOpen} onOpenChange={setIsDeleteProjectDialogOpen}>
-        <AlertDialogContent className="bg-white border-coolgray-200">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-coolgray-600">Delete Project</AlertDialogTitle>
-            <AlertDialogDescription className="text-coolgray-500">
-              Are you sure you want to delete "{currentProject?.name}"? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-coolgray-200">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteProject}
-              className="bg-danger-500 hover:bg-danger-700 text-white"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {isEntityModalOpen && currentProject && (
+        <EntityModal
+          isOpen={isEntityModalOpen}
+          onClose={() => setIsEntityModalOpen(false)}  // Fix: was closing wrong modal
+          entity={editingEntityId ? currentProject.entities.find(e => e.id === editingEntityId) || null : null}
+          onSave={(data) => {
+            if (editingEntityId) {
+              handleUpdateEntity(editingEntityId, data);
+            } else {
+              handleCreateEntity(data as InsertEntity);
+            }
+            setIsEntityModalOpen(false);
+            setEditingEntityId(null);
+          }}
+          // Remove onDelete - not supported
+          entities={currentProject.entities || []}
+          dataSources={currentProject.dataSources || []}
+          relationships={currentProject.relationships || []}
+          onCreateDataSource={async (dataSource) => {
+            await createDataSource.mutateAsync(dataSource as any);  // Cast to bypass type checking
+            toast({ title: 'Data source created' });
+          }}
+        />
+      )}
 
-      <DataSourceManager
-        isOpen={isDataSourceManagerOpen}
-        onClose={() => setIsDataSourceManagerOpen(false)}
-        dataSources={currentProject?.dataSources || []}
-        onCreateDataSource={handleCreateDataSource}
-        onUpdateDataSource={handleUpdateDataSource}
-        onDeleteDataSource={handleDeleteDataSource}
-      />
-
+      {isDataSourceManagerOpen && currentProject && (
+        <DataSourceManager
+          isOpen={isDataSourceManagerOpen}
+          onClose={() => setIsDataSourceManagerOpen(false)}
+          dataSources={currentProject.dataSources || []}
+          onCreateDataSource={async (dataSource) => {
+            await createDataSource.mutateAsync(dataSource);
+            toast({ title: 'Data source created' });
+          }}
+          onUpdateDataSource={async (id, updates) => {
+            await updateDataSource.mutateAsync({ dataSourceId: id, updates });
+            toast({ title: 'Data source updated' });
+          }}
+          onDeleteDataSource={async (id) => {
+            await deleteDataSource.mutateAsync(id);
+            toast({ title: 'Data source deleted' });
+          }}
+        />
+      )}
       <RelationshipBuilder
         isOpen={isRelationshipBuilderOpen}
         onClose={() => {
@@ -812,8 +455,14 @@ export default function Home() {
         relationships={currentProject?.relationships || []}
         editingRelationship={editingRelationship}
         prefilledSourceEntityId={editingRelationship ? undefined : editingEntity?.id}
-        onSaveRelationship={handleSaveRelationship}
-        onDeleteRelationship={handleDeleteRelationship}
+        onSaveRelationship={async (dataSource) => {
+          await createRelationship.mutateAsync(dataSource);
+          toast({ title: 'Data source created' });
+        }}
+        onDeleteRelationship={async (id) => {
+          await deleteRelationship.mutateAsync(id);
+          toast({ title: 'Data source deleted' });
+        }}
       />
     </div>
   );

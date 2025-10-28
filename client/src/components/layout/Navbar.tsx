@@ -37,21 +37,21 @@ export default function Navbar({
   onExportDataDictionary,
 }: NavbarProps) {
   return (
-    <nav className="bg-coolgray-50 border-b border-coolgray-200 shadow-md sticky top-0 z-50 px-4 py-3">
+    <nav className="bg-coolgray-50 border-b border-border shadow-md sticky top-0 z-50 px-4 py-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary-500 flex items-center justify-center">
-              <Database className="h-5 w-5 text-white" />
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <Database className="h-5 w-5 text-primary-foreground" />
             </div>
-            <h1 className="text-xl font-bold text-coolgray-600">Schema Builder</h1>
+            <h1 className="text-xl font-bold text-foreground">Schema Builder</h1>
           </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="outline" 
-                className="border-coolgray-200 text-coolgray-600 hover:bg-coolgray-100"
+              <Button
+                variant="outline"
+                className="border-input text-foreground hover:bg-muted"
                 data-testid="button-project-selector"
               >
                 <Layers3 className="h-4 w-4 mr-2" />
@@ -59,7 +59,7 @@ export default function Navbar({
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56 bg-white border-coolgray-200">
+            <DropdownMenuContent className="w-56 bg-popover border-border shadow-lg rounded-md">
               {projects.map((project) => (
                 <DropdownMenuItem
                   key={project.id}
@@ -82,9 +82,9 @@ export default function Navbar({
                     Rename Project
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={onDeleteProject} 
-                    className="text-danger-500"
+                  <DropdownMenuItem
+                    onClick={onDeleteProject}
+                    className="text-destructive"
                     data-testid="menu-item-delete-project"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
@@ -99,16 +99,16 @@ export default function Navbar({
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="outline" 
-                className="border-secondary-500 text-secondary-500 hover:bg-secondary-50"
+              <Button
+                variant="outline"
+                className="border-secondary text-secondary hover:bg-secondary-50"
                 data-testid="button-import"
               >
                 <Upload className="h-4 w-4 mr-2" />
                 Import
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-white border-coolgray-200">
+            <DropdownMenuContent className="bg-popover border-border shadow-lg rounded-md">
               <DropdownMenuItem onClick={onImportCSV} data-testid="menu-item-import-csv">
                 <FileText className="h-4 w-4 mr-2" />
                 Import from CSV
@@ -122,9 +122,9 @@ export default function Navbar({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="outline" 
-                className="border-primary-500 text-primary-500 hover:bg-primary-50"
+              <Button
+                variant="outline"
+                className="border-primary text-primary hover:bg-primary-50 disabled:bg-coolgray-200 disabled:text-coolgray-400 disabled:border-coolgray-200"
                 disabled={!currentProject}
                 data-testid="button-export"
               >
@@ -132,7 +132,7 @@ export default function Navbar({
                 Export
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-white border-coolgray-200">
+            <DropdownMenuContent className="bg-popover border-border shadow-lg rounded-md">
               <DropdownMenuItem onClick={onExportJSON} data-testid="menu-item-export-json">
                 <FileJson className="h-4 w-4 mr-2" />
                 Export Project (JSON)

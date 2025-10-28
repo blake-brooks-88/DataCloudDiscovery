@@ -30,13 +30,13 @@ export default function Toolbar({
     <div className="bg-white border-b border-coolgray-200 px-6 py-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <div className="flex bg-coolgray-100 rounded-lg p-1">
+          <div className="flex bg-coolgray-100 rounded-xl p-1">
             <Button
               variant={viewMode === 'graph' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => onViewModeChange('graph')}
-              className={viewMode === 'graph' 
-                ? "bg-secondary-500 text-white hover:bg-secondary-600" 
+              className={viewMode === 'graph'
+                ? "bg-secondary-500 text-white hover:bg-secondary-600"
                 : "text-coolgray-600 hover:bg-coolgray-200"}
               data-testid="button-view-graph"
             >
@@ -47,8 +47,8 @@ export default function Toolbar({
               variant={viewMode === 'table' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => onViewModeChange('table')}
-              className={viewMode === 'table' 
-                ? "bg-secondary-500 text-white hover:bg-secondary-600" 
+              className={viewMode === 'table'
+                ? "bg-secondary-500 text-white hover:bg-secondary-600"
                 : "text-coolgray-600 hover:bg-coolgray-200"}
               data-testid="button-view-table"
             >
@@ -58,19 +58,19 @@ export default function Toolbar({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-1 max-w-3xl">
+        <div className="flex items-center gap-3 flex-1 max-w-[768px]">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-coolgray-400" />
+            <Search className="absolute left-3 top-[50%] transform -translate-y-[50%] h-4 w-4 text-coolgray-400" />
             <Input
               type="text"
               placeholder="Search entities or fields..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 border-coolgray-200 focus:border-secondary-500 focus:ring-1 focus:ring-secondary-500"
+              className="pl-10 border-coolgray-200 focus:border-secondary-500 focus:ring-[1px] focus:ring-secondary-500"
               data-testid="input-search"
             />
           </div>
-          
+
           {onOpenDataSources && (
             <Button
               variant="outline"
@@ -83,7 +83,7 @@ export default function Toolbar({
               Data Sources
             </Button>
           )}
-          
+
           {onOpenRelationships && (
             <Button
               variant="outline"

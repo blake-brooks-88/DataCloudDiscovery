@@ -38,7 +38,7 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
       containsPII: field.containsPII,
       visibleInERD: field.visibleInERD,
       dataSource: entity.dataSource || '',
-      dataCloudObjectType: entity.dataCloudIntent?.objectType,
+      dataCloudObjectType: entity.dataCloudMetadata?.objectType,
     }));
   });
 
@@ -107,9 +107,8 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
           {sortedData.map((row, index) => (
             <tr
               key={`${row.entityId}-${row.fieldId}`}
-              className={`border-b border-coolgray-200 hover:bg-coolgray-50 cursor-pointer transition-colors ${
-                index % 2 === 0 ? 'bg-white' : 'bg-coolgray-50'
-              }`}
+              className={`border-b border-coolgray-200 hover:bg-coolgray-50 cursor-pointer transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-coolgray-50'
+                }`}
               onClick={() => onEntityClick(row.entityId)}
               data-testid={`row-field-${row.fieldId}`}
             >

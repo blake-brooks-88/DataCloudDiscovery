@@ -67,19 +67,19 @@ export default function EntityNode({
         borderWidth: '2px',
       }}
       className={`absolute rounded-xl shadow-md cursor-move select-none transition-all
-        ${isSelected ? 'ring-4 ring-offset-2 shadow-lg' : ''}
-        ${isSearchMatch ? 'pulse-ring ring-4' : ''}
+        ${isSelected ? 'ring-[4px] ring-offset-[2px] shadow-lg' : ''}
+        ${isSearchMatch ? 'pulse-ring ring-[4px]' : ''}
         ${dimmed ? 'opacity-30' : ''}
         hover:shadow-lg`}
       data-testid={`entity-node-${entity.id}`}
     >
-      <div className="w-80">
+      <div className="w-[320px]">
         <div className="px-4 py-3 border-b border-coolgray-200 flex items-center gap-2">
           <IconComponent className="h-5 w-5 flex-shrink-0" style={{ color: cardStyle.borderColor }} />
-          <h3 className="text-lg font-semibold text-coolgray-700 break-words flex-1">{entity.name}</h3>
-          <Badge 
+          <h3 className="text-[18px] font-semibold text-coolgray-700 break-words flex-1">{entity.name}</h3>
+          <Badge
             variant={cardStyle.badge.color === 'secondary' ? 'secondary' : 'default'}
-            className="text-xs px-2 py-0.5"
+            className="text-[12px] px-2 py-[2px]"
             data-testid={`badge-${entity.type}`}
           >
             {cardStyle.badge.text}
@@ -87,7 +87,7 @@ export default function EntityNode({
         </div>
 
         {/* Metadata row */}
-        <div className="px-4 py-2 border-b border-coolgray-200 text-xs text-coolgray-600">
+        <div className="px-4 py-2 border-b border-coolgray-200 text-[12px] text-coolgray-600">
           {entity.type === 'data-stream' && entity.dataCloudMetadata?.streamConfig && (
             <div className="flex gap-2">
               <span>{entity.dataCloudMetadata.streamConfig.refreshType}</span>
@@ -112,19 +112,19 @@ export default function EntityNode({
             </div>
           )}
           {entity.dataSource && entity.type === 'dmo' && (
-            <div className="text-xs text-coolgray-500 font-mono">{entity.dataSource}</div>
+            <div className="text-[12px] text-coolgray-500 font-mono">{entity.dataSource}</div>
           )}
         </div>
 
         {/* Fields preview */}
-        <div className="px-4 py-2 max-h-60 overflow-y-auto">
+        <div className="px-4 py-2 max-h-[240px] overflow-y-auto">
           {pkFields.length > 0 && (
             <div className="mb-2">
               {pkFields.map((field) => (
-                <div key={field.id} className="flex items-center gap-2 py-1 text-sm">
+                <div key={field.id} className="flex items-center gap-2 py-1 text-[14px]">
                   <Key className="h-3 w-3 text-primary-500 flex-shrink-0" />
                   <span className="font-mono text-coolgray-700 font-medium">{field.name}</span>
-                  <span className="text-xs text-coolgray-500">{field.type}</span>
+                  <span className="text-[12px] text-coolgray-500">{field.type}</span>
                   {field.containsPII && <Lock className="h-3 w-3 text-warning-500 flex-shrink-0" />}
                 </div>
               ))}
@@ -134,10 +134,10 @@ export default function EntityNode({
           {fkFields.length > 0 && (
             <div className="mb-2">
               {fkFields.map((field) => (
-                <div key={field.id} className="flex items-center gap-2 py-1 text-sm">
+                <div key={field.id} className="flex items-center gap-2 py-1 text-[14px]">
                   <LinkIcon className="h-3 w-3 text-secondary-500 flex-shrink-0" />
                   <span className="font-mono text-coolgray-700">{field.name}</span>
-                  <span className="text-xs text-coolgray-500">{field.type}</span>
+                  <span className="text-[12px] text-coolgray-500">{field.type}</span>
                   {field.containsPII && <Lock className="h-3 w-3 text-warning-500 flex-shrink-0" />}
                 </div>
               ))}
@@ -147,15 +147,15 @@ export default function EntityNode({
           {regularFields.length > 0 && (
             <div>
               {regularFields.slice(0, 8).map((field) => (
-                <div key={field.id} className="flex items-center gap-2 py-1 text-sm">
+                <div key={field.id} className="flex items-center gap-2 py-1 text-[14px]">
                   <div className="w-3 flex-shrink-0" />
                   <span className="font-mono text-coolgray-600">{field.name}</span>
-                  <span className="text-xs text-coolgray-500">{field.type}</span>
+                  <span className="text-[12px] text-coolgray-500">{field.type}</span>
                   {field.containsPII && <Lock className="h-3 w-3 text-warning-500 flex-shrink-0" />}
                 </div>
               ))}
               {regularFields.length > 8 && (
-                <p className="text-xs text-coolgray-500 mt-1 pl-5">
+                <p className="text-[12px] text-coolgray-500 mt-1 pl-5">
                   +{regularFields.length - 8} more fields
                 </p>
               )}
@@ -163,7 +163,7 @@ export default function EntityNode({
           )}
 
           {visibleFields.length === 0 && (
-            <p className="text-xs text-coolgray-400 py-2 text-center">No visible fields</p>
+            <p className="text-[12px] text-coolgray-400 py-2 text-center">No visible fields</p>
           )}
         </div>
 

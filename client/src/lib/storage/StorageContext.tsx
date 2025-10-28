@@ -2,58 +2,23 @@ import { createContext, useContext, ReactNode } from 'react';
 import type { StorageService } from './StorageService.interface';
 import { LocalStorageService } from './LocalStorageService';
 
-/**
- * Storage Context
- * 
- * Provides the storage service to all components in the application.
- * This allows easy swapping of storage implementations without changing component code.
- */
 const StorageContext = createContext<StorageService | null>(null);
 
 interface StorageProviderProps {
   children: ReactNode;
-  /**
-   * Optional: Provide a custom storage service implementation
-   * Defaults to LocalStorageService
-   */
   storageService?: StorageService;
 }
 
 /**
- * Storage Provider Component
+ * Provides storage service to the component tree via React Context.
+ * Defaults to LocalStorageService if no custom service provided.
  * 
- * Wrap your app with this provider to enable storage access throughout the component tree.
- * 
- * @example
- * ```tsx
- * import { StorageProvider } from '@/lib/storage/StorageContext';
- * 
- * function App() {
- *   return (
- *     <StorageProvider>
- *       <YourApp />
- *     </StorageProvider>
- *   );
- * }
- * ```
- * 
- * @example With custom implementation
- * ```tsx
- * import { DatabaseService } from '@/lib/storage/DatabaseService';
- * 
- * function App() {
- *   const dbService = new DatabaseService(supabaseClient);
- *   
- *   return (
- *     <StorageProvider storageService={dbService}>
- *       <YourApp />
- *     </StorageProvider>
- *   );
- * }
- * ```
+ * @param {object} props
+ * @param {ReactNode} props.children Components to wrap
+ * @param {StorageService} [props.storageService] Optional custom storage implementation
+ * @returns {JSX.Element}
  */
 export function StorageProvider({ children, storageService }: StorageProviderProps) {
-  // Default to LocalStorageService if no service provided
   const service = storageService || new LocalStorageService();
 
   return (
@@ -64,23 +29,11 @@ export function StorageProvider({ children, storageService }: StorageProviderPro
 }
 
 /**
- * Hook to access the storage service
+ * Hook to access the storage service.
+ * Must be used within a StorageProvider.
  * 
- * @throws Error if used outside of StorageProvider
- * 
- * @example
- * ```tsx
- * function MyComponent() {
- *   const storage = useStorage();
- *   
- *   const loadProjects = async () => {
- *     const projects = await storage.getAllProjects();
- *     console.log(projects);
- *   };
- *   
- *   return <button onClick={loadProjects}>Load Projects</button>;
- * }
- * ```
+ * @returns {StorageService}
+ * @throws {Error} If used outside StorageProvider
  */
 export function useStorage(): StorageService {
   const context = useContext(StorageContext);

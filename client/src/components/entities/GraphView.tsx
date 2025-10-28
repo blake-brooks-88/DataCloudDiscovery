@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { Plus, Minus, Maximize2, RotateCcw, Target } from "lucide-react";
 import EntityNode from "./EntityNode";
 import EntityLevelLine from "./EntityLevelLine";
-import FieldLevelLine from "./FieldLevelLine";
+import FieldLevelLine from "../relationships/FieldLevelLine";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { Entity, Relationship } from "@shared/schema";
@@ -91,7 +91,7 @@ export default function GraphView({
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('[data-testid^="entity-node-"]')) return;
-    
+
     onSelectEntity(null);
   };
 
@@ -119,7 +119,7 @@ export default function GraphView({
     if (entities.length === 0 || !canvasRef.current) return;
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    
+
     entities.forEach(entity => {
       const x = entity.position?.x || 100;
       const y = entity.position?.y || 100;
@@ -236,9 +236,9 @@ export default function GraphView({
       .forEach(rel => {
         const sourceEntity = entities.find(e => e.id === rel.sourceEntityId);
         const targetEntity = entities.find(e => e.id === rel.targetEntityId);
-        
+
         if (!sourceEntity || !targetEntity) return;
-        
+
         lines.push(
           <EntityLevelLine
             key={rel.id}
@@ -257,21 +257,21 @@ export default function GraphView({
       .forEach(rel => {
         const sourceEntity = entities.find(e => e.id === rel.sourceEntityId);
         const targetEntity = entities.find(e => e.id === rel.targetEntityId);
-        
+
         if (!sourceEntity || !targetEntity) return;
-        
+
         // Get field mappings from relationship OR from target entity
-        const mappings = rel.fieldMappings || 
-                         targetEntity.fieldMappings?.filter(fm => fm.sourceEntityId === sourceEntity.id) ||
-                         [];
-        
+        const mappings = rel.fieldMappings ||
+          targetEntity.fieldMappings?.filter(fm => fm.sourceEntityId === sourceEntity.id) ||
+          [];
+
         // Render one line per field mapping
         mappings.forEach(mapping => {
           const sourceField = sourceEntity.fields.find(f => f.id === mapping.sourceFieldId);
           const targetField = targetEntity.fields.find(f => f.id === mapping.targetFieldId);
-          
+
           if (!sourceField || !targetField) return;
-          
+
           lines.push(
             <FieldLevelLine
               key={`${rel.id}-${mapping.targetFieldId}`}
@@ -294,9 +294,9 @@ export default function GraphView({
         .forEach(field => {
           const targetEntity = entities.find(e => e.id === field.fkReference!.targetEntityId);
           const targetField = targetEntity?.fields.find(f => f.id === field.fkReference!.targetFieldId);
-          
+
           if (!targetEntity || !targetField) return;
-          
+
           lines.push(
             <FieldLevelLine
               key={`${entity.id}-${field.id}`}
@@ -310,7 +310,7 @@ export default function GraphView({
               waypoints={field.fkReference!.waypoints}
               zoom={zoom}
               panOffset={panOffset}
-              onUpdateWaypoints={(fieldId, waypoints) => 
+              onUpdateWaypoints={(fieldId, waypoints) =>
                 onUpdateRelationshipWaypoints(entity.id, fieldId, waypoints)
               }
             />
@@ -338,10 +338,10 @@ export default function GraphView({
       }}
       data-testid="graph-canvas"
     >
-      <svg 
-        className="absolute inset-0" 
-        style={{ 
-          zIndex: 1, 
+      <svg
+        className="absolute inset-0"
+        style={{
+          zIndex: 1,
           pointerEvents: 'none',
           width: '100%',
           height: '100%',
@@ -356,14 +356,14 @@ export default function GraphView({
           <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
             <polygon points="0 0, 10 3, 0 6" fill="#BED163" />
           </marker>
-          
+
           {/* Animated data flow pattern */}
           <pattern id="data-flow-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
             <circle cx="5" cy="10" r="2" fill="#4AA0D9" opacity="0.6">
               <animate attributeName="cx" from="5" to="25" dur="2s" repeatCount="indefinite" />
             </circle>
           </pattern>
-          
+
           {/* Crow's foot notation markers for references relationships */}
           <marker id="cf-one" markerWidth="16" markerHeight="16" refX="8" refY="8" orient="auto">
             <line x1="8" y1="4" x2="8" y2="12" stroke="#64748B" strokeWidth="2" />
@@ -374,7 +374,7 @@ export default function GraphView({
             <line x1="8" y1="8" x2="2" y2="12" stroke="#64748B" strokeWidth="2" />
           </marker>
         </defs>
-        
+
         <g transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoom})`} style={{ pointerEvents: 'auto' }}>
           {renderRelationshipLines()}
         </g>
@@ -477,21 +477,21 @@ export default function GraphView({
       {/* Legend */}
       <div className="absolute bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 w-72 z-10" data-testid="legend-panel">
         <div className="text-sm font-semibold mb-3 text-coolgray-600">Legend</div>
-        
+
         {/* Entity Types */}
         <div className="mb-3">
           <div className="text-xs font-medium text-coolgray-500 mb-2">Entity Types</div>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-blue-100 border border-blue-400"></div>
+              <div className="w-4 h-4 rounded bg-secondary-100 border border-secondary-400"></div>
               <span className="text-xs text-coolgray-600">Data Stream (Ingestion)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-green-100 border border-green-500"></div>
+              <div className="w-4 h-4 rounded bg-tertiary-100 border border-tertiary-500"></div>
               <span className="text-xs text-coolgray-600">DLO (Raw Data)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-orange-100 border border-orange-500"></div>
+              <div className="w-4 h-4 rounded bg-primary-100 border border-primary-500"></div>
               <span className="text-xs text-coolgray-600">DMO (Unified Model)</span>
             </div>
           </div>
