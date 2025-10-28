@@ -12,3 +12,12 @@ export type { ListViewProps } from './components/ListView';
 
 export { useEntityActions } from './hooks/useEntityActions';
 export { useEntityViewState } from './hooks/useEntityViewState';
+
+export { useCanvasViewport } from './hooks/useCanvasViewport';
+export { useEntityDrag } from './hooks/useEntityDrag';
+export { useEntitySearch } from './hooks/useEntitySearch';
+
+export { CanvasLegend } from './components/CanvasLegend';
+export { SearchResultsPanel } from './components/SearchResultsPanel';
+export { ViewportControls } from './components/ViewportControls';
+export { RelationshipLayer } from './components/RelationshipLayer';
