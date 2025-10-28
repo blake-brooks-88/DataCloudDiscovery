@@ -1,16 +1,41 @@
-import { useState, useEffect } from "react";
-import { X, Plus, Trash2, Key, Link as LinkIcon, Lock, Eye, EyeOff, ChevronDown, ChevronUp, Edit } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import type { Entity, Field, FieldType, EntityType, Cardinality, DataSource, Relationship } from "@shared/schema";
-import { getEntityCardStyle } from "@/styles/dataCloudStyles"; // Restored import
+import { useState, useEffect } from 'react';
+import {
+  Plus,
+  Trash2,
+  Key,
+  Link as LinkIcon,
+  Lock,
+  Eye,
+  EyeOff,
+  ChevronDown,
+  ChevronUp,
+  Edit,
+} from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import type {
+  Entity,
+  Field,
+  FieldType,
+  EntityType,
+  Cardinality,
+  DataSource,
+  Relationship,
+} from '@shared/schema';
+import { getEntityCardStyle } from '@/styles/dataCloudStyles'; // Restored import
 
 /**
  * A modal dialog for creating or editing an entity.
@@ -43,72 +68,94 @@ export interface EntityModalProps {
   onEditRelationship?: (relationship: Relationship) => void;
 }
 
-export default function EntityModal({ isOpen, onClose, entity, entities, dataSources, relationships, onSave, onCreateDataSource, onOpenRelationshipBuilder, onEditRelationship }: EntityModalProps) {
-  const [activeTab, setActiveTab] = useState("details");
-  const [name, setName] = useState("");
-  const [entityType, setEntityType] = useState<EntityType>("dmo");
-  const [dataSource, setDataSource] = useState("");
-  const [businessPurpose, setBusinessPurpose] = useState("");
+export default function EntityModal({
+  isOpen,
+  onClose,
+  entity,
+  entities,
+  dataSources,
+  relationships,
+  onSave,
+  onOpenRelationshipBuilder,
+  onEditRelationship,
+}: EntityModalProps) {
+  const [activeTab, setActiveTab] = useState('details');
+  const [name, setName] = useState('');
+  const [entityType, setEntityType] = useState<EntityType>('dmo');
+  const [dataSource, setDataSource] = useState('');
+  const [businessPurpose, setBusinessPurpose] = useState('');
   const [fields, setFields] = useState<Field[]>([]);
 
   // Data Cloud metadata
-  const [profileObjectType, setProfileObjectType] = useState<"Profile" | "Engagement" | "Other" | "TBD">("TBD");
-  const [apiName, setApiName] = useState("");
-  const [refreshType, setRefreshType] = useState<"full" | "incremental">("full");
-  const [schedule, setSchedule] = useState<"real-time" | "hourly" | "daily" | "weekly" | "custom">("daily");
-  const [dataSourceId, setDataSourceId] = useState("");
-  const [sourceObjectName, setSourceObjectName] = useState("");
+  const [profileObjectType, setProfileObjectType] = useState<
+    'Profile' | 'Engagement' | 'Other' | 'TBD'
+  >('TBD');
+  const [apiName, setApiName] = useState('');
+  const [refreshType, setRefreshType] = useState<'full' | 'incremental'>('full');
+  const [schedule, setSchedule] = useState<'real-time' | 'hourly' | 'daily' | 'weekly' | 'custom'>(
+    'daily'
+  );
+  const [dataSourceId, setDataSourceId] = useState('');
+  const [sourceObjectName, setSourceObjectName] = useState('');
+  type DataStreamDraft = {
+    name?: string;
+    dataSourceId?: string;
+    sourceObjectName?: string;
+    refreshType?: 'full' | 'incremental';
+    schedule?: 'real-time' | 'hourly' | 'daily' | 'weekly' | 'custom';
+    apiName?: string;
+    fields?: Field[];
+  };
 
   // Effect to reset form state when modal opens or entity changes
   useEffect(() => {
     if (entity) {
-      setName(entity.name || "");
-      setEntityType(entity.type || "dmo");
-      setDataSource(entity.dataSource || "");
-      setBusinessPurpose(entity.businessPurpose || "");
+      setName(entity.name || '');
+      setEntityType(entity.type || 'dmo');
+      setDataSource(entity.dataSource || '');
+      setBusinessPurpose(entity.businessPurpose || '');
       setFields(entity.fields || []);
-      setProfileObjectType(entity.dataCloudMetadata?.profileObjectType || "TBD");
-      setApiName(entity.dataCloudMetadata?.apiName || "");
-      setRefreshType(entity.dataCloudMetadata?.streamConfig?.refreshType || "full");
-      setSchedule(entity.dataCloudMetadata?.streamConfig?.schedule || "daily");
-      setDataSourceId(entity.dataCloudMetadata?.streamConfig?.dataSourceId || "");
-      setSourceObjectName(entity.dataCloudMetadata?.streamConfig?.sourceObjectName || "");
+      setProfileObjectType(entity.dataCloudMetadata?.profileObjectType || 'TBD');
+      setApiName(entity.dataCloudMetadata?.apiName || '');
+      setRefreshType(entity.dataCloudMetadata?.streamConfig?.refreshType || 'full');
+      setSchedule(entity.dataCloudMetadata?.streamConfig?.schedule || 'daily');
+      setDataSourceId(entity.dataCloudMetadata?.streamConfig?.dataSourceId || '');
+      setSourceObjectName(entity.dataCloudMetadata?.streamConfig?.sourceObjectName || '');
     } else if (activeTab === 'details' && entityType === 'data-stream') {
       // Check localStorage for a draft
       const draftsJSON = localStorage.getItem('dataStreamDrafts');
       if (draftsJSON) {
         try {
-          const drafts = JSON.parse(draftsJSON) as Record<string, any>;
+          const drafts = JSON.parse(draftsJSON) as Record<string, DataStreamDraft>;
           const draft = drafts['currentDraft']; // or some key based on your app logic
           if (draft) {
-            setName(draft.name || "");
-            setDataSourceId(draft.dataSourceId || "");
-            setSourceObjectName(draft.sourceObjectName || "");
-            setRefreshType(draft.refreshType || "full");
-            setSchedule(draft.schedule || "daily");
-            setApiName(draft.apiName || "");
+            setName(draft.name || '');
+            setDataSourceId(draft.dataSourceId || '');
+            setSourceObjectName(draft.sourceObjectName || '');
+            setRefreshType(draft.refreshType || 'full');
+            setSchedule(draft.schedule || 'daily');
+            setApiName(draft.apiName || '');
             setFields(draft.fields || []);
           }
         } catch (e) {
-          console.error("Failed to parse data stream draft from localStorage", e);
+          console.error('Failed to parse data stream draft from localStorage', e);
         }
       }
     } else {
       // Reset to default state for a new entity
-      setName("");
-      setEntityType("dmo");
-      setDataSource("");
-      setBusinessPurpose("");
+      setName('');
+      setEntityType('dmo');
+      setDataSource('');
+      setBusinessPurpose('');
       setFields([]);
-      setProfileObjectType("TBD");
-      setApiName("");
-      setRefreshType("full");
-      setSchedule("daily");
-      setDataSourceId("");
-      setSourceObjectName("");
+      setProfileObjectType('TBD');
+      setApiName('');
+      setRefreshType('full');
+      setSchedule('daily');
+      setDataSourceId('');
+      setSourceObjectName('');
     }
-  }, [entity, isOpen]);
-
+  }, [entity, isOpen, activeTab, entityType]);
 
   /**
    * Adds a new, empty field to the local state.
@@ -116,8 +163,8 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
   const handleAddField = () => {
     const newField: Field = {
       id: `field-${Date.now()}`, // Simple unique ID for local state
-      name: "",
-      type: "string",
+      name: '',
+      type: 'string',
       isPK: false,
       isFK: false,
       visibleInERD: true,
@@ -130,7 +177,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
    * @param {string} fieldId - The ID of the field to remove.
    */
   const handleRemoveField = (fieldId: string) => {
-    setFields(fields.filter(f => f.id !== fieldId));
+    setFields(fields.filter((f) => f.id !== fieldId));
   };
 
   /**
@@ -139,7 +186,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
    * @param {Partial<Field>} updates - The partial field object with updates.
    */
   const handleFieldChange = (fieldId: string, updates: Partial<Field>) => {
-    setFields(fields.map(f => f.id === fieldId ? { ...f, ...updates } : f));
+    setFields(fields.map((f) => (f.id === fieldId ? { ...f, ...updates } : f)));
   };
 
   /**
@@ -174,7 +221,9 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
       },
       // Preserve existing properties not directly edited in this form
       ...(entity?.position && { position: entity.position }),
-      ...(entity?.sourceDataStreamId && { sourceDataStreamId: entity.sourceDataStreamId }),
+      ...(entity?.sourceDataStreamId && {
+        sourceDataStreamId: entity.sourceDataStreamId,
+      }),
       ...(entity?.sourceDLOIds && { sourceDLOIds: entity.sourceDLOIds }),
       ...(entity?.dataSourceId && { dataSourceId: entity.dataSourceId }),
     };
@@ -185,7 +234,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
   const typeColors = {
     'feeds-into': 'bg-secondary-50 text-secondary-700 border-secondary-300',
     'transforms-to': 'bg-tertiary-50 text-tertiary-700 border-tertiary-300',
-    'references': 'bg-coolgray-100 text-coolgray-700 border-coolgray-300',
+    references: 'bg-coolgray-100 text-coolgray-700 border-coolgray-300',
   };
 
   return (
@@ -197,16 +246,30 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="flex-1 flex flex-col overflow-hidden"
+        >
           <TabsList className="mx-6">
-            <TabsTrigger value="details" data-testid="tab-details">Details</TabsTrigger>
+            <TabsTrigger value="details" data-testid="tab-details">
+              Details
+            </TabsTrigger>
             <TabsTrigger value="relationships" data-testid="tab-relationships">
               Relationships
-              {entity && relationships && relationships.filter(r => r.sourceEntityId === entity.id || r.targetEntityId === entity.id).length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {relationships.filter(r => r.sourceEntityId === entity.id || r.targetEntityId === entity.id).length}
-                </Badge>
-              )}
+              {entity &&
+                relationships &&
+                relationships.filter(
+                  (r) => r.sourceEntityId === entity.id || r.targetEntityId === entity.id
+                ).length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {
+                      relationships.filter(
+                        (r) => r.sourceEntityId === entity.id || r.targetEntityId === entity.id
+                      ).length
+                    }
+                  </Badge>
+                )}
             </TabsTrigger>
           </TabsList>
 
@@ -230,8 +293,14 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                 <Label htmlFor="entity-type" className="text-[14px] font-medium text-coolgray-500">
                   Entity Type *
                 </Label>
-                <Select value={entityType} onValueChange={(value) => setEntityType(value as EntityType)}>
-                  <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-entity-type">
+                <Select
+                  value={entityType}
+                  onValueChange={(value) => setEntityType(value as EntityType)}
+                >
+                  <SelectTrigger
+                    className="mt-1 border-coolgray-200"
+                    data-testid="select-entity-type"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-coolgray-200">
@@ -246,7 +315,10 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
               {entityType === 'dmo' && (
                 <>
                   <div>
-                    <Label htmlFor="data-source" className="text-[14px] font-medium text-coolgray-500">
+                    <Label
+                      htmlFor="data-source"
+                      className="text-[14px] font-medium text-coolgray-500"
+                    >
                       Data Source
                     </Label>
                     <Input
@@ -260,11 +332,22 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                   </div>
 
                   <div>
-                    <Label htmlFor="profile-object-type" className="text-[14px] font-medium text-coolgray-500">
+                    <Label
+                      htmlFor="profile-object-type"
+                      className="text-[14px] font-medium text-coolgray-500"
+                    >
                       Profile Object Type
                     </Label>
-                    <Select value={profileObjectType} onValueChange={(value: any) => setProfileObjectType(value)}>
-                      <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-profile-object-type">
+                    <Select
+                      value={profileObjectType}
+                      onValueChange={(value) =>
+                        setProfileObjectType(value as typeof profileObjectType)
+                      }
+                    >
+                      <SelectTrigger
+                        className="mt-1 border-coolgray-200"
+                        data-testid="select-profile-object-type"
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-white border-coolgray-200">
@@ -281,19 +364,29 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
               {entityType === 'data-stream' && (
                 <>
                   <div>
-                    <Label htmlFor="data-source-select" className="text-[14px] font-medium text-coolgray-500">
+                    <Label
+                      htmlFor="data-source-select"
+                      className="text-[14px] font-medium text-coolgray-500"
+                    >
                       Data Source *
                     </Label>
                     <Select value={dataSourceId} onValueChange={(value) => setDataSourceId(value)}>
-                      <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-data-source">
+                      <SelectTrigger
+                        className="mt-1 border-coolgray-200"
+                        data-testid="select-data-source"
+                      >
                         <SelectValue placeholder="Select data source..." />
                       </SelectTrigger>
                       <SelectContent className="bg-white border-coolgray-200">
-                        {dataSources.map(ds => (
-                          <SelectItem key={ds.id} value={ds.id}>{ds.name} ({ds.type})</SelectItem>
+                        {dataSources.map((ds) => (
+                          <SelectItem key={ds.id} value={ds.id}>
+                            {ds.name} ({ds.type})
+                          </SelectItem>
                         ))}
                         {dataSources.length === 0 && (
-                          <div className="px-2 py-[6px] text-[12px] text-coolgray-400">No data sources yet</div>
+                          <div className="px-2 py-[6px] text-[12px] text-coolgray-400">
+                            No data sources yet
+                          </div>
                         )}
                       </SelectContent>
                     </Select>
@@ -303,7 +396,10 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                   </div>
 
                   <div>
-                    <Label htmlFor="source-object-name" className="text-[14px] font-medium text-coolgray-500">
+                    <Label
+                      htmlFor="source-object-name"
+                      className="text-[14px] font-medium text-coolgray-500"
+                    >
                       Source Object Name *
                     </Label>
                     <Input
@@ -320,11 +416,20 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                   </div>
 
                   <div>
-                    <Label htmlFor="refresh-type" className="text-[14px] font-medium text-coolgray-500">
+                    <Label
+                      htmlFor="refresh-type"
+                      className="text-[14px] font-medium text-coolgray-500"
+                    >
                       Refresh Type
                     </Label>
-                    <Select value={refreshType} onValueChange={(value: any) => setRefreshType(value)}>
-                      <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-refresh-type">
+                    <Select
+                      value={refreshType}
+                      onValueChange={(value) => setRefreshType(value as typeof refreshType)}
+                    >
+                      <SelectTrigger
+                        className="mt-1 border-coolgray-200"
+                        data-testid="select-refresh-type"
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-white border-coolgray-200">
@@ -338,8 +443,11 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                     <Label htmlFor="schedule" className="text-[14px] font-medium text-coolgray-500">
                       Schedule
                     </Label>
-                    <Select value={schedule} onValueChange={(value: any) => setSchedule(value)}>
-                      <SelectTrigger className="mt-1 border-coolgray-200" data-testid="select-schedule">
+                    <Select onValueChange={(value) => setSchedule(value as typeof schedule)}>
+                      <SelectTrigger
+                        className="mt-1 border-coolgray-200"
+                        data-testid="select-schedule"
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-white border-coolgray-200">
@@ -386,7 +494,10 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
 
               {entityType === 'dmo' && (
                 <div>
-                  <Label htmlFor="business-purpose" className="text-[14px] font-medium text-coolgray-500">
+                  <Label
+                    htmlFor="business-purpose"
+                    className="text-[14px] font-medium text-coolgray-500"
+                  >
                     Business Purpose
                   </Label>
                   <Textarea
@@ -430,7 +541,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                 ))}
                 {fields.length === 0 && (
                   <div className="text-center py-8 text-coolgray-400 text-[14px]">
-                    No fields yet. Click "Add Field" to create one.
+                    No fields yet. Click &quot;Add Field&quot; to create one.
                   </div>
                 )}
               </div>
@@ -462,14 +573,19 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                   )}
                 </div>
 
-                {relationships && relationships.filter(r => r.sourceEntityId === entity.id || r.targetEntityId === entity.id).length > 0 ? (
+                {relationships &&
+                relationships.filter(
+                  (r) => r.sourceEntityId === entity.id || r.targetEntityId === entity.id
+                ).length > 0 ? (
                   <div className="space-y-2">
                     {relationships
-                      .filter(r => r.sourceEntityId === entity.id || r.targetEntityId === entity.id)
-                      .map(rel => {
+                      .filter(
+                        (r) => r.sourceEntityId === entity.id || r.targetEntityId === entity.id
+                      )
+                      .map((rel) => {
                         const isSource = rel.sourceEntityId === entity.id;
-                        const otherEntity = entities.find(e =>
-                          e.id === (isSource ? rel.targetEntityId : rel.sourceEntityId)
+                        const otherEntity = entities.find(
+                          (e) => e.id === (isSource ? rel.targetEntityId : rel.sourceEntityId)
                         );
 
                         return (
@@ -485,7 +601,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                                   </Badge>
                                   {rel.label && (
                                     <span className="text-[12px] text-coolgray-500 italic">
-                                      "{rel.label}"
+                                      &quot;{rel.label}&quot;
                                     </span>
                                   )}
                                 </div>
@@ -495,19 +611,32 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                                       <div className="flex items-center gap-1">
                                         <div
                                           className="h-2 w-2 rounded-full"
-                                          style={{ backgroundColor: getEntityCardStyle(entity.type).borderColor }}
+                                          style={{
+                                            backgroundColor: getEntityCardStyle(entity.type)
+                                              .borderColor,
+                                          }}
                                         />
-                                        <span className="font-medium text-coolgray-700">{entity.name}</span>
+                                        <span className="font-medium text-coolgray-700">
+                                          {entity.name}
+                                        </span>
                                         <span className="text-coolgray-400">({entity.type})</span>
                                       </div>
                                       <span className="text-coolgray-400">→</span>
                                       <div className="flex items-center gap-1">
                                         <div
                                           className="h-2 w-2 rounded-full"
-                                          style={{ backgroundColor: otherEntity ? getEntityCardStyle(otherEntity.type).borderColor : '#ccc' }}
+                                          style={{
+                                            backgroundColor: otherEntity
+                                              ? getEntityCardStyle(otherEntity.type).borderColor
+                                              : '#ccc',
+                                          }}
                                         />
-                                        <span className="text-coolgray-600">{otherEntity?.name || 'Unknown'}</span>
-                                        <span className="text-coolgray-400">({otherEntity?.type || 'unknown'})</span>
+                                        <span className="text-coolgray-600">
+                                          {otherEntity?.name || 'Unknown'}
+                                        </span>
+                                        <span className="text-coolgray-400">
+                                          ({otherEntity?.type || 'unknown'})
+                                        </span>
                                       </div>
                                     </>
                                   ) : (
@@ -515,18 +644,31 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                                       <div className="flex items-center gap-1">
                                         <div
                                           className="h-2 w-2 rounded-full"
-                                          style={{ backgroundColor: otherEntity ? getEntityCardStyle(otherEntity.type).borderColor : '#ccc' }}
+                                          style={{
+                                            backgroundColor: otherEntity
+                                              ? getEntityCardStyle(otherEntity.type).borderColor
+                                              : '#ccc',
+                                          }}
                                         />
-                                        <span className="text-coolgray-600">{otherEntity?.name || 'Unknown'}</span>
-                                        <span className="text-coolgray-400">({otherEntity?.type || 'unknown'})</span>
+                                        <span className="text-coolgray-600">
+                                          {otherEntity?.name || 'Unknown'}
+                                        </span>
+                                        <span className="text-coolgray-400">
+                                          ({otherEntity?.type || 'unknown'})
+                                        </span>
                                       </div>
                                       <span className="text-coolgray-400">→</span>
                                       <div className="flex items-center gap-1">
                                         <div
                                           className="h-2 w-2 rounded-full"
-                                          style={{ backgroundColor: getEntityCardStyle(entity.type).borderColor }}
+                                          style={{
+                                            backgroundColor: getEntityCardStyle(entity.type)
+                                              .borderColor,
+                                          }}
                                         />
-                                        <span className="font-medium text-coolgray-700">{entity.name}</span>
+                                        <span className="font-medium text-coolgray-700">
+                                          {entity.name}
+                                        </span>
                                         <span className="text-coolgray-400">({entity.type})</span>
                                       </div>
                                     </>
@@ -537,10 +679,18 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                                     <span className="font-medium">Key mappings:</span>
                                     <div className="mt-1 flex flex-wrap gap-1">
                                       {rel.fieldMappings.map((fm, idx) => {
-                                        const sourceField = (isSource ? entity : otherEntity)?.fields.find(f => f.id === fm.sourceFieldId);
-                                        const targetField = (isSource ? otherEntity : entity)?.fields.find(f => f.id === fm.targetFieldId);
+                                        const sourceField = (
+                                          isSource ? entity : otherEntity
+                                        )?.fields.find((f) => f.id === fm.sourceFieldId);
+                                        const targetField = (
+                                          isSource ? otherEntity : entity
+                                        )?.fields.find((f) => f.id === fm.targetFieldId);
                                         return (
-                                          <Badge key={idx} variant="outline" className="text-[12px]">
+                                          <Badge
+                                            key={idx}
+                                            variant="outline"
+                                            className="text-[12px]"
+                                          >
                                             {sourceField?.name || '?'} → {targetField?.name || '?'}
                                           </Badge>
                                         );
@@ -569,7 +719,9 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
                   <div className="text-center py-12 text-coolgray-400 border border-dashed border-coolgray-200 rounded-xl">
                     <LinkIcon className="h-[48px] w-[48px] mx-auto mb-3 opacity-30" />
                     <p className="mb-2">No relationships defined yet</p>
-                    <p className="text-[12px]">Click "Add Relationship" to connect this entity to others</p>
+                    <p className="text-[12px]">
+                      Click &quot;Add Relationship&quot; to connect this entity to others
+                    </p>
                   </div>
                 )}
               </div>
@@ -623,14 +775,12 @@ interface FieldRowProps {
   onRemove: () => void;
 }
 
-function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdate, onRemove }: FieldRowProps) {
+function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: FieldRowProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showFKConfig, setShowFKConfig] = useState(false);
 
   // Users cannot create a foreign key relationship to the entity itself.
-  const availableEntities = entities.filter(e =>
-    e.id !== currentEntityId
-  );
+  const availableEntities = entities.filter((e) => e.id !== currentEntityId);
 
   return (
     <div className="border border-coolgray-200 rounded-xl p-3 space-y-3 bg-coolgray-50">
@@ -646,8 +796,14 @@ function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdat
         </div>
 
         <div className="col-span-2">
-          <Select value={field.type} onValueChange={(value) => onUpdate({ type: value as FieldType })}>
-            <SelectTrigger className="text-[14px] border-coolgray-200" data-testid={`select-field-type-${field.id}`}>
+          <Select
+            value={field.type}
+            onValueChange={(value) => onUpdate({ type: value as FieldType })}
+          >
+            <SelectTrigger
+              className="text-[14px] border-coolgray-200"
+              data-testid={`select-field-type-${field.id}`}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-white border-coolgray-200">
@@ -680,7 +836,9 @@ function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdat
               checked={field.isFK}
               onCheckedChange={(checked) => {
                 onUpdate({ isFK: checked as boolean });
-                if (checked) setShowFKConfig(true);
+                if (checked) {
+                  setShowFKConfig(true);
+                }
               }}
               data-testid={`checkbox-fk-${field.id}`}
             />
@@ -754,24 +912,29 @@ function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdat
                 <div>
                   <Label className="text-[12px] text-coolgray-600">Target Entity *</Label>
                   <Select
-                    value={field.fkReference?.targetEntityId || ""}
+                    value={field.fkReference?.targetEntityId || ''}
                     onValueChange={(value) => {
                       onUpdate({
                         fkReference: {
                           targetEntityId: value,
-                          targetFieldId: "", // Reset target field when entity changes
-                          cardinality: field.fkReference?.cardinality || "many-to-one",
+                          targetFieldId: '', // Reset target field when entity changes
+                          cardinality: field.fkReference?.cardinality || 'many-to-one',
                           relationshipLabel: field.fkReference?.relationshipLabel,
-                        }
+                        },
                       });
                     }}
                   >
-                    <SelectTrigger className="text-[14px] border-coolgray-200 bg-white" data-testid={`select-target-entity-${field.id}`}>
+                    <SelectTrigger
+                      className="text-[14px] border-coolgray-200 bg-white"
+                      data-testid={`select-target-entity-${field.id}`}
+                    >
                       <SelectValue placeholder="Select entity..." />
                     </SelectTrigger>
                     <SelectContent className="bg-white border-coolgray-200">
-                      {availableEntities.map(e => (
-                        <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                      {availableEntities.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>
+                          {e.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -780,29 +943,36 @@ function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdat
                 <div>
                   <Label className="text-[12px] text-coolgray-600">Target Field *</Label>
                   <Select
-                    value={field.fkReference?.targetFieldId || ""}
+                    value={field.fkReference?.targetFieldId || ''}
                     onValueChange={(value) => {
+                      if (!field.fkReference) {
+                        return;
+                      }
                       onUpdate({
                         fkReference: {
-                          ...field.fkReference!,
+                          ...field.fkReference,
                           targetFieldId: value,
-                        }
+                        },
                       });
                     }}
                     disabled={!field.fkReference?.targetEntityId}
                   >
-                    <SelectTrigger className="text-[14px] border-coolgray-200 bg-white" data-testid={`select-target-field-${field.id}`}>
+                    <SelectTrigger
+                      className="text-[14px] border-coolgray-200 bg-white"
+                      data-testid={`select-target-field-${field.id}`}
+                    >
                       <SelectValue placeholder="Select field..." />
                     </SelectTrigger>
                     <SelectContent className="bg-white border-coolgray-200">
                       {field.fkReference?.targetEntityId &&
                         entities
-                          .find(e => e.id === field.fkReference?.targetEntityId)
-                          ?.fields.filter(f => f.isPK) // Only allow linking to Primary Keys
-                          .map(f => (
-                            <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                          ))
-                      }
+                          .find((e) => e.id === field.fkReference?.targetEntityId)
+                          ?.fields.filter((f) => f.isPK) // Only allow linking to Primary Keys
+                          .map((f) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              {f.name}
+                            </SelectItem>
+                          ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -810,17 +980,25 @@ function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdat
                 <div>
                   <Label className="text-[12px] text-coolgray-600">Cardinality</Label>
                   <Select
-                    value={field.fkReference?.cardinality || "many-to-one"}
+                    value={field.fkReference?.cardinality || 'many-to-one'}
                     onValueChange={(value) => {
+                      // Add this guard
+                      if (!field.fkReference) {
+                        return;
+                      }
+
                       onUpdate({
                         fkReference: {
-                          ...field.fkReference!,
+                          ...field.fkReference, // Remove the '!'
                           cardinality: value as Cardinality,
-                        }
+                        },
                       });
                     }}
                   >
-                    <SelectTrigger className="text-[14px] border-coolgray-200 bg-white" data-testid={`select-cardinality-${field.id}`}>
+                    <SelectTrigger
+                      className="text-[14px] border-coolgray-200 bg-white"
+                      data-testid={`select-cardinality-${field.id}`}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white border-coolgray-200">
@@ -834,13 +1012,18 @@ function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdat
                 <div>
                   <Label className="text-[12px] text-coolgray-600">Relationship Label</Label>
                   <Input
-                    value={field.fkReference?.relationshipLabel || ""}
+                    value={field.fkReference?.relationshipLabel || ''}
                     onChange={(e) => {
+                      // Add this guard
+                      if (!field.fkReference) {
+                        return;
+                      }
+
                       onUpdate({
                         fkReference: {
-                          ...field.fkReference!,
+                          ...field.fkReference, // Remove the '!'
                           relationshipLabel: e.target.value,
-                        }
+                        },
                       });
                     }}
                     placeholder="e.g., owns, belongs to"
@@ -857,14 +1040,14 @@ function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdat
       {showAdvanced && (
         <div className="space-y-2 pt-2 border-t border-coolgray-200">
           <Input
-            value={field.businessName || ""}
+            value={field.businessName || ''}
             onChange={(e) => onUpdate({ businessName: e.target.value })}
             placeholder="Business name"
             className="text-[14px] border-coolgray-200"
             data-testid={`input-business-name-${field.id}`}
           />
           <Textarea
-            value={field.notes || ""}
+            value={field.notes || ''}
             onChange={(e) => onUpdate({ notes: e.target.value })}
             placeholder="Notes"
             className="text-[14px] border-coolgray-200"
@@ -874,13 +1057,15 @@ function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdat
           <div>
             <Label className="text-[12px] text-coolgray-600">Sample Values (pipe-separated)</Label>
             <Input
-              value={field.sampleValues?.join(" | ") || ""}
+              value={field.sampleValues?.join(' | ') || ''}
               onChange={(e) => {
                 const values = e.target.value
-                  .split("|")
-                  .map(v => v.trim())
-                  .filter(v => v); // Remove empty strings
-                onUpdate({ sampleValues: values.length > 0 ? values : undefined });
+                  .split('|')
+                  .map((v) => v.trim())
+                  .filter((v) => v); // Remove empty strings
+                onUpdate({
+                  sampleValues: values.length > 0 ? values : undefined,
+                });
               }}
               placeholder="e.g., value1 | value2 | value3"
               className="text-[14px] border-coolgray-200 mt-1"
@@ -892,4 +1077,3 @@ function FieldRow({ field, entities, currentEntityId, currentEntityType, onUpdat
     </div>
   );
 }
-

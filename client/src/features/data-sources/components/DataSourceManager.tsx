@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { Plus, Pencil, Trash2, Database } from "lucide-react";
+import { useState } from 'react';
+import { Plus, Pencil, Trash2, Database } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -14,18 +14,18 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,8 +35,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import type { DataSource, SourceSystemType } from "@shared/schema";
+} from '@/components/ui/alert-dialog';
+import type { DataSource, SourceSystemType } from '@shared/schema';
 
 interface DataSourceManagerProps {
   isOpen: boolean;
@@ -97,7 +97,9 @@ export function DataSourceManager({
   };
 
   const handleSave = () => {
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim()) {
+      return;
+    }
 
     if (editingId) {
       onUpdateDataSource(editingId, formData);
@@ -149,7 +151,7 @@ export function DataSourceManager({
                 <div className="text-center py-12 text-coolgray-400">
                   <Database className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p>No data sources yet</p>
-                  <p className="text-sm mt-1">Click "Add Data Source" to get started</p>
+                  <p className="text-sm mt-1">Click &quot;Add Data Source&quot; to get started</p>
                 </div>
               ) : (
                 <Table>
@@ -225,7 +227,12 @@ export function DataSourceManager({
                     <Label htmlFor="ds-type">Type *</Label>
                     <Select
                       value={formData.type}
-                      onValueChange={(value) => setFormData({ ...formData, type: value as SourceSystemType })}
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          type: value as SourceSystemType,
+                        })
+                      }
                     >
                       <SelectTrigger id="ds-type" data-testid="select-data-source-type">
                         <SelectValue />
@@ -246,7 +253,12 @@ export function DataSourceManager({
                     <Label htmlFor="ds-environment">Environment</Label>
                     <Select
                       value={formData.environment}
-                      onValueChange={(value) => setFormData({ ...formData, environment: value as any })}
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          environment: value as typeof formData.environment,
+                        })
+                      }
                     >
                       <SelectTrigger id="ds-environment" data-testid="select-environment">
                         <SelectValue />
@@ -266,7 +278,12 @@ export function DataSourceManager({
                   <Input
                     id="ds-contact"
                     value={formData.contactPerson}
-                    onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        contactPerson: e.target.value,
+                      })
+                    }
                     placeholder="e.g., John Smith (IT Admin)"
                     data-testid="input-contact-person"
                   />
@@ -286,11 +303,7 @@ export function DataSourceManager({
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={resetForm}
-                  data-testid="button-cancel"
-                >
+                <Button variant="outline" onClick={resetForm} data-testid="button-cancel">
                   Cancel
                 </Button>
                 <Button
@@ -307,20 +320,21 @@ export function DataSourceManager({
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+      <AlertDialog
+        open={!!deleteConfirmId}
+        onOpenChange={(open) => !open && setDeleteConfirmId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Data Source?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the data source. Entities linked to this source will need to be reassigned.
+              This will remove the data source. Entities linked to this source will need to be
+              reassigned.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-red-500 hover:bg-red-600"
-            >
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

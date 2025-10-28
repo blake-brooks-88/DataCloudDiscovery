@@ -1,4 +1,4 @@
-import type { EntityType, RelationshipType } from "@shared/schema";
+import type { EntityType, RelationshipType } from '@shared/schema';
 
 export interface EntityCardStyle {
   background: string;
@@ -34,13 +34,13 @@ export function getEntityCardStyle(type: EntityType): EntityCardStyle {
       icon: 'Waves',
       badge: { text: 'Data Stream', color: 'secondary' },
     },
-    'dlo': {
+    dlo: {
       background: '#F9FCEA', // tertiary-50
       borderColor: '#BED163', // tertiary-500
       icon: 'Cylinder',
       badge: { text: 'DLO', color: 'tertiary' },
     },
-    'dmo': {
+    dmo: {
       background: '#FFF6EB', // primary-50
       borderColor: '#E49A43', // primary-500
       icon: 'Layers',
@@ -75,7 +75,7 @@ export function getRelationshipLineStyle(type: RelationshipType): RelationshipLi
       animated: false,
       label: 'Transforms',
     },
-    'references': {
+    references: {
       stroke: '#64748B', // coolgray-500
       strokeWidth: 2,
       strokeDasharray: 'none',
@@ -91,8 +91,8 @@ export function getEntityTypeLabel(type: EntityType): string {
   const labels: Record<EntityType, string> = {
     'data-source': 'Data Source',
     'data-stream': 'Data Stream',
-    'dlo': 'Data Lake Object (DLO)',
-    'dmo': 'Data Model Object (DMO)',
+    dlo: 'Data Lake Object (DLO)',
+    dmo: 'Data Model Object (DMO)',
     'data-transform': 'Data Transform',
   };
 
@@ -103,7 +103,7 @@ export function getRelationshipTypeLabel(type: RelationshipType): string {
   const labels: Record<RelationshipType, string> = {
     'feeds-into': 'Feeds Into (Ingests)',
     'transforms-to': 'Transforms To',
-    'references': 'References (FK)',
+    references: 'References (FK)',
   };
 
   return labels[type];

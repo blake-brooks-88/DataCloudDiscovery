@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import type { Project } from "@shared/schema";
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import type { Project } from '@shared/schema';
 
 interface ProjectDialogProps {
   isOpen: boolean;
@@ -14,12 +14,14 @@ interface ProjectDialogProps {
 }
 
 export function ProjectDialog({ isOpen, onClose, project, onSave, title }: ProjectDialogProps) {
-  const [name, setName] = useState(project?.name || "");
-  const [clientName, setClientName] = useState(project?.clientName || "");
-  const [consultant, setConsultant] = useState(project?.consultant || "");
+  const [name, setName] = useState(project?.name || '');
+  const [clientName, setClientName] = useState(project?.clientName || '');
+  const [consultant, setConsultant] = useState(project?.consultant || '');
 
   const handleSave = () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      return;
+    }
     onSave({ name, clientName, consultant });
     onClose();
   };

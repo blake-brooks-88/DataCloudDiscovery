@@ -1,21 +1,21 @@
-export { StorageProvider } from './StorageContext';
-export { useStorage } from './StorageContext';
+export { StorageProvider } from './StorageProvider';
+export { useStorage } from './Storage.context';
 
 export {
-    useProjects,
-    useProject,
-    useCreateProject,
-    useUpdateProject,
-    useDeleteProject,
-    useCreateEntity,
-    useUpdateEntity,
-    useDeleteEntity,
-    useCreateRelationship,
-    useUpdateRelationship,
-    useDeleteRelationship,
-    useCreateDataSource,
-    useUpdateDataSource,
-    useDeleteDataSource,
+  useProjects,
+  useProject,
+  useCreateProject,
+  useUpdateProject,
+  useDeleteProject,
+  useCreateEntity,
+  useUpdateEntity,
+  useDeleteEntity,
+  useCreateRelationship,
+  useUpdateRelationship,
+  useDeleteRelationship,
+  useCreateDataSource,
+  useUpdateDataSource,
+  useDeleteDataSource,
 } from './useStorage.hooks';
 
 export { LocalStorageService } from './LocalStorageService';

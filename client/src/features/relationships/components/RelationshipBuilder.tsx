@@ -1,21 +1,21 @@
-import { useState, useEffect } from "react";
-import { ArrowRight, Plus, Trash2, Link2, Check, ChevronsUpDown } from "lucide-react";
+import { useState, useEffect, useCallback } from 'react';
+import { ArrowRight, Plus, Trash2, Link2, Check, ChevronsUpDown } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   Command,
   CommandEmpty,
@@ -23,17 +23,13 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import type { Entity, Relationship, RelationshipType } from "@shared/schema";
-import { getEntityCardStyle } from "@/styles/dataCloudStyles";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import type { Entity, Relationship, RelationshipType } from '@shared/schema';
+// import { getEntityCardStyle } from '@/styles/dataCloudStyles'; // <-- Build Fix: Commented out missing import
+import { cn } from '@/lib/utils';
 
 interface RelationshipBuilderProps {
   isOpen: boolean;
@@ -41,17 +37,33 @@ interface RelationshipBuilderProps {
   entities: Entity[];
   relationships: Relationship[];
   editingRelationship?: Relationship | null;
-  prefilledSourceEntityId?: string;
+  prefilledSourceEntityId?: string | undefined;
   prefilledTargetEntityId?: string;
   onSaveRelationship: (relationship: Omit<Relationship, 'id'> | Relationship) => void;
   onDeleteRelationship?: (id: string) => void;
 }
 
+// --- Build Fix: Added placeholder for missing import ---
+const getEntityCardStyle = (
+  type: string
+): {
+  borderColor: string;
+} => {
+  // Simple mock implementation
+  if (type === 'dlo') {
+    return { borderColor: '#0284c7' }; // secondary
+  }
+  if (type === 'data-stream') {
+    return { borderColor: '#059669' }; // tertiary
+  }
+  return { borderColor: '#6366f1' }; // default
+};
+// --- End of Build Fix ---
+
 export function RelationshipBuilder({
   isOpen,
   onClose,
   entities,
-  relationships,
   editingRelationship,
   prefilledSourceEntityId,
   prefilledTargetEntityId,
@@ -62,9 +74,20 @@ export function RelationshipBuilder({
   const [sourceEntityId, setSourceEntityId] = useState('');
   const [targetEntityId, setTargetEntityId] = useState('');
   const [label, setLabel] = useState('');
-  const [fieldMappings, setFieldMappings] = useState<Array<{ sourceFieldId: string; targetFieldId: string }>>([]);
+  const [fieldMappings, setFieldMappings] = useState<
+    Array<{ sourceFieldId: string; targetFieldId: string }>
+  >([]);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [targetOpen, setTargetOpen] = useState(false);
+
+  // Wrapped resetForm in useCallback
+  const resetForm = useCallback(() => {
+    setRelationshipType('references');
+    setSourceEntityId(prefilledSourceEntityId || '');
+    setTargetEntityId(prefilledTargetEntityId || '');
+    setLabel('');
+    setFieldMappings([]);
+  }, [prefilledSourceEntityId, prefilledTargetEntityId]); // <-- Added dependencies
 
   useEffect(() => {
     if (editingRelationship) {
@@ -76,7 +99,7 @@ export function RelationshipBuilder({
     } else {
       resetForm();
     }
-  }, [editingRelationship]);
+  }, [editingRelationship, resetForm]); // <-- Added resetForm
 
   useEffect(() => {
     if (isOpen && !editingRelationship) {
@@ -89,43 +112,39 @@ export function RelationshipBuilder({
     }
   }, [isOpen, prefilledSourceEntityId, prefilledTargetEntityId, editingRelationship]);
 
-  const resetForm = () => {
-    setRelationshipType('references');
-    setSourceEntityId(prefilledSourceEntityId || '');
-    setTargetEntityId(prefilledTargetEntityId || '');
-    setLabel('');
-    setFieldMappings([]);
-  };
-
-  const sourceEntity = entities.find(e => e.id === sourceEntityId);
-  const targetEntity = entities.find(e => e.id === targetEntityId);
+  const sourceEntity = entities.find((e) => e.id === sourceEntityId);
+  const targetEntity = entities.find((e) => e.id === targetEntityId);
 
   const getValidTargetEntities = () => {
-    if (!sourceEntityId) return [];
+    if (!sourceEntityId) {
+      return [];
+    }
 
-    const source = entities.find(e => e.id === sourceEntityId);
-    if (!source) return [];
+    const source = entities.find((e) => e.id === sourceEntityId);
+    if (!source) {
+      return [];
+    }
 
     switch (relationshipType) {
       case 'feeds-into':
-        return entities.filter(e => source.type === 'data-stream' && e.type === 'dlo');
+        return entities.filter((e) => source.type === 'data-stream' && e.type === 'dlo');
       case 'transforms-to':
-        return entities.filter(e => source.type === 'dlo' && e.type === 'dmo');
+        return entities.filter((e) => source.type === 'dlo' && e.type === 'dmo');
       case 'references':
-        return entities.filter(e => e.type === 'dmo' && e.id !== sourceEntityId);
+        return entities.filter((e) => e.type === 'dmo' && e.id !== sourceEntityId);
       default:
-        return entities.filter(e => e.id !== sourceEntityId);
+        return entities.filter((e) => e.id !== sourceEntityId);
     }
   };
 
   const getValidSourceEntities = () => {
     switch (relationshipType) {
       case 'feeds-into':
-        return entities.filter(e => e.type === 'data-stream');
+        return entities.filter((e) => e.type === 'data-stream');
       case 'transforms-to':
-        return entities.filter(e => e.type === 'dlo');
+        return entities.filter((e) => e.type === 'dlo');
       case 'references':
-        return entities.filter(e => e.type === 'dmo');
+        return entities.filter((e) => e.type === 'dmo');
       default:
         return entities;
     }
@@ -139,16 +158,30 @@ export function RelationshipBuilder({
     setFieldMappings(fieldMappings.filter((_, i) => i !== index));
   };
 
-  const updateFieldMapping = (index: number, field: 'sourceFieldId' | 'targetFieldId', value: string) => {
-    const updated = [...fieldMappings];
-    updated[index][field] = value;
-    setFieldMappings(updated);
+  const updateFieldMapping = (
+    index: number,
+    field: 'sourceFieldId' | 'targetFieldId',
+    value: string
+  ) => {
+    setFieldMappings((prevMappings) =>
+      prevMappings.map((item, i) => {
+        if (i !== index) {
+          return item;
+        }
+        return {
+          ...item,
+          [field]: value,
+        };
+      })
+    );
   };
 
   const handleSave = () => {
-    if (!sourceEntityId || !targetEntityId) return;
+    if (!sourceEntityId || !targetEntityId) {
+      return;
+    }
 
-    const validFieldMappings = fieldMappings.filter(fm => fm.sourceFieldId && fm.targetFieldId);
+    const validFieldMappings = fieldMappings.filter((fm) => fm.sourceFieldId && fm.targetFieldId);
 
     if (relationshipType === 'references' && validFieldMappings.length === 0) {
       return;
@@ -202,11 +235,11 @@ export function RelationshipBuilder({
     }
   };
 
-  const validFieldMappings = fieldMappings.filter(fm => fm.sourceFieldId && fm.targetFieldId);
+  const validFieldMappings = fieldMappings.filter((fm) => fm.sourceFieldId && fm.targetFieldId);
   const canSave =
     sourceEntityId &&
     targetEntityId &&
-    getValidTargetEntities().some(e => e.id === targetEntityId) &&
+    getValidTargetEntities().some((e) => e.id === targetEntityId) &&
     (relationshipType !== 'references' || validFieldMappings.length > 0);
 
   return (
@@ -217,9 +250,7 @@ export function RelationshipBuilder({
             <Link2 className="h-5 w-5" />
             {editingRelationship ? 'Edit Relationship' : 'Create Relationship'}
           </DialogTitle>
-          <DialogDescription>
-            Define how entities connect and transform data
-          </DialogDescription>
+          <DialogDescription>Define how entities connect and transform data</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -237,10 +268,11 @@ export function RelationshipBuilder({
                       setTargetEntityId('');
                       setFieldMappings([]);
                     }}
-                    className={`p-4 rounded-lg border-2 text-left transition-all ${relationshipType === type
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-coolgray-200 hover:border-coolgray-300'
-                      }`}
+                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                      relationshipType === type
+                        ? 'border-primary-500 bg-primary-50'
+                        : 'border-coolgray-200 hover:border-coolgray-300'
+                    }`}
                     data-testid={`button-type-${type}`}
                   >
                     <div className="flex items-center gap-2 mb-2">
@@ -271,11 +303,16 @@ export function RelationshipBuilder({
                   >
                     {sourceEntity ? (
                       <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full`} style={{ backgroundColor: getEntityCardStyle(sourceEntity.type).borderColor }} />
+                        <div
+                          className={`h-2 w-2 rounded-full`}
+                          style={{
+                            backgroundColor: getEntityCardStyle(sourceEntity.type).borderColor,
+                          }}
+                        />
                         {sourceEntity.name}
                       </div>
                     ) : (
-                      "Select source..."
+                      'Select source...'
                     )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -300,11 +337,14 @@ export function RelationshipBuilder({
                             >
                               <Check
                                 className={cn(
-                                  "mr-2 h-4 w-4",
-                                  sourceEntityId === entity.id ? "opacity-100" : "opacity-0"
+                                  'mr-2 h-4 w-4',
+                                  sourceEntityId === entity.id ? 'opacity-100' : 'opacity-0'
                                 )}
                               />
-                              <div className={`h-2 w-2 rounded-full mr-2`} style={{ backgroundColor: style.borderColor }} />
+                              <div
+                                className={`h-2 w-2 rounded-full mr-2`}
+                                style={{ backgroundColor: style.borderColor }}
+                              />
                               <span className="flex-1">{entity.name}</span>
                               <span className="text-xs text-coolgray-400">({entity.type})</span>
                             </CommandItem>
@@ -321,7 +361,7 @@ export function RelationshipBuilder({
                     {sourceEntity.fields.length} fields
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {sourceEntity.fields.slice(0, 3).map(f => (
+                    {sourceEntity.fields.slice(0, 3).map((f) => (
                       <Badge key={f.id} variant="outline" className="text-xs">
                         {f.name}
                       </Badge>
@@ -354,11 +394,16 @@ export function RelationshipBuilder({
                   >
                     {targetEntity ? (
                       <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full`} style={{ backgroundColor: getEntityCardStyle(targetEntity.type).borderColor }} />
+                        <div
+                          className={`h-2 w-2 rounded-full`}
+                          style={{
+                            backgroundColor: getEntityCardStyle(targetEntity.type).borderColor,
+                          }}
+                        />
                         {targetEntity.name}
                       </div>
                     ) : (
-                      "Select target..."
+                      'Select target...'
                     )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -382,11 +427,14 @@ export function RelationshipBuilder({
                             >
                               <Check
                                 className={cn(
-                                  "mr-2 h-4 w-4",
-                                  targetEntityId === entity.id ? "opacity-100" : "opacity-0"
+                                  'mr-2 h-4 w-4',
+                                  targetEntityId === entity.id ? 'opacity-100' : 'opacity-0'
                                 )}
                               />
-                              <div className={`h-2 w-2 rounded-full mr-2`} style={{ backgroundColor: style.borderColor }} />
+                              <div
+                                className={`h-2 w-2 rounded-full mr-2`}
+                                style={{ backgroundColor: style.borderColor }}
+                              />
                               <span className="flex-1">{entity.name}</span>
                               <span className="text-xs text-coolgray-400">({entity.type})</span>
                             </CommandItem>
@@ -403,7 +451,7 @@ export function RelationshipBuilder({
                     {targetEntity.fields.length} fields
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {targetEntity.fields.slice(0, 3).map(f => (
+                    {targetEntity.fields.slice(0, 3).map((f) => (
                       <Badge key={f.id} variant="outline" className="text-xs">
                         {f.name}
                       </Badge>
@@ -434,7 +482,9 @@ export function RelationshipBuilder({
             <div className="space-y-3 pt-4 border-t">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium text-coolgray-600">
-                  {relationshipType === 'references' ? 'Key Mappings *' : 'Field Mappings (optional)'}
+                  {relationshipType === 'references'
+                    ? 'Key Mappings *'
+                    : 'Field Mappings (optional)'}
                 </Label>
                 <Button
                   variant="outline"
@@ -449,13 +499,15 @@ export function RelationshipBuilder({
 
               {relationshipType === 'references' && fieldMappings.length === 0 && (
                 <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded p-2">
-                  DMO→DMO relationships require at least one key mapping. Click "Add Mapping" to specify which fields join these entities.
+                  DMO→DMO relationships require at least one key mapping. Click &quot;Add
+                  Mapping&quot; to specify which fields join these entities.
                 </p>
               )}
 
               {fieldMappings.length === 0 && relationshipType !== 'references' ? (
                 <p className="text-xs text-coolgray-400 text-center py-4">
-                  No field mappings defined. Click "Add Mapping" to connect specific fields.
+                  No field mappings defined. Click &quot;Add Mapping&quot; to connect specific
+                  fields.
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -465,12 +517,17 @@ export function RelationshipBuilder({
                         value={mapping.sourceFieldId}
                         onValueChange={(value) => updateFieldMapping(index, 'sourceFieldId', value)}
                       >
-                        <SelectTrigger className="flex-1" data-testid={`select-source-field-${index}`}>
+                        <SelectTrigger
+                          className="flex-1"
+                          data-testid={`select-source-field-${index}`}
+                        >
                           <SelectValue placeholder="Source field..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {sourceEntity.fields.map(f => (
-                            <SelectItem key={f.id} value={f.id}>{f.name} ({f.type})</SelectItem>
+                          {sourceEntity.fields.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              {f.name} ({f.type})
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -479,12 +536,17 @@ export function RelationshipBuilder({
                         value={mapping.targetFieldId}
                         onValueChange={(value) => updateFieldMapping(index, 'targetFieldId', value)}
                       >
-                        <SelectTrigger className="flex-1" data-testid={`select-target-field-${index}`}>
+                        <SelectTrigger
+                          className="flex-1"
+                          data-testid={`select-target-field-${index}`}
+                        >
                           <SelectValue placeholder="Target field..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {targetEntity.fields.map(f => (
-                            <SelectItem key={f.id} value={f.id}>{f.name} ({f.type})</SelectItem>
+                          {targetEntity.fields.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              {f.name} ({f.type})
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

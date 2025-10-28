@@ -1,4 +1,4 @@
-import type { Relationship, Entity } from "@shared/schema";
+import type { Relationship, Entity } from '@shared/schema';
 
 export interface EntityLevelLineProps {
   relationship: Relationship;
@@ -12,8 +12,6 @@ export function EntityLevelLine({
   relationship,
   sourceEntity,
   targetEntity,
-  zoom,
-  panOffset,
 }: EntityLevelLineProps) {
   const sourcePos = sourceEntity.position || { x: 100, y: 100 };
   const targetPos = targetEntity.position || { x: 400, y: 100 };

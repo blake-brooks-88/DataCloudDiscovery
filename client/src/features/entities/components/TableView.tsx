@@ -1,7 +1,7 @@
-import { Key, Link as LinkIcon, AlertTriangle, AlertCircle, Lock, ArrowUpDown } from "lucide-react";
-import type { Entity } from "@shared/schema";
-import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { Key, Link as LinkIcon, ArrowUpDown } from 'lucide-react';
+import type { Entity } from '@shared/schema';
+import { Badge } from '@/components/ui/badge';
+import { useState } from 'react';
 
 interface TableViewProps {
   entities: Entity[];
@@ -89,9 +89,7 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
             <th className="px-4 py-3 text-left text-sm font-semibold text-coolgray-600">
               Business Name
             </th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-coolgray-600">
-              Notes
-            </th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-coolgray-600">Notes</th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-coolgray-600">
               <SortButton field="dataSource" label="Data Source" />
             </th>
@@ -107,14 +105,13 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
           {sortedData.map((row, index) => (
             <tr
               key={`${row.entityId}-${row.fieldId}`}
-              className={`border-b border-coolgray-200 hover:bg-coolgray-50 cursor-pointer transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-coolgray-50'
-                }`}
+              className={`border-b border-coolgray-200 hover:bg-coolgray-50 cursor-pointer transition-colors ${
+                index % 2 === 0 ? 'bg-white' : 'bg-coolgray-50'
+              }`}
               onClick={() => onEntityClick(row.entityId)}
               data-testid={`row-field-${row.fieldId}`}
             >
-              <td className="px-4 py-3 text-sm font-medium text-coolgray-700">
-                {row.entityName}
-              </td>
+              <td className="px-4 py-3 text-sm font-medium text-coolgray-700">{row.entityName}</td>
               <td className="px-4 py-3 text-sm">
                 <div className="flex items-center gap-2">
                   {row.isPK && <Key className="h-3 w-3 text-primary-500 flex-shrink-0" />}
@@ -122,12 +119,8 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
                   <span className="font-mono text-coolgray-700">{row.fieldName}</span>
                 </div>
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-coolgray-600">
-                {row.fieldType}
-              </td>
-              <td className="px-4 py-3 text-sm text-coolgray-600">
-                {row.businessName || '-'}
-              </td>
+              <td className="px-4 py-3 text-sm font-mono text-coolgray-600">{row.fieldType}</td>
+              <td className="px-4 py-3 text-sm text-coolgray-600">{row.businessName || '-'}</td>
               <td className="px-4 py-3 text-sm text-coolgray-600 max-w-md truncate">
                 {row.notes || '-'}
               </td>
@@ -159,7 +152,9 @@ export default function TableView({ entities, onEntityClick }: TableViewProps) {
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <p className="text-xl font-semibold text-coolgray-400">No data to display</p>
-            <p className="text-sm text-coolgray-500 mt-2">Add entities and fields to see them here</p>
+            <p className="text-sm text-coolgray-500 mt-2">
+              Add entities and fields to see them here
+            </p>
           </div>
         </div>
       )}

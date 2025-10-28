@@ -1,13 +1,24 @@
-import { Database, Layers3, ChevronDown, FilePlus, Upload, Download, FileText, FileJson, Edit, Trash2, Server } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Database,
+  Layers3,
+  ChevronDown,
+  FilePlus,
+  Upload,
+  Download,
+  FileText,
+  FileJson,
+  Edit,
+  Trash2,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import type { Project } from "@shared/schema";
+} from '@/components/ui/dropdown-menu';
+import type { Project } from '@shared/schema';
 
 interface NavbarProps {
   currentProject: Project | null;
@@ -64,7 +75,7 @@ export function Navbar({
                 <DropdownMenuItem
                   key={project.id}
                   onClick={() => onSelectProject(project.id)}
-                  className={currentProject?.id === project.id ? "bg-secondary-50" : ""}
+                  className={currentProject?.id === project.id ? 'bg-secondary-50' : ''}
                   data-testid={`menu-item-project-${project.id}`}
                 >
                   {project.name}
@@ -77,7 +88,10 @@ export function Navbar({
               </DropdownMenuItem>
               {currentProject && (
                 <>
-                  <DropdownMenuItem onClick={onRenameProject} data-testid="menu-item-rename-project">
+                  <DropdownMenuItem
+                    onClick={onRenameProject}
+                    data-testid="menu-item-rename-project"
+                  >
                     <Edit className="h-4 w-4 mr-2" />
                     Rename Project
                   </DropdownMenuItem>
@@ -141,7 +155,10 @@ export function Navbar({
                 <FileText className="h-4 w-4 mr-2" />
                 Export ERD (PNG)
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onExportDataDictionary} data-testid="menu-item-export-dictionary">
+              <DropdownMenuItem
+                onClick={onExportDataDictionary}
+                data-testid="menu-item-export-dictionary"
+              >
                 <FileText className="h-4 w-4 mr-2" />
                 Export Data Dictionary (CSV)
               </DropdownMenuItem>

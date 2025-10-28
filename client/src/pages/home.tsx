@@ -1,38 +1,22 @@
-import {
-  useProjects,
-  useProject,
-} from '@/lib/storage';
+import { useProjects, useProject } from '@/lib/storage';
 import {
   GraphView,
   ListView,
   EntityModal,
   useEntityActions,
-  useEntityViewState
-} from "@/features/entities";
+  useEntityViewState,
+} from '@/features/entities';
 
-import {
-  Navbar,
-  Toolbar,
-  ProjectDialog,
-  useProjectActions
-} from "@/features/projects";
+import { Navbar, Toolbar, ProjectDialog, useProjectActions } from '@/features/projects';
 
-import {
-  DataSourceManager,
-  useDataSourceActions
-} from "@/features/data-sources";
+import { DataSourceManager, useDataSourceActions } from '@/features/data-sources';
 
-import {
-  RelationshipBuilder,
-  useRelationshipActions
-} from "@/features/relationships";
+import { RelationshipBuilder, useRelationshipActions } from '@/features/relationships';
 
-import { useToast } from "@/hooks/use-toast";
-import { Plus } from "lucide-react";
-
+import { Plus } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
-import type { Project, Entity, InsertProject, InsertDataSource, InsertEntity, DataSource, FieldType } from '@shared/schema';
+import type { InsertDataSource, InsertEntity } from '@shared/schema';
 
 export default function Home() {
   const { data: projects = [], isLoading } = useProjects();
@@ -41,11 +25,11 @@ export default function Home() {
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [isDataSourceManagerOpen, setIsDataSourceManagerOpen] = useState(false);
   const [isRelationshipBuilderOpen, setIsRelationshipBuilderOpen] = useState(false);
-  const [editingRelationship, setEditingRelationship] = useState<import("@shared/schema").Relationship | null>(null);
+  const [editingRelationship, setEditingRelationship] = useState<
+    import('@shared/schema').Relationship | null
+  >(null);
   const dataSourceActions = useDataSourceActions(currentProjectId || '');
   const relationshipActions = useRelationshipActions(currentProjectId || '');
-
-  const { toast } = useToast();
 
   const { data: currentProject } = useProject(currentProjectId);
 
@@ -58,21 +42,18 @@ export default function Home() {
     },
     onProjectDeleted: () => {
       setCurrentProjectId(null);
-    }
+    },
   });
 
-  const entityActions = useEntityActions(
-    currentProjectId || '',
-    currentProject,
-    {
-      onOpenEditModal: viewState.openEditModal  // Pass the callback
-    }
-  );
-
+  const entityActions = useEntityActions(currentProjectId || '', currentProject || null, {
+    onOpenEditModal: viewState.openEditModal, // Pass the callback
+  });
 
   useEffect(() => {
-    if (!currentProjectId && projects.length > 0) {
-      setCurrentProjectId(projects[0].id);
+    const firstProject = projects[0];
+
+    if (!currentProjectId && firstProject) {
+      setCurrentProjectId(firstProject.id);
     }
   }, [projects, currentProjectId]);
 
@@ -106,8 +87,6 @@ export default function Home() {
           onViewModeChange={viewState.setViewMode}
           searchQuery={viewState.searchQuery}
           onSearchChange={viewState.setSearchQuery}
-          typeFilter={viewState.typeFilter}
-          onTypeFilterChange={viewState.setTypeFilter}
           onOpenDataSources={() => setIsDataSourceManagerOpen(true)}
           onOpenRelationships={() => setIsRelationshipBuilderOpen(true)}
         />
@@ -128,9 +107,7 @@ export default function Home() {
         {!currentProject ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
-              <h2 className="text-[24px] font-bold text-coolgray-600 mb-4">
-                No Project Selected
-              </h2>
+              <h2 className="text-[24px] font-bold text-coolgray-600 mb-4">No Project Selected</h2>
               <button
                 onClick={() => setIsProjectDialogOpen(true)}
                 className="px-4 py-2 bg-primary-500 text-white rounded-xl hover:bg-primary-600"
@@ -143,7 +120,7 @@ export default function Home() {
           <>
             {viewState.viewMode === 'graph' && (
               <GraphView
-                entities={currentProject.entities}
+                entities={currentProject.entities || []}
                 relationships={currentProject.relationships || []}
                 selectedEntityId={viewState.selectedEntityId}
                 searchQuery={viewState.searchQuery}
@@ -160,7 +137,7 @@ export default function Home() {
 
             {viewState.viewMode === 'table' && (
               <ListView
-                entities={currentProject.entities}
+                entities={currentProject.entities || []}
                 onEntityClick={viewState.setSelectedEntityId}
               />
             )}

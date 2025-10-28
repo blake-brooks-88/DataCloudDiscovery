@@ -1,7 +1,6 @@
-import { LayoutGrid, Table, Search, Database, Link2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import type { FieldType } from "@shared/schema";
+import { LayoutGrid, Table, Search, Database, Link2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 type ViewMode = 'graph' | 'table';
 
@@ -10,8 +9,6 @@ interface ToolbarProps {
   onViewModeChange: (mode: ViewMode) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  typeFilter: FieldType | 'all';
-  onTypeFilterChange: (type: FieldType | 'all') => void;
   onOpenDataSources?: () => void;
   onOpenRelationships?: () => void;
 }
@@ -21,8 +18,6 @@ export function Toolbar({
   onViewModeChange,
   searchQuery,
   onSearchChange,
-  typeFilter,
-  onTypeFilterChange,
   onOpenDataSources,
   onOpenRelationships,
 }: ToolbarProps) {
@@ -35,9 +30,11 @@ export function Toolbar({
               variant={viewMode === 'graph' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => onViewModeChange('graph')}
-              className={viewMode === 'graph'
-                ? "bg-secondary-500 text-white hover:bg-secondary-600"
-                : "text-coolgray-600 hover:bg-coolgray-200"}
+              className={
+                viewMode === 'graph'
+                  ? 'bg-secondary-500 text-white hover:bg-secondary-600'
+                  : 'text-coolgray-600 hover:bg-coolgray-200'
+              }
               data-testid="button-view-graph"
             >
               <LayoutGrid className="h-4 w-4 mr-2" />
@@ -47,9 +44,11 @@ export function Toolbar({
               variant={viewMode === 'table' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => onViewModeChange('table')}
-              className={viewMode === 'table'
-                ? "bg-secondary-500 text-white hover:bg-secondary-600"
-                : "text-coolgray-600 hover:bg-coolgray-200"}
+              className={
+                viewMode === 'table'
+                  ? 'bg-secondary-500 text-white hover:bg-secondary-600'
+                  : 'text-coolgray-600 hover:bg-coolgray-200'
+              }
               data-testid="button-view-table"
             >
               <Table className="h-4 w-4 mr-2" />
