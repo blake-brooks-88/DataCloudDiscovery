@@ -32,13 +32,13 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<FieldType | 'all'>('all');
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
-  
+
   const [isEntityModalOpen, setIsEntityModalOpen] = useState(false);
   const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
-  
+
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [projectDialogMode, setProjectDialogMode] = useState<'create' | 'rename'>('create');
-  
+
   const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
   const [isDataSourceManagerOpen, setIsDataSourceManagerOpen] = useState(false);
   const [isRelationshipBuilderOpen, setIsRelationshipBuilderOpen] = useState(false);
@@ -53,25 +53,25 @@ export default function Home() {
         const parsed = JSON.parse(stored);
         const migratedProjects = parsed.map((project: any) => {
           const relationships: Relationship[] = [];
-          
+
           const migratedProject = {
             ...project,
             dataSources: project.dataSources || [],
             relationships: project.relationships || [],
             entities: (project.entities || []).map((entity: any) => {
               let dataSource = entity.dataSource;
-              
+
               if (!dataSource && entity.sourceSystemId && project.sourceSystems) {
                 const sourceSystem = project.sourceSystems.find((s: any) => s.id === entity.sourceSystemId);
                 if (sourceSystem) {
                   dataSource = `${sourceSystem.name} (${sourceSystem.type})`;
                 }
               }
-              
+
               if (!dataSource && entity.sourceSystem) {
                 dataSource = entity.sourceSystem.name || entity.sourceSystem.type || '';
               }
-              
+
               // Extract relationships from old FK references
               if (entity.fields) {
                 entity.fields.forEach((field: any) => {
@@ -90,7 +90,7 @@ export default function Home() {
                   }
                 });
               }
-              
+
               const { sourceSystemId, sourceSystem, ...entityRest } = entity;
               return {
                 ...entityRest,
@@ -99,16 +99,16 @@ export default function Home() {
               };
             }),
           };
-          
+
           // Add extracted relationships if not already present
           if (relationships.length > 0 && !project.relationships) {
             migratedProject.relationships = relationships;
           }
-          
+
           delete migratedProject.sourceSystems;
           return migratedProject;
         });
-        
+
         setProjects(migratedProjects);
         localStorage.setItem('schema-builder-projects', JSON.stringify(migratedProjects));
         if (migratedProjects.length > 0) {
@@ -122,7 +122,7 @@ export default function Home() {
       const sampleDataStreamId = `entity-${Date.now()}-1`;
       const sampleDLOId = `entity-${Date.now()}-2`;
       const sampleDMOId = `entity-${Date.now()}-3`;
-      
+
       const defaultProject: Project = {
         id: `project-${Date.now()}`,
         name: 'My First Project',
@@ -162,12 +162,12 @@ export default function Home() {
             fields: [
               { id: 'field-dlo-1', name: 'Id', type: 'string', isPK: true, isFK: false, visibleInERD: true },
               { id: 'field-dlo-2', name: 'Email', type: 'email', isPK: false, isFK: false, visibleInERD: true },
-              { 
-                id: 'field-dlo-3', 
-                name: 'StreamId', 
-                type: 'string', 
-                isPK: false, 
-                isFK: true, 
+              {
+                id: 'field-dlo-3',
+                name: 'StreamId',
+                type: 'string',
+                isPK: false,
+                isFK: true,
                 visibleInERD: true,
                 fkReference: {
                   targetEntityId: sampleDataStreamId,
@@ -190,12 +190,12 @@ export default function Home() {
             fields: [
               { id: 'field-dmo-1', name: 'UnifiedId', type: 'string', isPK: true, isFK: false, visibleInERD: true },
               { id: 'field-dmo-2', name: 'Email', type: 'email', isPK: false, isFK: false, visibleInERD: true },
-              { 
-                id: 'field-dmo-3', 
-                name: 'SourceDLOId', 
-                type: 'string', 
-                isPK: false, 
-                isFK: true, 
+              {
+                id: 'field-dmo-3',
+                name: 'SourceDLOId',
+                type: 'string',
+                isPK: false,
+                isFK: true,
                 visibleInERD: true,
                 fkReference: {
                   targetEntityId: sampleDLOId,
@@ -365,8 +365,8 @@ export default function Home() {
       environment: dataSourceData.environment,
       contactPerson: dataSourceData.contactPerson,
     };
-    updateCurrentProject({ 
-      dataSources: [...(currentProject.dataSources || []), newDataSource] 
+    updateCurrentProject({
+      dataSources: [...(currentProject.dataSources || []), newDataSource]
     });
     toast({
       title: "Data source created",
@@ -376,7 +376,7 @@ export default function Home() {
 
   const handleGenerateDLO = (dataStreamId: string) => {
     if (!currentProject) return;
-    
+
     const dataStream = currentProject.entities.find(e => e.id === dataStreamId);
     if (!dataStream || dataStream.type !== 'data-stream') {
       toast({
@@ -447,7 +447,7 @@ export default function Home() {
 
   const handleGenerateDMO = (dloId: string) => {
     if (!currentProject) return;
-    
+
     const dlo = currentProject.entities.find(e => e.id === dloId);
     if (!dlo || dlo.type !== 'dlo') {
       toast({
@@ -621,7 +621,7 @@ export default function Home() {
 
   const handleSaveRelationship = (relationship: Omit<Relationship, 'id'> | Relationship) => {
     if (!currentProject) return;
-    
+
     if ('id' in relationship) {
       updateCurrentProject({
         relationships: (currentProject.relationships || []).map(r =>
@@ -736,7 +736,6 @@ export default function Home() {
           <Plus className="h-6 w-6" />
         </Button>
       )}
-
       <EntityModal
         isOpen={isEntityModalOpen}
         onClose={() => {
