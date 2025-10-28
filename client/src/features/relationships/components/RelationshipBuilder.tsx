@@ -32,7 +32,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import type { Entity, Relationship, RelationshipType } from "@shared/schema";
-import { getEntityCardStyle } from "@/lib/dataCloudStyles";
+import { getEntityCardStyle } from "@/styles/dataCloudStyles";
 import { cn } from "@/lib/utils";
 
 interface RelationshipBuilderProps {
@@ -149,7 +149,7 @@ export default function RelationshipBuilder({
     if (!sourceEntityId || !targetEntityId) return;
 
     const validFieldMappings = fieldMappings.filter(fm => fm.sourceFieldId && fm.targetFieldId);
-    
+
     if (relationshipType === 'references' && validFieldMappings.length === 0) {
       return;
     }
@@ -203,9 +203,9 @@ export default function RelationshipBuilder({
   };
 
   const validFieldMappings = fieldMappings.filter(fm => fm.sourceFieldId && fm.targetFieldId);
-  const canSave = 
-    sourceEntityId && 
-    targetEntityId && 
+  const canSave =
+    sourceEntityId &&
+    targetEntityId &&
     getValidTargetEntities().some(e => e.id === targetEntityId) &&
     (relationshipType !== 'references' || validFieldMappings.length > 0);
 
@@ -237,11 +237,10 @@ export default function RelationshipBuilder({
                       setTargetEntityId('');
                       setFieldMappings([]);
                     }}
-                    className={`p-4 rounded-lg border-2 text-left transition-all ${
-                      relationshipType === type
-                        ? 'border-primary-500 bg-primary-50'
-                        : 'border-coolgray-200 hover:border-coolgray-300'
-                    }`}
+                    className={`p-4 rounded-lg border-2 text-left transition-all ${relationshipType === type
+                      ? 'border-primary-500 bg-primary-50'
+                      : 'border-coolgray-200 hover:border-coolgray-300'
+                      }`}
                     data-testid={`button-type-${type}`}
                   >
                     <div className="flex items-center gap-2 mb-2">

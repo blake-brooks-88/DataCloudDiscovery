@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import type { Entity, Field, FieldType, EntityType, Cardinality, DataSource, Relationship } from "@shared/schema";
-import { getEntityCardStyle } from "@/lib/dataCloudStyles"; // Restored import
+import { getEntityCardStyle } from "@/styles/dataCloudStyles"; // Restored import
 
 /**
  * A modal dialog for creating or editing an entity.

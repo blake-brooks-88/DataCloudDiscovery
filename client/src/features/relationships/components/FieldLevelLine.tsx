@@ -31,19 +31,19 @@ export default function FieldLevelLine({
   const [draggedWaypointIndex, setDraggedWaypointIndex] = useState<number | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
-  const style = relationshipType === 'transforms-to' 
+  const style = relationshipType === 'transforms-to'
     ? {
-        stroke: '#BED163',
-        strokeWidth: 2,
-        strokeDasharray: '8,4',
-        showCardinality: false,
-      }
+      stroke: '#BED163',
+      strokeWidth: 2,
+      strokeDasharray: '8,4',
+      showCardinality: false,
+    }
     : {
-        stroke: '#64748B',
-        strokeWidth: 2,
-        strokeDasharray: 'none',
-        showCardinality: true,
-      };
+      stroke: '#64748B',
+      strokeWidth: 2,
+      strokeDasharray: 'none',
+      showCardinality: true,
+    };
 
   const sourcePos = sourceEntity.position || { x: 100, y: 100 };
   const targetPos = targetEntity.position || { x: 400, y: 100 };
@@ -53,7 +53,7 @@ export default function FieldLevelLine({
   const METADATA_HEIGHT = 36;
   const FIELD_HEIGHT = 28;
   const PADDING_TOP = HEADER_HEIGHT + METADATA_HEIGHT;
-  
+
   const GRID_SIZE = 20;
 
   const sourceFieldIndex = sourceEntity.fields.filter(f => f.visibleInERD !== false).findIndex(f => f.id === sourceField.id);
@@ -96,10 +96,10 @@ export default function FieldLevelLine({
 
     const rawX = (e.clientX - panOffset.x) / zoom;
     const rawY = (e.clientY - panOffset.y) / zoom;
-    
+
     const snappedX = Math.round(rawX / GRID_SIZE) * GRID_SIZE;
     const snappedY = Math.round(rawY / GRID_SIZE) * GRID_SIZE;
-    
+
     // For H-V-H routing, update both waypoints based on the cleared X position
     if (waypoints.length === 0) {
       // Create initial waypoints when dragging starts
@@ -152,68 +152,68 @@ export default function FieldLevelLine({
   }
 
   const pathData = createPath();
-  
+
   const drawStartMarker = () => {
     if (!style.showCardinality) return null;
-    
+
     const markerSize = 12;
     const markerColor = style.stroke;
-    
+
     if (cardinality === 'one-to-one' || cardinality === 'one-to-many') {
       return (
-        <line 
-          x1={startX} 
-          y1={startY - markerSize/2} 
-          x2={startX} 
-          y2={startY + markerSize/2} 
-          stroke={markerColor} 
-          strokeWidth="2" 
+        <line
+          x1={startX}
+          y1={startY - markerSize / 2}
+          x2={startX}
+          y2={startY + markerSize / 2}
+          stroke={markerColor}
+          strokeWidth="2"
         />
       );
     } else {
       return (
         <g>
-          <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY - markerSize/2} stroke={markerColor} strokeWidth="2" />
+          <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY - markerSize / 2} stroke={markerColor} strokeWidth="2" />
           <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY} stroke={markerColor} strokeWidth="2" />
-          <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY + markerSize/2} stroke={markerColor} strokeWidth="2" />
+          <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY + markerSize / 2} stroke={markerColor} strokeWidth="2" />
         </g>
       );
     }
   };
-  
+
   const drawEndMarker = () => {
     if (!style.showCardinality) return null;
-    
+
     const markerSize = 12;
     const markerColor = style.stroke;
-    
+
     if (cardinality === 'one-to-one' || cardinality === 'many-to-one') {
       return (
-        <line 
-          x1={endX} 
-          y1={endY - markerSize/2} 
-          x2={endX} 
-          y2={endY + markerSize/2} 
-          stroke={markerColor} 
-          strokeWidth="2" 
+        <line
+          x1={endX}
+          y1={endY - markerSize / 2}
+          x2={endX}
+          y2={endY + markerSize / 2}
+          stroke={markerColor}
+          strokeWidth="2"
         />
       );
     } else {
       return (
         <g>
-          <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY - markerSize/2} stroke={markerColor} strokeWidth="2" />
+          <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY - markerSize / 2} stroke={markerColor} strokeWidth="2" />
           <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY} stroke={markerColor} strokeWidth="2" />
-          <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY + markerSize/2} stroke={markerColor} strokeWidth="2" />
+          <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY + markerSize / 2} stroke={markerColor} strokeWidth="2" />
         </g>
       );
     }
   };
-  
-  const midX = waypoints.length > 0 
-    ? waypoints[Math.floor(waypoints.length / 2)].x 
+
+  const midX = waypoints.length > 0
+    ? waypoints[Math.floor(waypoints.length / 2)].x
     : (startX + endX) / 2;
-  const midY = waypoints.length > 0 
-    ? waypoints[Math.floor(waypoints.length / 2)].y 
+  const midY = waypoints.length > 0
+    ? waypoints[Math.floor(waypoints.length / 2)].y
     : (startY + endY) / 2;
 
   return (
@@ -237,7 +237,7 @@ export default function FieldLevelLine({
         fill="none"
         style={{ pointerEvents: 'none' }}
       />
-      
+
       {drawStartMarker()}
       {drawEndMarker()}
 

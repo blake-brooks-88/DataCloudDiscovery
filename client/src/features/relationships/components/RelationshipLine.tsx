@@ -30,7 +30,7 @@ export default function RelationshipLine({
   const METADATA_HEIGHT = 36; // Metadata row
   const FIELD_HEIGHT = 28; // Approximate height per field
   const PADDING_TOP = HEADER_HEIGHT + METADATA_HEIGHT;
-  
+
   const GRID_SIZE = 20;
 
   // Calculate Y position for the source field (FK field)
@@ -60,18 +60,18 @@ export default function RelationshipLine({
     }
 
     let path = `M ${startX} ${startY}`;
-    
+
     // First segment: horizontal to first waypoint's X
     path += ` L ${waypoints[0].x} ${startY}`;
-    
+
     // Then vertical to first waypoint's Y
     path += ` L ${waypoints[0].x} ${waypoints[0].y}`;
-    
+
     // Connect through waypoints with orthogonal segments
     for (let i = 1; i < waypoints.length; i++) {
       const prevWp = waypoints[i - 1];
       const currWp = waypoints[i];
-      
+
       // Alternate between horizontal and vertical segments
       if (i % 2 === 1) {
         // Horizontal then vertical
@@ -83,7 +83,7 @@ export default function RelationshipLine({
         path += ` L ${currWp.x} ${currWp.y}`;
       }
     }
-    
+
     // Final segments to end point
     const lastWp = waypoints[waypoints.length - 1];
     if (waypoints.length % 2 === 1) {
@@ -95,7 +95,7 @@ export default function RelationshipLine({
       path += ` L ${lastWp.x} ${endY}`;
       path += ` L ${endX} ${endY}`;
     }
-    
+
     return path;
   };
 
@@ -110,7 +110,7 @@ export default function RelationshipLine({
     // Calculate position with snap-to-grid
     const rawX = (e.clientX - panOffset.x) / zoom;
     const rawY = (e.clientY - panOffset.y) / zoom;
-    
+
     const newWaypoints = [...waypoints];
     newWaypoints[draggedWaypointIndex] = {
       x: Math.round(rawX / GRID_SIZE) * GRID_SIZE,
@@ -168,7 +168,7 @@ export default function RelationshipLine({
   }
 
   const pathData = createPath();
-  
+
   // For orthogonal routing, we need to draw markers separately at the correct positions
   // because SVG markers don't always orient correctly with multi-segment paths
   const drawStartMarker = () => {
@@ -176,59 +176,59 @@ export default function RelationshipLine({
     if (cardinality === 'one-to-one' || cardinality === 'one-to-many') {
       // Draw "one" marker - single line
       return (
-        <line 
-          x1={startX} 
-          y1={startY - markerSize/2} 
-          x2={startX} 
-          y2={startY + markerSize/2} 
-          stroke="#64748B" 
-          strokeWidth="2" 
+        <line
+          x1={startX}
+          y1={startY - markerSize / 2}
+          x2={startX}
+          y2={startY + markerSize / 2}
+          stroke="#64748B"
+          strokeWidth="2"
         />
       );
     } else {
       // Draw "many" marker - crow's foot
       return (
         <g>
-          <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY - markerSize/2} stroke="#64748B" strokeWidth="2" />
+          <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY - markerSize / 2} stroke="#64748B" strokeWidth="2" />
           <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY} stroke="#64748B" strokeWidth="2" />
-          <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY + markerSize/2} stroke="#64748B" strokeWidth="2" />
+          <line x1={startX} y1={startY} x2={startX + markerSize} y2={startY + markerSize / 2} stroke="#64748B" strokeWidth="2" />
         </g>
       );
     }
   };
-  
+
   const drawEndMarker = () => {
     const markerSize = 12;
     if (cardinality === 'one-to-one' || cardinality === 'many-to-one') {
       // Draw "one" marker - single line
       return (
-        <line 
-          x1={endX} 
-          y1={endY - markerSize/2} 
-          x2={endX} 
-          y2={endY + markerSize/2} 
-          stroke="#64748B" 
-          strokeWidth="2" 
+        <line
+          x1={endX}
+          y1={endY - markerSize / 2}
+          x2={endX}
+          y2={endY + markerSize / 2}
+          stroke="#64748B"
+          strokeWidth="2"
         />
       );
     } else {
       // Draw "many" marker - crow's foot
       return (
         <g>
-          <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY - markerSize/2} stroke="#64748B" strokeWidth="2" />
+          <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY - markerSize / 2} stroke="#64748B" strokeWidth="2" />
           <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY} stroke="#64748B" strokeWidth="2" />
-          <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY + markerSize/2} stroke="#64748B" strokeWidth="2" />
+          <line x1={endX} y1={endY} x2={endX - markerSize} y2={endY + markerSize / 2} stroke="#64748B" strokeWidth="2" />
         </g>
       );
     }
   };
-  
+
   // Calculate midpoint for label
-  const midX = waypoints.length > 0 
-    ? waypoints[Math.floor(waypoints.length / 2)].x 
+  const midX = waypoints.length > 0
+    ? waypoints[Math.floor(waypoints.length / 2)].x
     : (startX + endX) / 2;
-  const midY = waypoints.length > 0 
-    ? waypoints[Math.floor(waypoints.length / 2)].y 
+  const midY = waypoints.length > 0
+    ? waypoints[Math.floor(waypoints.length / 2)].y
     : (startY + endY) / 2;
 
   return (
@@ -254,7 +254,7 @@ export default function RelationshipLine({
         fill="none"
         style={{ pointerEvents: 'none' }}
       />
-      
+
       {/* Draw markers separately for better control */}
       {drawStartMarker()}
       {drawEndMarker()}

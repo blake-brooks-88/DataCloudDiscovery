@@ -1,12 +1,12 @@
-import Navbar from "@/components/layout/Navbar";
-import Toolbar from "@/components/layout/Toolbar";
-import GraphView from "@/components/entities/GraphView";
-import ListView from "@/components/entities/ListView";
-import EntityModal from "@/components/entities/EntityModal";
-import ProjectDialog from "@/components/layout/projects/ProjectDialog";
-import DataSourceManager from "@/components/data-sources/DataSourceManager";
-import RelationshipBuilder from "@/components/relationships/RelationshipBuilder";
-import TableView from '@/components/entities/TableView';
+import Navbar from "@/features/projects/Navbar";
+import Toolbar from "@/features/projects/Toolbar";
+import GraphView from "@/features/entities/components/GraphView";
+import ListView from "@/features/entities/components/ListView";
+import EntityModal from "@/features/entities/components/EntityModal";
+import ProjectDialog from "@/features/projects/ProjectDialog";
+import DataSourceManager from "@/features/data-sources/components/DataSourceManager";
+import RelationshipBuilder from "@/features/relationships/RelationshipBuilder";
+import TableView from '@/features/entities/components/TableView';
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
 

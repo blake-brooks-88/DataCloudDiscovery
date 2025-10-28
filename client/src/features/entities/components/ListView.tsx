@@ -34,7 +34,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getEntityCardStyle } from "@/lib/dataCloudStyles";
+import { getEntityCardStyle } from "@/styles/dataCloudStyles";
 
 interface ListViewProps {
   entities: Entity[];

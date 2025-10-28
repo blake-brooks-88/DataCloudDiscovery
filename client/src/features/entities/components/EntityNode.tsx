@@ -2,7 +2,7 @@ import { Key, Link as LinkIcon, Lock, Waves, Cylinder, Layers, Database, Sparkle
 import type { Entity } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getEntityCardStyle } from "@/lib/dataCloudStyles";
+import { getEntityCardStyle } from "@/styles/dataCloudStyles";
 
 interface EntityNodeProps {
   entity: Entity;
