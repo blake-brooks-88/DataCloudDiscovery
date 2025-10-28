@@ -36,13 +36,13 @@ import {
 } from "@/components/ui/tooltip";
 import { getEntityCardStyle } from "@/styles/dataCloudStyles";
 
-interface ListViewProps {
+export interface ListViewProps {
   entities: Entity[];
   selectedEntityId?: string | null;
   onEntityClick: (entityId: string) => void;
 }
 
-type RelationshipInfo = {
+export type RelationshipInfo = {
   sourceEntityId: string;
   sourceEntityName: string;
   targetEntityId: string;
@@ -53,7 +53,7 @@ type RelationshipInfo = {
   relationshipLabel?: string;
 };
 
-type CardinalityFilter = "all" | "one-to-one" | "one-to-many" | "many-to-one";
+export type CardinalityFilter = "all" | "one-to-one" | "one-to-many" | "many-to-one";
 
 export default function ListView({
   entities,

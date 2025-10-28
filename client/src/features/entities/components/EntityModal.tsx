@@ -30,7 +30,7 @@ import { getEntityCardStyle } from "@/styles/dataCloudStyles"; // Restored impor
  * @returns {JSX.Element}
  */
 
-interface EntityModalProps {
+export interface EntityModalProps {
   isOpen: boolean;
   onClose: () => void;
   entity: Entity | null;
@@ -73,6 +73,26 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
       setSchedule(entity.dataCloudMetadata?.streamConfig?.schedule || "daily");
       setDataSourceId(entity.dataCloudMetadata?.streamConfig?.dataSourceId || "");
       setSourceObjectName(entity.dataCloudMetadata?.streamConfig?.sourceObjectName || "");
+    } else if (activeTab === 'details' && entityType === 'data-stream') {
+      // Check localStorage for a draft
+      const draftsJSON = localStorage.getItem('dataStreamDrafts');
+      if (draftsJSON) {
+        try {
+          const drafts = JSON.parse(draftsJSON) as Record<string, any>;
+          const draft = drafts['currentDraft']; // or some key based on your app logic
+          if (draft) {
+            setName(draft.name || "");
+            setDataSourceId(draft.dataSourceId || "");
+            setSourceObjectName(draft.sourceObjectName || "");
+            setRefreshType(draft.refreshType || "full");
+            setSchedule(draft.schedule || "daily");
+            setApiName(draft.apiName || "");
+            setFields(draft.fields || []);
+          }
+        } catch (e) {
+          console.error("Failed to parse data stream draft from localStorage", e);
+        }
+      }
     } else {
       // Reset to default state for a new entity
       setName("");
@@ -88,6 +108,7 @@ export default function EntityModal({ isOpen, onClose, entity, entities, dataSou
       setSourceObjectName("");
     }
   }, [entity, isOpen]);
+
 
   /**
    * Adds a new, empty field to the local state.

@@ -1,293 +1,70 @@
-import Navbar from "@/features/projects/Navbar";
-import Toolbar from "@/features/projects/Toolbar";
-import GraphView from "@/features/entities/components/GraphView";
-import ListView from "@/features/entities/components/ListView";
-import EntityModal from "@/features/entities/components/EntityModal";
-import ProjectDialog from "@/features/projects/ProjectDialog";
-import DataSourceManager from "@/features/data-sources/components/DataSourceManager";
-import RelationshipBuilder from "@/features/relationships/RelationshipBuilder";
-import TableView from '@/features/entities/components/TableView';
-import { useToast } from "@/hooks/use-toast";
-import { Plus } from "lucide-react";
-
-
-import { useState, useEffect } from 'react';
+import { GraphView, ListView, EntityModal, useEntityActions, useEntityViewState } from "@/features/entities";
+import Navbar from "@/features/projects/components/Navbar";
+import Toolbar from "@/features/projects/components/Toolbar";
+import ProjectDialog from "@/features/projects/components/ProjectDialog";
 import {
   useProjects,
   useProject,
-  useCreateProject,
-  useUpdateProject,
-  useDeleteProject,
-  useCreateEntity,
-  useUpdateEntity,
-  useDeleteEntity,
-  useCreateRelationship,
-  useDeleteRelationship,
   useCreateDataSource,
   useUpdateDataSource,
-  useDeleteDataSource
+  useDeleteDataSource,
+  useCreateRelationship,
+  useDeleteRelationship
 } from '@/lib/storage';
-import type { Project, Entity, InsertProject, InsertEntity, DataSource, FieldType } from '@shared/schema';
+import DataSourceManager from "@/features/data-sources/components/DataSourceManager";
+import RelationshipBuilder from "@/features/relationships/components/RelationshipBuilder";
+import { useToast } from "@/hooks/use-toast";
+import { Plus } from "lucide-react";
+import { useProjectActions } from "@/features/projects/hooks/useProjectActions";
 
-type ViewMode = 'graph' | 'table';
+
+import { useState, useEffect } from 'react';
+import type { Project, Entity, InsertProject, InsertEntity, DataSource, FieldType } from '@shared/schema';
 
 export default function Home() {
   const { data: projects = [], isLoading } = useProjects();
-  const createProject = useCreateProject();
-  const updateProject = useUpdateProject();
-  const deleteProject = useDeleteProject();
 
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('graph');
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<FieldType | 'all'>('all');
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
-  const [isEntityModalOpen, setIsEntityModalOpen] = useState(false);
   const [isDataSourceManagerOpen, setIsDataSourceManagerOpen] = useState(false);
   const [isRelationshipBuilderOpen, setIsRelationshipBuilderOpen] = useState(false);
-  const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
   const [editingRelationship, setEditingRelationship] = useState<import("@shared/schema").Relationship | null>(null);
-  const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
+  const createDataSource = useCreateDataSource(currentProjectId || '');
+  const updateDataSource = useUpdateDataSource(currentProjectId || '');
+  const deleteDataSource = useDeleteDataSource(currentProjectId || '');
+  const createRelationship = useCreateRelationship(currentProjectId || '');
+  const deleteRelationship = useDeleteRelationship(currentProjectId || '');
 
   const { toast } = useToast();
 
   const { data: currentProject } = useProject(currentProjectId);
 
-  const createEntity = useCreateEntity(currentProjectId || '');
-  const updateEntity = useUpdateEntity(currentProjectId || '');
-  const deleteEntity = useDeleteEntity(currentProjectId || '');
-  const createRelationship = useCreateRelationship(currentProjectId || '');
-  const deleteRelationship = useDeleteRelationship(currentProjectId || '');
-  const createDataSource = useCreateDataSource(currentProjectId || '');
-  const updateDataSource = useUpdateDataSource(currentProjectId || '');
-  const deleteDataSource = useDeleteDataSource(currentProjectId || '');
+  const viewState = useEntityViewState();
+
+  const projectActions = useProjectActions({
+    onProjectCreated: (projectId) => {
+      setCurrentProjectId(projectId);
+      setIsProjectDialogOpen(false);
+    },
+    onProjectDeleted: () => {
+      setCurrentProjectId(null);
+    }
+  });
+
+  const entityActions = useEntityActions(
+    currentProjectId || '',
+    currentProject,
+    {
+      onOpenEditModal: viewState.openEditModal  // Pass the callback
+    }
+  );
+
 
   useEffect(() => {
     if (!currentProjectId && projects.length > 0) {
       setCurrentProjectId(projects[0].id);
     }
   }, [projects, currentProjectId]);
-
-  const handleCreateProject = async (data: { name: string; clientName?: string; consultant?: string }) => {
-    try {
-      const insertProject: InsertProject = {
-        ...data,
-        entities: [],
-        dataSources: [],
-        relationships: []
-      };
-      const newProject = await createProject.mutateAsync(insertProject);
-      setCurrentProjectId(newProject.id);
-      setIsProjectDialogOpen(false);
-      toast({ title: 'Project created successfully' });
-    } catch (error) {
-      toast({
-        title: 'Failed to create project',
-        variant: 'destructive',
-        description: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  };
-
-  const handleRenameProject = () => {
-    if (!currentProject) return;
-    const newName = prompt('Enter new project name:', currentProject.name);
-    if (newName && newName !== currentProject.name) {
-      updateProject.mutate({
-        id: currentProject.id,
-        updates: { name: newName }
-      });
-    }
-  };
-
-  const handleDeleteProject = async () => {
-    if (!currentProject) return;
-    if (confirm(`Delete project "${currentProject.name}"? This cannot be undone.`)) {
-      try {
-        await deleteProject.mutateAsync(currentProject.id);
-        setCurrentProjectId(null);
-        toast({ title: 'Project deleted' });
-      } catch (error) {
-        toast({
-          title: 'Failed to delete project',
-          variant: 'destructive'
-        });
-      }
-    }
-  };
-
-  const handleCreateEntity = async (entity: InsertEntity) => {
-    if (!currentProjectId) return;
-    try {
-      await createEntity.mutateAsync(entity);
-      setIsEntityModalOpen(false);
-      toast({ title: 'Entity created successfully' });
-    } catch (error) {
-      toast({
-        title: 'Failed to create entity',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleUpdateEntity = async (entityId: string, updates: Partial<Entity>) => {
-    if (!currentProjectId) return;
-    try {
-      await updateEntity.mutateAsync({ entityId, updates });
-    } catch (error) {
-      toast({
-        title: 'Failed to update entity',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleUpdateEntityPosition = (entityId: string, position: { x: number; y: number }) => {
-    updateEntity.mutate({ entityId, updates: { position } });
-  };
-
-  const handleEntityDoubleClick = (entityId: string) => {
-    setEditingEntityId(entityId);
-    setIsEntityModalOpen(true);
-  };
-
-  const handleDeleteEntity = async (entityId: string) => {
-    if (!currentProjectId) return;
-    if (confirm('Delete this entity? This cannot be undone.')) {
-      try {
-        await deleteEntity.mutateAsync(entityId);
-        toast({ title: 'Entity deleted' });
-      } catch (error) {
-        toast({
-          title: 'Failed to delete entity',
-          variant: 'destructive'
-        });
-      }
-    }
-  };
-
-  const handleGenerateDLO = async (dataStreamId: string) => {
-    if (!currentProject) return;
-
-    const dataStream = currentProject.entities.find(e => e.id === dataStreamId);
-    if (!dataStream || dataStream.type !== 'data-stream') return;
-
-    try {
-      const dloEntity: InsertEntity = {
-        name: dataStream.name.replace('Stream', 'DLO'),
-        type: 'dlo',
-        fields: dataStream.fields.map(f => ({
-          ...f,
-          id: crypto.randomUUID(),
-        })),
-        sourceDataStreamId: dataStreamId,
-        position: {
-          x: dataStream.position?.x || 0,
-          y: (dataStream.position?.y || 0) + 240,
-        },
-      };
-
-      const newDLO = await createEntity.mutateAsync(dloEntity);
-
-      await createRelationship.mutateAsync({
-        type: 'feeds-into',
-        sourceEntityId: dataStreamId,
-        targetEntityId: newDLO.id,
-        label: 'Ingests',
-      });
-
-      toast({ title: 'DLO generated successfully' });
-    } catch (error) {
-      toast({
-        title: 'Failed to generate DLO',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleGenerateDMO = async (dloId: string) => {
-    if (!currentProject) return;
-
-    const dlo = currentProject.entities.find(e => e.id === dloId);
-    if (!dlo || dlo.type !== 'dlo') return;
-
-    try {
-      const dmoEntity: InsertEntity = {
-        name: dlo.name.replace('DLO', 'DMO'),
-        type: 'dmo',
-        fields: dlo.fields.map(f => ({
-          ...f,
-          id: crypto.randomUUID(),
-        })),
-        sourceDLOIds: [dloId],
-        fieldMappings: dlo.fields.map(f => ({
-          targetFieldId: crypto.randomUUID(),
-          sourceEntityId: dloId,
-          sourceFieldId: f.id,
-        })),
-        position: {
-          x: dlo.position?.x || 0,
-          y: (dlo.position?.y || 0) + 240,
-        },
-      };
-
-      const newDMO = await createEntity.mutateAsync(dmoEntity);
-
-      await createRelationship.mutateAsync({
-        type: 'transforms-to',
-        sourceEntityId: dloId,
-        targetEntityId: newDMO.id,
-      });
-
-      toast({ title: 'DMO generated successfully' });
-    } catch (error) {
-      toast({
-        title: 'Failed to generate DMO',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleExportJSON = () => {
-    if (!currentProject) return;
-    const dataStr = JSON.stringify(currentProject, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${currentProject.name}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportJSON = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      try {
-        const text = await file.text();
-        const importedProject = JSON.parse(text) as InsertProject;
-        await createProject.mutateAsync(importedProject);
-        toast({ title: 'Project imported successfully' });
-      } catch (error) {
-        toast({
-          title: 'Failed to import project',
-          variant: 'destructive'
-        });
-      }
-    };
-    input.click();
-  };
-
-  // TODO: Implement ERD and data dictionary export
-  const handleExportERD = () => toast({ title: 'ERD export coming soon' });
-  const handleExportDataDictionary = () => toast({ title: 'Data dictionary export coming soon' });
-  const handleImportCSV = () => toast({ title: 'CSV import coming soon' });
 
   if (isLoading) {
     return (
@@ -304,23 +81,23 @@ export default function Home() {
         projects={projects}
         onSelectProject={setCurrentProjectId}
         onCreateProject={() => setIsProjectDialogOpen(true)}
-        onRenameProject={handleRenameProject}
-        onDeleteProject={handleDeleteProject}
-        onImportCSV={handleImportCSV}
-        onImportJSON={handleImportJSON}
-        onExportJSON={handleExportJSON}
-        onExportERD={handleExportERD}
-        onExportDataDictionary={handleExportDataDictionary}
+        onRenameProject={() => currentProject && projectActions.handleRename(currentProject)}
+        onDeleteProject={() => currentProject && projectActions.handleDelete(currentProject)}
+        onImportCSV={projectActions.handleImportCSV}
+        onImportJSON={projectActions.handleImportJSON}
+        onExportJSON={() => currentProject && projectActions.handleExportJSON(currentProject)}
+        onExportERD={projectActions.handleExportERD}
+        onExportDataDictionary={projectActions.handleExportDataDictionary}
       />
 
       {currentProject && (
         <Toolbar
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          typeFilter={typeFilter}
-          onTypeFilterChange={setTypeFilter}
+          viewMode={viewState.viewMode}
+          onViewModeChange={viewState.setViewMode}
+          searchQuery={viewState.searchQuery}
+          onSearchChange={viewState.setSearchQuery}
+          typeFilter={viewState.typeFilter}
+          onTypeFilterChange={viewState.setTypeFilter}
           onOpenDataSources={() => setIsDataSourceManagerOpen(true)}
           onOpenRelationships={() => setIsRelationshipBuilderOpen(true)}
         />
@@ -329,10 +106,7 @@ export default function Home() {
       {currentProject && (
         <div className="fixed bottom-6 right-6 z-50">
           <button
-            onClick={() => {
-              setEditingEntityId(null);
-              setIsEntityModalOpen(true);
-            }}
+            onClick={viewState.openCreateModal}
             className="bg-primary-500 text-white rounded-full w-[56px] h-[56px] shadow-lg hover:bg-primary-600 flex items-center justify-center"
           >
             <Plus className="h-6 w-6" />
@@ -357,27 +131,27 @@ export default function Home() {
           </div>
         ) : (
           <>
-            {viewMode === 'graph' && (
+            {viewState.viewMode === 'graph' && (
               <GraphView
                 entities={currentProject.entities}
                 relationships={currentProject.relationships || []}
-                selectedEntityId={selectedEntityId}
-                searchQuery={searchQuery}
-                onSelectEntity={setSelectedEntityId}
-                onUpdateEntityPosition={handleUpdateEntityPosition}
-                onEntityDoubleClick={handleEntityDoubleClick}
-                onGenerateDLO={handleGenerateDLO}
-                onGenerateDMO={handleGenerateDMO}
+                selectedEntityId={viewState.selectedEntityId}
+                searchQuery={viewState.searchQuery}
+                onSelectEntity={viewState.setSelectedEntityId}
+                onUpdateEntityPosition={entityActions.handleUpdatePosition}
+                onEntityDoubleClick={entityActions.handleEntityDoubleClick}
+                onGenerateDLO={entityActions.generateDLO}
+                onGenerateDMO={entityActions.generateDMO}
                 onUpdateRelationshipWaypoints={() => {
                   // TODO: Implement waypoint persistence
                 }}
               />
             )}
 
-            {viewMode === 'table' && (
+            {viewState.viewMode === 'table' && (
               <ListView
                 entities={currentProject.entities}
-                onEntityClick={setSelectedEntityId}
+                onEntityClick={viewState.setSelectedEntityId}
               />
             )}
           </>
@@ -387,40 +161,29 @@ export default function Home() {
       <ProjectDialog
         isOpen={isProjectDialogOpen}
         onClose={() => setIsProjectDialogOpen(false)}
-        onSave={(dialogData) => {
-          const newProject: InsertProject = {
-            ...dialogData,
-            entities: [],
-            relationships: [],
-            dataSources: [],
-          };
-
-          handleCreateProject(newProject);
-        }}
+        onSave={projectActions.handleCreate}
         project={null}
         title="Create New Project"
       />
 
-      {isEntityModalOpen && currentProject && (
+      {viewState.isEntityModalOpen && currentProject && (
         <EntityModal
-          isOpen={isEntityModalOpen}
-          onClose={() => setIsEntityModalOpen(false)}  // Fix: was closing wrong modal
-          entity={editingEntityId ? currentProject.entities.find(e => e.id === editingEntityId) || null : null}
+          isOpen={viewState.isEntityModalOpen}
+          onClose={viewState.closeModal}
+          entity={viewState.editingEntity}
           onSave={(data) => {
-            if (editingEntityId) {
-              handleUpdateEntity(editingEntityId, data);
+            if (viewState.editingEntity) {
+              entityActions.handleUpdate(viewState.editingEntity.id, data);
             } else {
-              handleCreateEntity(data as InsertEntity);
+              entityActions.handleCreate(data as InsertEntity);
             }
-            setIsEntityModalOpen(false);
-            setEditingEntityId(null);
+            viewState.closeModal();
           }}
-          // Remove onDelete - not supported
           entities={currentProject.entities || []}
           dataSources={currentProject.dataSources || []}
           relationships={currentProject.relationships || []}
           onCreateDataSource={async (dataSource) => {
-            await createDataSource.mutateAsync(dataSource as any);  // Cast to bypass type checking
+            await createDataSource.mutateAsync(dataSource as any);
             toast({ title: 'Data source created' });
           }}
         />
@@ -454,7 +217,7 @@ export default function Home() {
         entities={currentProject?.entities || []}
         relationships={currentProject?.relationships || []}
         editingRelationship={editingRelationship}
-        prefilledSourceEntityId={editingRelationship ? undefined : editingEntity?.id}
+        prefilledSourceEntityId={editingRelationship ? undefined : viewState.editingEntity?.id}
         onSaveRelationship={async (dataSource) => {
           await createRelationship.mutateAsync(dataSource);
           toast({ title: 'Data source created' });

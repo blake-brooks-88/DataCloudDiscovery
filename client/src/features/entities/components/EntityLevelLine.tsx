@@ -1,6 +1,6 @@
 import type { Relationship, Entity } from "@shared/schema";
 
-interface EntityLevelLineProps {
+export interface EntityLevelLineProps {
   relationship: Relationship;
   sourceEntity: Entity;
   targetEntity: Entity;
@@ -17,18 +17,18 @@ export default function EntityLevelLine({
 }: EntityLevelLineProps) {
   const sourcePos = sourceEntity.position || { x: 100, y: 100 };
   const targetPos = targetEntity.position || { x: 400, y: 100 };
-  
+
   const ENTITY_WIDTH = 320;
   const ENTITY_HEIGHT = 150;
-  
+
   const startX = sourcePos.x + ENTITY_WIDTH;
   const startY = sourcePos.y + ENTITY_HEIGHT / 2;
   const endX = targetPos.x;
   const endY = targetPos.y + ENTITY_HEIGHT / 2;
-  
+
   const midX = (startX + endX) / 2;
   const pathData = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
-  
+
   return (
     <g>
       <path
@@ -38,7 +38,7 @@ export default function EntityLevelLine({
         fill="none"
         markerEnd="url(#arrow-blue)"
       />
-      
+
       <path
         d={pathData}
         stroke="url(#data-flow-pattern)"
@@ -46,7 +46,7 @@ export default function EntityLevelLine({
         fill="none"
         style={{ pointerEvents: 'none' }}
       />
-      
+
       <text
         x={midX}
         y={(startY + endY) / 2 - 8}

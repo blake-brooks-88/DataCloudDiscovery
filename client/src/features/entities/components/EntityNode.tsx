@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getEntityCardStyle } from "@/styles/dataCloudStyles";
 
-interface EntityNodeProps {
+export interface EntityNodeProps {
   entity: Entity;
   isSelected: boolean;
   isSearchMatch?: boolean;
