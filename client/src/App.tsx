@@ -16,6 +16,7 @@ function Router() {
 
 function App() {
   return (
+    // Wrap the entire application with DndProvider and the HTML5Backend
     <QueryClientProvider client={queryClient}>
       <StorageProvider>
         <TooltipProvider>

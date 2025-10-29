@@ -1,199 +1,207 @@
-import { useRef, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect } from 'react';
 import type { Entity, Relationship } from '@shared/schema';
-// Adding explicit file extensions to internal feature imports to resolve bundler resolution issues.
-import {
-  EntityNode,
-  ViewportControls,
-  SearchResultsPanel,
-  CanvasLegend,
-  RelationshipLayer,
-  useCanvasViewport,
-  useEntityDrag,
-  useEntitySearch,
-} from '@/features/entities';
-/**
- * Props for the GraphView component.
- * Handlers accept the full Entity object to simplify data flow from parent components.
- */
+import ReactFlow, {
+  Background,
+  Controls,
+  ReactFlowProvider,
+  Node,
+  BackgroundVariant,
+  useReactFlow, // Allows access to internal controls like fitView, zoomIn/Out
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+
+// Import the required state store and mappers
+import { useEntityStore } from '../store/useEntityStore';
+import { useEntitySearch } from '../hooks/useEntitySearch';
+import { mapEntitiesToNodes, mapRelationshipsToEdges } from '../utils/nodeMapper';
+
+// Corrected imports to direct paths
+import ViewportControls from './ViewportControls';
+import { SearchResultsPanel } from './SearchResultsPanel';
+import { CanvasLegend } from './CanvasLegend';
+
+import EntityNode from './EntityNode';
+
+// --- CRITICAL IMPLEMENTATION DETAIL: Custom Node Map ---
+const nodeTypes = {
+  entity: EntityNode,
+};
+// --- END CRITICAL IMPLEMENTATION DETAIL ---
+
+// The simplified component signature
 export interface GraphViewProps {
   entities: Entity[];
   relationships?: Relationship[];
   selectedEntityId: string | null;
   searchQuery?: string;
   onSelectEntity: (entityId: string | null) => void;
-  onUpdateEntityPosition: (entityId: string, position: { x: number; y: number }) => void;
+  onUpdateEntityPosition: (entityId: string, position: { x: number; y: number }) => Promise<void>;
   onEntityDoubleClick: (entity: Entity) => void;
   onGenerateDLO?: (entity: Entity) => void;
   onGenerateDMO?: (entity: Entity) => void;
-  onUpdateRelationshipWaypoints: (
-    entityId: string,
-    fieldId: string,
-    waypoints: { x: number; y: number }[]
-  ) => void;
 }
 
-/**
- * Optimized interactive canvas for entity relationship diagrams.
- * Uses local state during drag operations for smooth 60fps performance.
- *
- * @param {GraphViewProps} props - Component props
- * @returns {JSX.Element}
- */
-export default function GraphView({
+function GraphViewContent({
   entities,
   relationships = [],
-  selectedEntityId,
   searchQuery = '',
   onSelectEntity,
   onUpdateEntityPosition,
   onEntityDoubleClick,
   onGenerateDLO,
   onGenerateDMO,
-  onUpdateRelationshipWaypoints,
 }: GraphViewProps) {
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setNodes, setEdges } =
+    useEntityStore();
+  const { fitView, zoomIn, zoomOut } = useReactFlow();
 
-  const viewport = useCanvasViewport(canvasRef, entities);
-  const drag = useEntityDrag(canvasRef, entities, onUpdateEntityPosition);
   const search = useEntitySearch(entities, searchQuery);
 
-  // Apply optimistic drag position override for smooth dragging during a drag operation.
-  // The local position is applied here, creating the smooth-moving ghost node.
-  const entitiesWithDragOverride = useMemo(() => {
-    if (!drag.draggedEntityPosition) {
-      return entities;
+  // --- Data Initialization/Synchronization ---
+  useEffect(() => {
+    // Only re-map and set state if the core domain data structure has changed
+    // This prevents unnecessary remaps when only position changes.
+    if (nodes.length !== entities.length) {
+      setNodes(mapEntitiesToNodes(entities, onEntityDoubleClick, onGenerateDLO, onGenerateDMO));
+      setEdges(mapRelationshipsToEdges(relationships));
+      // Fit the view on initial load
+      setTimeout(() => fitView({ padding: 0.1 }), 50);
+    }
+  }, [
+    entities,
+    relationships,
+    onEntityDoubleClick,
+    onGenerateDLO,
+    onGenerateDMO,
+    setNodes,
+    setEdges,
+    nodes.length,
+    fitView,
+  ]);
+
+  // --- Event Handlers ---
+
+  const handlePaneClick = useCallback(() => {
+    onSelectEntity(null);
+  }, [onSelectEntity]);
+
+  const handleNodeDragStop = useCallback(
+    (_event: React.MouseEvent, node: Node, allNodes: Node[]) => {
+      const updatedNode = allNodes.find((n) => n.id === node.id);
+
+      if (updatedNode?.position) {
+        // Implementing Grid Snapping Logic
+        const GRID_SIZE = 20;
+        const snappedPosition = {
+          x: Math.round(updatedNode.position.x / GRID_SIZE) * GRID_SIZE,
+          y: Math.round(updatedNode.position.y / GRID_SIZE) * GRID_SIZE,
+        };
+
+        // 1. Update the Zustand store immediately with the snapped position (Optimistic update)
+        setNodes(
+          nodes.map((n) => (n.id === updatedNode.id ? { ...n, position: snappedPosition } : n))
+        );
+
+        // 2. Persist the snapped position to storage (side effect)
+        onUpdateEntityPosition(node.id, snappedPosition).catch((error) => {
+          // External Context: CRITICAL ROLLBACK/ERROR
+          console.error(
+            'Failed to persist entity position. Please check network connection.',
+            error
+          );
+        });
+      }
+    },
+    [onUpdateEntityPosition, setNodes, nodes]
+  );
+
+  const filteredNodes = useMemo(() => {
+    if (!search.hasSearchQuery) {
+      return nodes;
     }
 
-    return entities.map((entity) =>
-      entity.id === drag.draggedEntityPosition?.entityId
-        ? {
-            ...entity,
-            position: {
-              x: drag.draggedEntityPosition.x,
-              y: drag.draggedEntityPosition.y,
-            },
-          }
-        : entity
-    );
-  }, [entities, drag.draggedEntityPosition]);
+    const matchingIds = search.matchingEntities.map((e) => e.id);
 
-  const handleCanvasMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      // Only respond to left-clicks.
-      if (e.button !== 0) {
-        return;
-      }
-
-      // If the click originated inside an entity node, stop.
-      if ((e.target as HTMLElement).closest('[data-testid^="entity-node-"]')) {
-        return;
-      }
-
-      // Deselect any entity if the click is on the empty canvas.
-      onSelectEntity(null);
-    },
-    [onSelectEntity]
-  );
+    return nodes.map((node) => ({
+      ...node,
+      // React Flow respects the 'hidden' property for display culling
+      hidden: !matchingIds.includes(node.id),
+    }));
+  }, [nodes, search.hasSearchQuery, search.matchingEntities]);
 
   const handleCenterOnEntity = useCallback(
     (entityId: string) => {
-      viewport.centerOnEntity(entityId);
-      // Selects the entity after centering.
       onSelectEntity(entityId);
+      // Center the view on the selected node
+      fitView({
+        nodes: [{ id: entityId, width: 200, height: 100, position: { x: 0, y: 0 } }],
+        duration: 300,
+        maxZoom: 2,
+        padding: 0.5,
+      });
     },
-    [viewport, onSelectEntity]
+    [fitView, onSelectEntity]
   );
 
+  // CHANGE: Define the dot color using a subtle CoolGray shade for faint dots.
+  const backgroundCoolGray100 = '#F1F5F9'; // CoolGray-100 for very subtle dots
+
   return (
-    <div
-      ref={canvasRef}
-      className="relative w-full h-full bg-white overflow-hidden"
-      onMouseDown={handleCanvasMouseDown}
-      onWheel={viewport.handleWheel}
-      style={{
-        backgroundImage: `
-          linear-gradient(to right, #E2E8F0 1px, transparent 1px),
-          linear-gradient(to bottom, #E2E8F0 1px, transparent 1px)
-        `,
-        backgroundSize: `${20 * viewport.zoom}px ${20 * viewport.zoom}px`,
-        backgroundPosition: `${viewport.panOffset.x}px ${viewport.panOffset.y}px`,
-        fontFamily: 'sans-serif',
-      }}
-      data-testid="graph-canvas"
-    >
-      <RelationshipLayer
-        entities={entitiesWithDragOverride}
-        relationships={relationships}
-        zoom={viewport.zoom}
-        panOffset={viewport.panOffset}
-        onUpdateRelationshipWaypoints={onUpdateRelationshipWaypoints}
-      />
-
-      <div
-        className="absolute inset-0"
-        style={{
-          transform: `translate(${viewport.panOffset.x}px, ${viewport.panOffset.y}px) scale(${viewport.zoom})`,
-          transformOrigin: '0 0',
-          transition: 'transform 0.2s ease-out',
-          zIndex: 2,
-        }}
+    <div className="relative w-full h-full bg-coolgray-50" data-testid="graph-canvas">
+      <ReactFlow
+        nodes={filteredNodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        nodeTypes={nodeTypes}
+        minZoom={0.1}
+        maxZoom={4}
+        onNodeClick={(_event, node) => onSelectEntity(node.id)}
+        onPaneClick={handlePaneClick}
+        onNodeDragStop={handleNodeDragStop}
+        proOptions={{ hideAttribution: true }}
+        className="w-full h-full"
       >
-        {entitiesWithDragOverride.map((entity) => {
-          const isMatch =
-            search.hasSearchQuery && search.matchingEntities.some((e) => e.id === entity.id);
-          // Dim entities that don't match the search query
-          const shouldDim = search.hasSearchQuery && !isMatch;
+        {/* CHANGE: Update Background component to use a fainter color (CoolGray-100) 
+        for the dots to ensure they are subtle and non-distracting. */}
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
+          size={1}
+          color={backgroundCoolGray100} // Changed from CoolGray-200 to CoolGray-100
+        />
 
-          // CRITICAL FIX: Determine if this entity is the one being dragged
-          const isBeingDragged = drag.draggedEntityId === entity.id;
+        <Controls
+          position="bottom-left"
+          showZoom={true}
+          showFitView={true}
+          showInteractive={false}
+          // FIX: Correcting the style object to use the CSS variable directly,
+          // or a standard CSS property object structure.
+          style={{
+            filter:
+              'invert(37%) sepia(10%) saturate(1132%) hue-rotate(190deg) brightness(95%) contrast(89%)',
+          }}
+        />
 
-          return (
-            <EntityNode
-              key={entity.id}
-              entity={entity}
-              isSelected={selectedEntityId === entity.id}
-              isSearchMatch={isMatch}
-              dimmed={shouldDim}
-              // Conditional style to use opacity: 0 on the source node while the ghost is active.
-              style={{
-                left: entity.position?.x || 100,
-                top: entity.position?.y || 100,
-                // We use opacity: 0 instead of visibility: hidden so the drag source remains in the DOM tree
-                opacity: isBeingDragged ? 0 : 1,
-              }}
-              // Passes the entity ID string
-              onSelect={() => onSelectEntity(entity.id)}
-              onDragStart={(e) => drag.handleEntityDragStart(entity.id, e)}
-              onDrag={drag.handleEntityDrag}
-              onDragEnd={drag.handleEntityDragEnd}
-              // Now passes the full entity object
-              onDoubleClick={() => onEntityDoubleClick(entity)}
-              // Now passes the full entity object
-              onGenerateDLO={onGenerateDLO ? () => onGenerateDLO(entity) : undefined}
-              // Now passes the full entity object
-              onGenerateDMO={onGenerateDMO ? () => onGenerateDMO(entity) : undefined}
-            />
-          );
-        })}
-      </div>
-
-      <ViewportControls
-        zoom={viewport.zoom}
-        onZoomIn={viewport.handleZoomIn}
-        onZoomOut={viewport.handleZoomOut}
-        onFitToScreen={viewport.handleFitToScreen}
-        onResetView={viewport.handleResetView}
-      />
+        {/* ViewportControls now calls the useReactFlow commands directly */}
+        <ViewportControls
+          onZoomIn={() => zoomIn()}
+          onZoomOut={() => zoomOut()}
+          onFitToScreen={() => fitView()}
+        />
+      </ReactFlow>
 
       <SearchResultsPanel
         matchingEntities={search.matchingEntities}
         searchQuery={searchQuery}
         onCenterOnEntity={handleCenterOnEntity}
       />
+      <CanvasLegend />
 
-      {/* Renders a message if no entities exist */}
       {entities.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
           <div className="text-center">
             <p className="text-xl font-semibold text-coolgray-400">No entities yet</p>
             <p className="text-sm text-coolgray-500 mt-2">
@@ -202,8 +210,20 @@ export default function GraphView({
           </div>
         </div>
       )}
-
-      <CanvasLegend />
     </div>
+  );
+}
+
+/**
+ * @component GraphView
+ * @description Wraps the core logic in a ReactFlowProvider to enable useReactFlow hooks in children.
+ * @param {GraphViewProps} props - The properties for the graph view.
+ * @returns {JSX.Element} The visual canvas component.
+ */
+export default function GraphView(props: GraphViewProps) {
+  return (
+    <ReactFlowProvider>
+      <GraphViewContent {...props} />
+    </ReactFlowProvider>
   );
 }

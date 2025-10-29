@@ -61,8 +61,25 @@ export function useEntityActions(
     }
   };
 
-  const handleUpdatePosition = (entityId: string, position: { x: number; y: number }) => {
-    updateEntity.mutate({ entityId, updates: { position } });
+  /**
+   * Updates the entity position using mutateAsync to ensure the caller (GraphView)
+   * can wait for persistence before cleaning up the optimistic state.
+   */
+  const handleUpdatePosition = async (entityId: string, position: { x: number; y: number }) => {
+    if (!projectId) {
+      return;
+    }
+
+    // CRITICAL FIX: Use mutateAsync to perform the update.
+    // The GraphView component now relies on this promise to manage its temporary
+    // droppedPosition state.
+    try {
+      await updateEntity.mutateAsync({ entityId, updates: { position } });
+    } catch (error) {
+      // Log the error but do not show a noisy toast, as drag failures are high frequency.
+      console.error(`Failed to persist position for entity ${entityId}:`, error);
+      throw error; // Re-throw so GraphView can handle rollback if needed
+    }
   };
 
   const handleDelete = async (entityId: string) => {

@@ -1,283 +1,152 @@
-import React, { useMemo } from 'react';
-import {
-  Key,
-  Link as LinkIcon,
-  Lock,
-  Waves,
-  Cylinder,
-  Layers,
-  Database,
-  Sparkles,
-  Wand,
-} from 'lucide-react';
-import type { Entity } from '@shared/schema';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { getEntityCardStyle } from '@/styles/dataCloudStyles';
+import React, { useCallback } from 'react';
+import { NodeProps, Handle, Position, NodeToolbar } from 'reactflow';
+// FIX: Changed EntityField to the correctly exported name, Field.
+import { Table, Trash2, Code, Download, ChevronDown } from 'lucide-react';
+import { Field } from '@shared/schema';
 
-export interface EntityNodeProps {
-  entity: Entity;
-  isSelected: boolean;
-  isSearchMatch?: boolean;
-  dimmed?: boolean;
-  onSelect: () => void;
-  onDragStart: (e: React.DragEvent) => void;
-  onDrag: (e: React.DragEvent) => void;
-  onDragEnd: (e: React.DragEvent) => void;
-  onDoubleClick: () => void;
-  style?: React.CSSProperties;
-  onGenerateDLO?: (entityId: string) => void;
-  onGenerateDMO?: (entityId: string) => void;
-  hasLinkedDLO?: boolean;
-  hasLinkedDMO?: boolean;
-}
+// We import component types from the utility file
+import { EntityNodeData } from '../utils/nodeMapper';
+
+// We import shared UI components
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 /**
- * Memoized entity node component for canvas rendering.
- * Only re-renders when entity data, selection state, or position changes.
+ * @component EntityNode
+ * @description The custom component for rendering an Entity within the React Flow canvas.
+ * It uses React.memo for mandatory performance optimization (Part V, 5.2).
+ * @param {NodeProps<EntityNodeData>} props - The required React Flow props, with custom data under the 'data' field.
+ * @returns {JSX.Element} The visual entity node card.
  */
-const EntityNode = React.memo(
-  function EntityNode({
-    entity,
-    isSelected,
-    isSearchMatch = false,
-    dimmed = false,
-    onSelect,
-    onDragStart,
-    onDrag,
-    onDragEnd,
-    onDoubleClick,
-    style,
-    onGenerateDLO,
-    onGenerateDMO,
-    hasLinkedDLO = false,
-    hasLinkedDMO = false,
-  }: EntityNodeProps) {
-    // CRITICAL FIX: Create an invisible canvas element to suppress the drag image/globe icon.
-    // This is the most reliable way to prevent the browser's default drag visual.
-    const dragImageSuppressor = useMemo(() => {
-      if (typeof document === 'undefined') {
-        return null;
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = 1;
-      canvas.height = 1;
-      return canvas;
-    }, []);
+const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
+  // Destructure custom data and required RF props
+  const { entity, onDoubleClick, onGenerateDLO, onGenerateDMO } = props.data;
+  const isSelected = props.selected;
 
-    const visibleFields = entity.fields.filter((f) => f.visibleInERD !== false);
-    const pkFields = visibleFields.filter((f) => f.isPK);
-    const fkFields = visibleFields.filter((f) => f.isFK);
-    const regularFields = visibleFields.filter((f) => !f.isPK && !f.isFK);
+  // --- Handlers for Domain Actions ---
+  const handleGenerateDLO = useCallback(() => {
+    if (onGenerateDLO) {
+      onGenerateDLO(entity);
+    }
+  }, [entity, onGenerateDLO]);
 
-    const cardStyle = getEntityCardStyle(entity.type);
+  const handleGenerateDMO = useCallback(() => {
+    if (onGenerateDMO) {
+      onGenerateDMO(entity);
+    }
+  }, [entity, onGenerateDMO]);
 
-    const IconComponent =
-      {
-        Database: Database,
-        Waves: Waves,
-        Cylinder: Cylinder,
-        Layers: Layers,
-        Sparkles: Sparkles,
-      }[cardStyle.icon] || Database;
+  const handleDoubleClick = useCallback(() => {
+    if (onDoubleClick) {
+      onDoubleClick(entity);
+    }
+  }, [entity, onDoubleClick]);
 
-    const bgClass = `entity-bg-${entity.id}`;
+  // --- Dynamic Styling based on Design Tokens (Style Guide) ---
 
-    return (
-      <>
-        <style>{`.${bgClass} { background-color: ${cardStyle.background} !important; }`}</style>
-        <div
-          draggable
-          onDragStart={(e) => {
-            // FINAL FIX: Suppress the native drag image by teleporting a tiny canvas off-screen
-            if (dragImageSuppressor) {
-              e.dataTransfer.setDragImage(dragImageSuppressor, -99999, -99999);
-            }
-            // Also explicitly set data to prevent the browser from assuming a link/text drag.
-            e.dataTransfer.setData('text/plain', '');
-            onDragStart(e);
-          }}
-          onDrag={onDrag}
-          onDragEnd={onDragEnd}
-          onClick={onSelect}
-          onDoubleClick={onDoubleClick}
-          style={{
-            ...style,
-            borderColor: cardStyle.borderColor,
-            borderWidth: '2px',
-            borderStyle: 'solid',
-          }}
-          className={`${bgClass} absolute rounded-xl shadow-md cursor-move select-none transition-all
-          ${isSelected ? 'ring-4 ring-offset-2 ring-primary-500 shadow-lg' : ''}
-          ${isSearchMatch ? 'pulse-ring ring-4 ring-secondary-500' : ''}
-          ${dimmed ? 'opacity-30' : ''}
-          hover:shadow-lg`}
-          data-testid={`entity-node-${entity.id}`}
+  // Applies Shadow-MD, Radius-LG, and CoolGray-based borders.
+  const cardClasses = `
+    w-64 max-w-sm border-2 transition-all duration-150 ease-in-out
+    shadow-md rounded-lg bg-white text-coolgray-600 
+    ${
+      isSelected
+        ? 'border-secondary-500 ring-4 ring-secondary-200'
+        : 'border-coolgray-200 hover:shadow-lg'
+    }
+    nopan
+  `;
+
+  return (
+    <Card
+      className={cardClasses}
+      onDoubleClick={handleDoubleClick}
+      data-testid={`entity-node-${entity.id}`}
+      data-handle-id={entity.id}
+    >
+      {/* NodeToolbar uses Shadow-LG for high visual elevation (Overlay standard) */}
+      <NodeToolbar
+        position={Position.Top}
+        className="flex space-x-2 bg-white p-2 rounded-md shadow-lg border border-coolgray-200"
+      >
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-coolgray-500 hover:text-danger-500"
         >
-          <div className="w-[320px]">
-            <div className="px-4 py-3 border-b border-coolgray-200 flex items-center gap-2">
-              <IconComponent
-                className="h-5 w-5 flex-shrink-0"
-                style={{ color: cardStyle.borderColor }}
-              />
-              <h3 className="text-[18px] font-semibold text-coolgray-700 break-words flex-1">
-                {entity.name}
-              </h3>
-              <Badge
-                variant={cardStyle.badge.color === 'secondary' ? 'secondary' : 'default'}
-                className="text-[12px] px-2 py-[2px]"
-                data-testid={`badge-${entity.type}`}
-              >
-                {cardStyle.badge.text}
-              </Badge>
-            </div>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-coolgray-500">
+              <Code className="h-4 w-4 mr-1" />
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 p-1">
+            <DropdownMenuItem onClick={handleGenerateDLO} className="cursor-pointer">
+              <Download className="mr-2 h-4 w-4" />
+              <span>Generate DLO</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleGenerateDMO} className="cursor-pointer">
+              <Download className="mr-2 h-4 w-4" />
+              <span>Generate DMO</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </NodeToolbar>
 
-            {/* Metadata row */}
-            <div className="px-4 py-2 border-b border-coolgray-200 text-[12px] text-coolgray-600">
-              {entity.type === 'data-stream' && entity.dataCloudMetadata?.streamConfig && (
-                <div className="flex gap-2">
-                  <span>{entity.dataCloudMetadata.streamConfig.refreshType}</span>
-                  <span>•</span>
-                  <span>{entity.dataCloudMetadata.streamConfig.schedule}</span>
-                </div>
-              )}
-              {entity.type === 'dlo' && entity.sourceDataStreamId && (
-                <div>
-                  <span>Source: Data Stream</span>
-                </div>
-              )}
-              {entity.type === 'dmo' && (
-                <div className="flex gap-2">
-                  {entity.sourceDLOIds && entity.sourceDLOIds.length > 0 && (
-                    <>
-                      <span>
-                        Sources: {entity.sourceDLOIds.length} DLO
-                        {entity.sourceDLOIds.length > 1 ? 's' : ''}
-                      </span>
-                      <span>•</span>
-                    </>
-                  )}
-                  <span>{entity.dataCloudMetadata?.profileObjectType || 'TBD'}</span>
-                </div>
-              )}
-              {entity.dataSource && entity.type === 'dmo' && (
-                <div className="text-[12px] text-coolgray-500 font-mono">{entity.dataSource}</div>
-              )}
-            </div>
-
-            {/* Fields preview */}
-            <div className="px-4 py-2 max-h-[240px] overflow-y-auto">
-              {pkFields.length > 0 && (
-                <div className="mb-2">
-                  {pkFields.map((field) => (
-                    <div key={field.id} className="flex items-center gap-2 py-1 text-[14px]">
-                      <Key className="h-3 w-3 text-primary-500 flex-shrink-0" />
-                      <span className="font-mono text-coolgray-700 font-medium">{field.name}</span>
-                      <span className="text-[12px] text-coolgray-500">{field.type}</span>
-                      {field.containsPII && (
-                        <Lock className="h-3 w-3 text-warning-500 flex-shrink-0" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {fkFields.length > 0 && (
-                <div className="mb-2">
-                  {fkFields.map((field) => (
-                    <div key={field.id} className="flex items-center gap-2 py-1 text-[14px]">
-                      <LinkIcon className="h-3 w-3 text-secondary-500 flex-shrink-0" />
-                      <span className="font-mono text-coolgray-700">{field.name}</span>
-                      <span className="text-[12px] text-coolgray-500">{field.type}</span>
-                      {field.containsPII && (
-                        <Lock className="h-3 w-3 text-warning-500 flex-shrink-0" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {regularFields.length > 0 && (
-                <div>
-                  {regularFields.slice(0, 8).map((field) => (
-                    <div key={field.id} className="flex items-center gap-2 py-1 text-[14px]">
-                      <div className="w-3 flex-shrink-0" />
-                      <span className="font-mono text-coolgray-600">{field.name}</span>
-                      <span className="text-[12px] text-coolgray-500">{field.type}</span>
-                      {field.containsPII && (
-                        <Lock className="h-3 w-3 text-warning-500 flex-shrink-0" />
-                      )}
-                    </div>
-                  ))}
-                  {regularFields.length > 8 && (
-                    <p className="text-[12px] text-coolgray-500 mt-1 pl-5">
-                      +{regularFields.length - 8} more fields
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {visibleFields.length === 0 && (
-                <p className="text-[12px] text-coolgray-400 py-2 text-center">No visible fields</p>
-              )}
-            </div>
-
-            {/* Auto-generation buttons */}
-            {entity.type === 'data-stream' && !hasLinkedDLO && onGenerateDLO && (
-              <div className="px-4 py-2 border-t border-coolgray-200">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onGenerateDLO(entity.id);
-                  }}
-                  className="w-full text-tertiary-700 border-tertiary-300 hover:bg-tertiary-50"
-                  data-testid="button-generate-dlo"
-                >
-                  <Wand className="h-4 w-4 mr-1" />
-                  Generate DLO
-                </Button>
-              </div>
-            )}
-
-            {entity.type === 'dlo' && !hasLinkedDMO && onGenerateDMO && (
-              <div className="px-4 py-2 border-t border-coolgray-200">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onGenerateDMO(entity.id);
-                  }}
-                  className="w-full text-primary-700 border-primary-300 hover:bg-primary-50"
-                  data-testid="button-generate-dmo"
-                >
-                  <Wand className="h-4 w-4 mr-1" />
-                  Generate DMO
-                </Button>
-              </div>
-            )}
-          </div>
+      <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between">
+        <h3 className="font-bold text-sm text-coolgray-700 truncate max-w-[80%]">{entity.name}</h3>
+        <div className="flex items-center space-x-1 text-coolgray-400">
+          <Table className="h-4 w-4" />
         </div>
-      </>
-    );
-  },
-  (prevProps, nextProps) => {
-    // Custom comparison: only re-render if these specific props change
-    return (
-      prevProps.entity.id === nextProps.entity.id &&
-      prevProps.entity.name === nextProps.entity.name &&
-      prevProps.entity.fields === nextProps.entity.fields &&
-      prevProps.entity.position === nextProps.entity.position &&
-      prevProps.isSelected === nextProps.isSelected &&
-      prevProps.isSearchMatch === nextProps.isSearchMatch &&
-      prevProps.dimmed === nextProps.dimmed &&
-      prevProps.style === nextProps.style &&
-      prevProps.hasLinkedDLO === nextProps.hasLinkedDLO &&
-      prevProps.hasLinkedDMO === nextProps.hasLinkedDMO
-    );
-  }
-);
+      </CardHeader>
 
-export default EntityNode;
+      <Separator className="bg-coolgray-200" />
+
+      <CardContent className="p-0 text-xs">
+        {/* Uses font-mono (JetBrains Mono) for code fidelity [cite: style guide] */}
+        {/* FIX: Changed EntityField to Field in the map argument */}
+        {entity.fields &&
+          entity.fields.slice(0, 4).map((field: Field) => (
+            <div
+              key={field.id}
+              className="flex items-center justify-between px-3 py-1.5 border-b border-coolgray-100 hover:bg-coolgray-50 transition-colors"
+            >
+              <span className="truncate">{field.name}</span>
+              <span className="text-coolgray-400 font-mono text-[10px] uppercase ml-2">
+                {field.type.slice(0, 5)}
+              </span>
+            </div>
+          ))}
+
+        {entity.fields && entity.fields.length > 4 && (
+          <div className="text-center py-1 text-coolgray-400 italic text-[10px]">
+            ... {entity.fields.length - 4} more fields
+          </div>
+        )}
+      </CardContent>
+
+      {/* Handles for Connections: Uses Primary and Secondary brand colors */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="w-3 h-3 bg-primary-500 border-2 border-primary-100"
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="w-3 h-3 bg-secondary-500 border-2 border-secondary-100"
+      />
+    </Card>
+  );
+};
+
+export default React.memo(EntityNode);

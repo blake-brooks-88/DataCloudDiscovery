@@ -1,58 +1,49 @@
-import { Plus, Minus, Maximize2, RotateCcw } from 'lucide-react';
+import React from 'react';
+import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Panel } from 'reactflow';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 
-/**
- * Props for the ViewportControls component.
- */
-export interface ViewportControlsProps {
-  /** Current zoom level (0.1 to 5.0) */
-  zoom: number;
-  /** Callback when zoom in is clicked */
+interface ViewportControlsProps {
   onZoomIn: () => void;
-  /** Callback when zoom out is clicked */
   onZoomOut: () => void;
-  /** Callback when fit to screen is clicked */
   onFitToScreen: () => void;
-  /** Callback when reset view is clicked */
-  onResetView: () => void;
 }
 
-/**
- * Floating viewport control panel for canvas zoom and positioning.
- * Displays current zoom level and provides buttons for zoom/fit/reset operations.
- *
- * @param {ViewportControlsProps} props - Component props
- * @returns {JSX.Element}
- */
-export function ViewportControls({
-  zoom,
+const ViewportControlsComponent: React.FC<ViewportControlsProps> = ({
   onZoomIn,
   onZoomOut,
   onFitToScreen,
-  onResetView,
-}: ViewportControlsProps) {
+}) => {
+  const panelClasses =
+    'flex flex-col bg-white shadow-md rounded-md border border-coolgray-200 p-1 space-y-1';
+  const buttonClasses = 'w-8 h-8 p-1 text-coolgray-500 hover:bg-coolgray-100 rounded-sm';
+
   return (
-    <div
-      className="absolute top-4 right-4 bg-white shadow-lg rounded-lg p-2 flex flex-col gap-1 z-10"
-      data-testid="viewport-controls"
-    >
-      <Button onClick={onZoomIn} data-testid="button-zoom-in">
-        <Plus className="h-4 w-4" />
+    <Panel position="top-right" className={panelClasses}>
+      <Button onClick={onZoomIn} variant="ghost" className={buttonClasses} aria-label="Zoom In">
+        <ZoomIn className="w-5 h-5" />
       </Button>
-      <div className="text-xs text-center font-mono" data-testid="text-zoom-level">
-        {Math.round(zoom * 100)}%
-      </div>
-      <Button onClick={onZoomOut} data-testid="button-zoom-out">
-        <Minus className="h-4 w-4" />
+
+      <Button onClick={onZoomOut} variant="ghost" className={buttonClasses} aria-label="Zoom Out">
+        <ZoomOut className="w-5 h-5" />
       </Button>
-      <Separator />
-      <Button onClick={onFitToScreen} title="Fit to Screen" data-testid="button-fit-screen">
-        <Maximize2 className="h-4 w-4" />
+
+      <Separator className="bg-coolgray-200" />
+
+      <Button
+        onClick={onFitToScreen}
+        variant="ghost"
+        className={buttonClasses}
+        aria-label="Fit View"
+      >
+        <Maximize2 className="w-5 h-5" />
       </Button>
-      <Button onClick={onResetView} title="Reset View" data-testid="button-reset-view">
-        <RotateCcw className="h-4 w-4" />
-      </Button>
-    </div>
+    </Panel>
   );
-}
+};
+
+const ViewportControls = React.memo(ViewportControlsComponent);
+ViewportControls.displayName = 'ViewportControls';
+
+export default ViewportControls;

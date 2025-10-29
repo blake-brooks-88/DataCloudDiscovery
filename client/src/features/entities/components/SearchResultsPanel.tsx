@@ -32,24 +32,26 @@ export function SearchResultsPanel({
 
   return (
     <div
-      className="absolute top-4 left-4 bg-white shadow-lg rounded-lg p-3 w-80 z-10"
+      // FIX: Apply pointer-events-none to the container so that it doesn't block
+      // clicks/drags on the canvas underneath.
+      className="absolute top-4 left-4 bg-white shadow-lg rounded-lg p-3 w-80 z-10 pointer-events-none"
       data-testid="search-results-panel"
     >
-      <div className="text-sm font-semibold mb-2 text-gray-600">
-        Found {matchingEntities.length} {matchingEntities.length === 1 ? 'entity' : 'entities'}
-      </div>
-      <div className="space-y-1 max-h-64 overflow-y-auto">
+      {/* Use a wrapper that re-enables pointer events for its interactive children. */}
+      <div className="space-y-1 max-h-64 overflow-y-auto pointer-events-auto">
         {matchingEntities.map((entity) => (
           <div
             key={entity.id}
-            className="p-2 hover:bg-gray-50 rounded cursor-pointer flex items-center justify-between"
+            // The item itself is clickable, so it needs pointer-events-auto, but the parent already handled it
+            className="p-2 hover:bg-coolgray-50 rounded cursor-pointer flex items-center justify-between"
             onClick={() => onCenterOnEntity(entity.id)}
             data-testid={`search-result-${entity.id}`}
           >
             <div>
-              <div className="font-medium text-sm text-gray-600">{entity.name}</div>
-              <div className="text-xs text-gray-500">{entity.dataSource || 'No source'}</div>
+              <div className="font-medium text-sm text-coolgray-600">{entity.name}</div>
+              <div className="text-xs text-coolgray-500">{entity.dataSource || 'No source'}</div>
             </div>
+            {/* Buttons are interactive by default, but ensuring they are not blocked */}
             <Button variant="ghost">
               <Target className="h-4 w-4" />
             </Button>
