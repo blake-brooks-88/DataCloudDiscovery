@@ -168,13 +168,13 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
         id="entity-target"
         type="target"
         position={Position.Left}
-        style={{ top: '50%', opacity: 0 }}
+        style={{ top: '12%', opacity: 0 }}
       />
       <Handle
         id="entity-source"
         type="source"
         position={Position.Right}
-        style={{ top: '50%', opacity: 0 }}
+        style={{ top: '12%', opacity: 0 }}
       />
       <NodeToolbar
         position={Position.Top}

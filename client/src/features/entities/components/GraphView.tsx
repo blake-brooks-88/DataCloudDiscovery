@@ -194,6 +194,7 @@ function GraphViewContent({
 
         <svg style={{ position: 'absolute', opacity: 0 }}>
           <defs>
+            {/* --- Crow's Foot Markers (Existing) --- */}
             <marker
               id="cf-one"
               viewBox="0 0 10 10"
@@ -218,6 +219,7 @@ function GraphViewContent({
             >
               <path d="M 10 0 L 0 5 L 10 10" stroke="#64748B" strokeWidth="2" fill="none" />
             </marker>
+            {/* Green Arrow Marker (Existing) */}
             <marker
               id="arrow-green"
               viewBox="0 0 10 10"
@@ -230,7 +232,35 @@ function GraphViewContent({
             >
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#BED163" />
             </marker>
-            {/* You will need markers for the 'feeds-into' (blue) edge here too */}
+
+            {/* --- NEW: Animated data flow pattern for 'feeds-into' (Blue) --- */}
+            <pattern
+              id="data-flow-pattern"
+              x="0"
+              y="0"
+              width="20"
+              height="20"
+              patternUnits="userSpaceOnUse"
+            >
+              {/* Blue circle that moves, representing ingestion flow (Secondary-Blue) */}
+              <circle cx="5" cy="10" r="2" fill="#4AA0D9" opacity="0.6">
+                {/* Animation: moves 'cx' from 5 to 25 over 2 seconds, repeats */}
+                <animate attributeName="cx" from="5" to="25" dur="2s" repeatCount="indefinite" />
+              </circle>
+            </pattern>
+            <pattern
+              id="data-flow-pattern-green"
+              x="0"
+              y="0"
+              width="20"
+              height="20"
+              patternUnits="userSpaceOnUse"
+            >
+              {/* Green circle using Tertiary-Green */}
+              <circle cx="5" cy="10" r="1.5" fill="#BED163" opacity="0.7">
+                <animate attributeName="cx" from="5" to="25" dur="2.5s" repeatCount="indefinite" />
+              </circle>
+            </pattern>
           </defs>
         </svg>
 

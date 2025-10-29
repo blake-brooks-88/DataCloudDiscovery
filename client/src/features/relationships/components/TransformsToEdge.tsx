@@ -9,27 +9,19 @@ interface CustomEdgeData {
   waypoints?: Array<{ x: number; y: number }>;
 }
 
-/**
- * @component TransformsToEdge
- * @description Custom edge for the 'transforms-to' 1:1 shorthand (DLO -> DMO).
- * It renders as a solid green line.
- */
 const TransformsToEdge: React.FC<EdgeProps<CustomEdgeData>> = ({
-  id,
   sourceX,
   sourceY,
   targetX,
   targetY,
   sourcePosition,
   targetPosition,
-  data, // We still have the data prop, even if not used for path calc
+  data,
 }) => {
   if (!data) {
     return null;
   }
 
-  // Use the live props from React Flow, not the stale data from the data prop,
-  // to calculate the path. This ensures the line moves when nodes are dragged.
   const path = getOrthogonalPath({
     sourceX,
     sourceY,
@@ -39,21 +31,35 @@ const TransformsToEdge: React.FC<EdgeProps<CustomEdgeData>> = ({
     targetPosition,
   });
 
-  // Green Solid Line - Tertiary-Green/Accent
-  const style = {
-    stroke: '#BED163',
-    strokeWidth: 2,
-    fill: 'none',
-  };
-
   return (
-    <path
-      id={id}
-      className="react-flow__edge-path"
-      d={path}
-      style={style}
-      markerEnd="url(#arrow-green)"
-    />
+    <>
+      {/* Thicker “mega” base line */}
+      <path
+        d={path}
+        stroke="#A7B957"
+        strokeWidth={6} // increased from 4
+        fill="none"
+        opacity={0.3} // slightly more visible
+      />
+
+      {/* Dotted/animated line representing 1:1 field mappings */}
+      <path
+        d={path}
+        stroke="#BED163"
+        strokeWidth={3}
+        fill="none"
+        strokeDasharray="5 6"
+        markerEnd="url(#arrow-green)"
+      >
+        <animate
+          attributeName="stroke-dashoffset"
+          from="8"
+          to="0"
+          dur="3s"
+          repeatCount="indefinite"
+        />
+      </path>
+    </>
   );
 };
 
