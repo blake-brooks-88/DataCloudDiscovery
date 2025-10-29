@@ -26,54 +26,55 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-// --- Layout Constants ---
+// --- Layout Constants (Synchronized) ---
 const NODE_HEADER_HEIGHT = 48;
+const METADATA_ROW_HEIGHT = 32; // Enforce h-8 (32px)
 const SEPARATOR_HEIGHT = 1;
-const FIELD_ROW_HEIGHT = 32;
+const FIELD_ROW_HEIGHT = 32; // Enforce h-8 (32px)
 
-// --- CONFIG 1: Node Base and Hover Styles (50 for base, 100 for subtle hover) ---
+// --- CONFIG 1: Node Base and Hover Styles ---
 const TYPE_STYLE_MAP = {
   'data-stream': {
     base: 'border-secondary-500 bg-secondary-50 text-secondary-800',
-    hover: 'hover:bg-secondary-100', // Dynamic blue hover for field rows
+    hover: 'hover:bg-secondary-100',
     selected: 'ring-secondary-200',
   },
   dlo: {
     base: 'border-tertiary-500 bg-tertiary-50 text-tertiary-800',
-    hover: 'hover:bg-tertiary-100', // Dynamic green hover for field rows
+    hover: 'hover:bg-tertiary-100',
     selected: 'ring-tertiary-200',
   },
   dmo: {
     base: 'border-primary-500 bg-primary-50 text-primary-800',
-    hover: 'hover:bg-primary-100', // Dynamic orange hover for field rows
+    hover: 'hover:bg-primary-100',
     selected: 'ring-primary-200',
   },
   default: {
     base: 'border-coolgray-200 bg-white text-coolgray-600',
-    hover: 'hover:bg-coolgray-100', // Default subtle gray hover
+    hover: 'hover:bg-coolgray-100',
     selected: 'ring-primary-200',
   },
 } as const;
 
-// --- CONFIG 2: Icon and Badge Styles (700 for badge background) ---
+// --- CONFIG 2: Icon and Badge Styles ---
 const TYPE_CONFIG_MAP = {
   'data-stream': {
     Icon: Waves,
     BadgeText: 'Data Stream',
     IconColorClass: 'text-secondary-500',
-    BadgeColorClass: 'bg-secondary-700 text-white', // Darker blue badge
+    BadgeColorClass: 'bg-secondary-700 text-white',
   },
   dlo: {
     Icon: Cylinder,
     BadgeText: 'DLO',
     IconColorClass: 'text-tertiary-500',
-    BadgeColorClass: 'bg-tertiary-700 text-white', // Darker green badge
+    BadgeColorClass: 'bg-tertiary-700 text-white',
   },
   dmo: {
     Icon: Layers,
     BadgeText: 'DMO',
     IconColorClass: 'text-primary-500',
-    BadgeColorClass: 'bg-primary-700 text-white', // Darker orange badge
+    BadgeColorClass: 'bg-primary-700 text-white',
   },
   default: {
     Icon: Table,
@@ -87,7 +88,9 @@ const TYPE_CONFIG_MAP = {
  * Calculates the Y-position for a React Flow Handle for a specific field index.
  */
 const getFieldHandleYPosition = (index: number): number => {
-  return NODE_HEADER_HEIGHT + SEPARATOR_HEIGHT + index * FIELD_ROW_HEIGHT + FIELD_ROW_HEIGHT / 2;
+  // FIX: Must account for all elements above the fields list
+  const PADDING_TOP = NODE_HEADER_HEIGHT + METADATA_ROW_HEIGHT + SEPARATOR_HEIGHT;
+  return PADDING_TOP + index * FIELD_ROW_HEIGHT + FIELD_ROW_HEIGHT / 2;
 };
 
 /**
@@ -113,7 +116,6 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
 
   const IconComponent = typeConfig.Icon;
 
-  // --- Handlers for Domain Actions (used in buttons/dropdowns) ---
   const handleGenerateDLO = useCallback(() => {
     if (onGenerateDLO) {
       onGenerateDLO(entity);
@@ -132,7 +134,7 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
     }
   }, [entity, onDoubleClick]);
 
-  // --- Dynamic Styling: w-80 and theme colors ---
+  // FIX: Use w-80 (320px) which matches the NODE_WIDTH constant
   const cardClasses = `
     w-80 max-w-sm border-2 transition-all duration-150 ease-in-out
     shadow-md rounded-lg
@@ -140,7 +142,7 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
     ${isSelected ? `${typeStyle.selected} ring-4` : 'hover:shadow-lg'}
     nopan
     cursor-move
-    ${dimmed ? 'opacity-30' : ''} // Dim non-matching entities
+    ${dimmed ? 'opacity-30' : ''}
     ${isSearchMatch ? 'ring-4 ring-tertiary-500/50' : ''}
   `;
 
@@ -156,11 +158,24 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
       style={{
         minHeight:
           NODE_HEADER_HEIGHT +
+          METADATA_ROW_HEIGHT + // Account for metadata row
           SEPARATOR_HEIGHT +
           visibleFields.length * FIELD_ROW_HEIGHT +
           (hiddenFieldCount > 0 ? FIELD_ROW_HEIGHT : 0),
       }}
     >
+      <Handle
+        id="entity-target"
+        type="target"
+        position={Position.Left}
+        style={{ top: '50%', opacity: 0 }}
+      />
+      <Handle
+        id="entity-source"
+        type="source"
+        position={Position.Right}
+        style={{ top: '50%', opacity: 0 }}
+      />
       <NodeToolbar
         position={Position.Top}
         className="flex space-x-2 bg-white p-2 rounded-md shadow-lg border border-coolgray-200"
@@ -192,17 +207,12 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
         </DropdownMenu>
       </NodeToolbar>
 
-      {/* --- Card Header: Icon, Title, and Badge (FIXED SPACING/CRAMPING) --- */}
+      {/* Card Header: h-[48px] matches NODE_HEADER_HEIGHT */}
       <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between h-[48px] border-b border-coolgray-200">
-        {/* ICON with margin for spacing */}
         <IconComponent className={`h-5 w-5 flex-shrink-0 ${typeConfig.IconColorClass} mr-2`} />
-
-        {/* FIX: Reduced max-width to 50% for title to make space for badge */}
         <h3 className="font-bold text-sm text-coolgray-700 truncate max-w-[50%] flex-1">
           {entity.name}
         </h3>
-
-        {/* FIX: Badge with darker color and proper padding */}
         <Badge
           variant="default"
           className={`text-xs ml-4 py-0.5 whitespace-nowrap ${typeConfig.BadgeColorClass} px-2`}
@@ -211,8 +221,8 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
         </Badge>
       </CardHeader>
 
-      {/* --- Metadata Row --- */}
-      <div className="px-4 py-2 border-b border-coolgray-200 text-xs text-coolgray-600">
+      {/* Metadata Row: FIX - Enforce h-8 (32px) to match METADATA_ROW_HEIGHT */}
+      <div className="px-4 py-2 border-b border-coolgray-200 text-xs text-coolgray-600 h-8 flex items-center">
         {entity.type === 'data-stream' && entity.dataCloudMetadata?.streamConfig && (
           <div className="flex gap-2">
             <span>{entity.dataCloudMetadata.streamConfig.refreshType}</span>
@@ -243,7 +253,7 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
 
       <Separator className="bg-coolgray-200" />
 
-      {/* --- Card Content: Field Rows with Dynamic Hover --- */}
+      {/* Card Content: Field Rows h-8 (32px) matches FIELD_ROW_HEIGHT */}
       <CardContent className="p-0 text-xs">
         {entity.fields.map((field: Field, index: number) => {
           if (index >= 8) {
@@ -256,7 +266,6 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
           return (
             <div
               key={field.id}
-              // FIX: Applying dynamic color-matched hover
               className={`flex items-center justify-between px-3 py-1.5 border-b border-coolgray-100 
               ${typeStyle.hover} transition-colors h-8`}
               data-field-id={field.id}
@@ -266,7 +275,6 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
                 {field.type.slice(0, 5)}
               </span>
 
-              {/* Target Handle: Always on the left */}
               {isTarget && (
                 <Handle
                   id={`field-target-${field.id}`}
@@ -277,7 +285,6 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
                 />
               )}
 
-              {/* Source Handle: On the right */}
               {isSource && (
                 <Handle
                   id={`field-source-${field.id}`}
@@ -297,7 +304,7 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
         )}
       </CardContent>
 
-      {/* --- Auto-generation buttons --- */}
+      {/* Auto-generation buttons */}
       {entity.type === 'data-stream' && !hasLinkedDLO && onGenerateDLO && (
         <div className="px-4 py-2 border-t border-coolgray-200">
           <Button

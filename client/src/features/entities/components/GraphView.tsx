@@ -1,5 +1,12 @@
 import { useCallback, useMemo, useEffect } from 'react';
 import type { Entity, Relationship } from '@shared/schema';
+import EntityNode from './EntityNode';
+import {
+  FieldLineageEdge,
+  FKReferenceEdge,
+  FeedsIntoEdge,
+  TransformsToEdge,
+} from '../../relationships';
 import ReactFlow, {
   Background,
   ReactFlowProvider,
@@ -18,11 +25,6 @@ import ViewportControls from './ViewportControls';
 import { SearchResultsPanel } from './SearchResultsPanel';
 import { CanvasLegend } from './CanvasLegend';
 
-import EntityNode from './EntityNode';
-// Import the new custom edges
-import FieldLineageEdge from '../../relationships/components/FieldLineageEdge';
-import FKReferenceEdge from '../../relationships/components/FKReferenceEdge';
-
 // --- CRITICAL IMPLEMENTATION DETAIL: Custom Node Map ---
 const nodeTypes = {
   entity: EntityNode,
@@ -33,7 +35,8 @@ const nodeTypes = {
 const edgeTypes = {
   'field-lineage': FieldLineageEdge,
   'fk-reference': FKReferenceEdge,
-  // 'feeds-into': TBD, a custom animated edge will go here. For now, it uses default.
+  'feeds-into': FeedsIntoEdge, // <-- ADD THIS
+  'transforms-to': TransformsToEdge, // <-- ADD THIS
 };
 // --- END CRITICAL IMPLEMENTATION DETAIL ---
 
@@ -66,16 +69,11 @@ function GraphViewContent({
 
   const search = useEntitySearch(entities, searchQuery);
 
-  // --- Data Initialization/Synchronization ---
   useEffect(() => {
-    // Only re-map and set state if the core domain data structure has changed
     if (nodes.length !== entities.length) {
       setNodes(mapEntitiesToNodes(entities, onEntityDoubleClick, onGenerateDLO, onGenerateDMO));
+      setEdges(mapRelationshipsToEdges(relationships, entities));
 
-      // CRITICAL UPDATE: Pass entities to mapRelationshipsToEdges to resolve field positions
-      setEdges(mapRelationshipsToEdges(relationships));
-
-      // Fit the view on initial load
       setTimeout(() => fitView({ padding: 0.1 }), 50);
     }
   }, [
@@ -95,7 +93,6 @@ function GraphViewContent({
     onSelectEntity(null);
   }, [onSelectEntity]);
 
-  // ... handleNodeDragStop remains the same ...
   const handleNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node, allNodes: Node[]) => {
       const updatedNode = allNodes.find((n) => n.id === node.id);

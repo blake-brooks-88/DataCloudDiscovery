@@ -169,11 +169,6 @@ export function useEntityActions(
           id: crypto.randomUUID(),
         })),
         sourceDLOIds: [dloId],
-        fieldMappings: dlo.fields.map((f) => ({
-          targetFieldId: crypto.randomUUID(),
-          sourceEntityId: dloId,
-          sourceFieldId: f.id,
-        })),
         position: {
           x: dlo.position?.x || 0,
           y: (dlo.position?.y || 0) + 240,
