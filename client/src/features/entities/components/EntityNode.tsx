@@ -1,6 +1,16 @@
 import React, { useCallback, useMemo } from 'react';
 import { NodeProps, Handle, Position, NodeToolbar } from 'reactflow';
-import { Table, Trash2, Code, Download, ChevronDown, Waves, Cylinder, Layers, Wand } from 'lucide-react';
+import {
+  Table,
+  Trash2,
+  Code,
+  Download,
+  ChevronDown,
+  Waves,
+  Cylinder,
+  Layers,
+  Wand,
+} from 'lucide-react';
 import type { Field } from '@shared/schema';
 import { Badge } from '@/components/ui/badge';
 
@@ -28,21 +38,21 @@ const TYPE_STYLE_MAP = {
     hover: 'hover:bg-secondary-100', // Dynamic blue hover for field rows
     selected: 'ring-secondary-200',
   },
-  'dlo': {
+  dlo: {
     base: 'border-tertiary-500 bg-tertiary-50 text-tertiary-800',
     hover: 'hover:bg-tertiary-100', // Dynamic green hover for field rows
     selected: 'ring-tertiary-200',
   },
-  'dmo': {
+  dmo: {
     base: 'border-primary-500 bg-primary-50 text-primary-800',
     hover: 'hover:bg-primary-100', // Dynamic orange hover for field rows
     selected: 'ring-primary-200',
   },
-  'default': {
+  default: {
     base: 'border-coolgray-200 bg-white text-coolgray-600',
     hover: 'hover:bg-coolgray-100', // Default subtle gray hover
     selected: 'ring-primary-200',
-  }
+  },
 } as const;
 
 // --- CONFIG 2: Icon and Badge Styles (700 for badge background) ---
@@ -53,36 +63,31 @@ const TYPE_CONFIG_MAP = {
     IconColorClass: 'text-secondary-500',
     BadgeColorClass: 'bg-secondary-700 text-white', // Darker blue badge
   },
-  'dlo': {
+  dlo: {
     Icon: Cylinder,
     BadgeText: 'DLO',
     IconColorClass: 'text-tertiary-500',
     BadgeColorClass: 'bg-tertiary-700 text-white', // Darker green badge
   },
-  'dmo': {
+  dmo: {
     Icon: Layers,
     BadgeText: 'DMO',
     IconColorClass: 'text-primary-500',
     BadgeColorClass: 'bg-primary-700 text-white', // Darker orange badge
   },
-  'default': {
+  default: {
     Icon: Table,
     BadgeText: 'Entity',
     IconColorClass: 'text-coolgray-500',
     BadgeColorClass: 'bg-coolgray-700 text-white',
-  }
+  },
 } as const;
 
 /**
  * Calculates the Y-position for a React Flow Handle for a specific field index.
  */
 const getFieldHandleYPosition = (index: number): number => {
-  return (
-    NODE_HEADER_HEIGHT +
-    SEPARATOR_HEIGHT +
-    (index * FIELD_ROW_HEIGHT) +
-    (FIELD_ROW_HEIGHT / 2)
-  );
+  return NODE_HEADER_HEIGHT + SEPARATOR_HEIGHT + index * FIELD_ROW_HEIGHT + FIELD_ROW_HEIGHT / 2;
 };
 
 /**
@@ -132,11 +137,9 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
     w-80 max-w-sm border-2 transition-all duration-150 ease-in-out
     shadow-md rounded-lg
     ${typeStyle.base} 
-    ${isSelected
-      ? `${typeStyle.selected} ring-4`
-      : 'hover:shadow-lg'
-    }
+    ${isSelected ? `${typeStyle.selected} ring-4` : 'hover:shadow-lg'}
     nopan
+    cursor-move
     ${dimmed ? 'opacity-30' : ''} // Dim non-matching entities
     ${isSearchMatch ? 'ring-4 ring-tertiary-500/50' : ''}
   `;
@@ -151,7 +154,11 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
       data-testid={`entity-node-${entity.id}`}
       data-handle-id={entity.id}
       style={{
-        minHeight: NODE_HEADER_HEIGHT + SEPARATOR_HEIGHT + (visibleFields.length * FIELD_ROW_HEIGHT) + (hiddenFieldCount > 0 ? FIELD_ROW_HEIGHT : 0),
+        minHeight:
+          NODE_HEADER_HEIGHT +
+          SEPARATOR_HEIGHT +
+          visibleFields.length * FIELD_ROW_HEIGHT +
+          (hiddenFieldCount > 0 ? FIELD_ROW_HEIGHT : 0),
       }}
     >
       <NodeToolbar
@@ -187,17 +194,18 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
 
       {/* --- Card Header: Icon, Title, and Badge (FIXED SPACING/CRAMPING) --- */}
       <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between h-[48px] border-b border-coolgray-200">
-
         {/* ICON with margin for spacing */}
         <IconComponent className={`h-5 w-5 flex-shrink-0 ${typeConfig.IconColorClass} mr-2`} />
 
         {/* FIX: Reduced max-width to 50% for title to make space for badge */}
-        <h3 className="font-bold text-sm text-coolgray-700 truncate max-w-[50%] flex-1">{entity.name}</h3>
+        <h3 className="font-bold text-sm text-coolgray-700 truncate max-w-[50%] flex-1">
+          {entity.name}
+        </h3>
 
         {/* FIX: Badge with darker color and proper padding */}
         <Badge
           variant="default"
-          className={`text-xs py-0.5 whitespace-nowrap ${typeConfig.BadgeColorClass} px-2`}
+          className={`text-xs ml-4 py-0.5 whitespace-nowrap ${typeConfig.BadgeColorClass} px-2`}
         >
           {typeConfig.BadgeText}
         </Badge>
@@ -221,7 +229,10 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
           <div className="flex gap-2">
             {entity.sourceDLOIds && entity.sourceDLOIds.length > 0 && (
               <>
-                <span>Sources: {entity.sourceDLOIds.length} DLO{entity.sourceDLOIds.length > 1 ? 's' : ''}</span>
+                <span>
+                  Sources: {entity.sourceDLOIds.length} DLO
+                  {entity.sourceDLOIds.length > 1 ? 's' : ''}
+                </span>
                 <span>•</span>
               </>
             )}
@@ -235,7 +246,9 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
       {/* --- Card Content: Field Rows with Dynamic Hover --- */}
       <CardContent className="p-0 text-xs">
         {entity.fields.map((field: Field, index: number) => {
-          if (index >= 8) { return null };
+          if (index >= 8) {
+            return null;
+          }
           const yPos = getFieldHandleYPosition(index);
           const isTarget = true;
           const isSource = true;

@@ -5,7 +5,7 @@ import ReactFlow, {
   ReactFlowProvider,
   BackgroundVariant,
   useReactFlow,
-  Node
+  Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -60,7 +60,8 @@ function GraphViewContent({
   onGenerateDLO,
   onGenerateDMO,
 }: GraphViewProps) {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setNodes, setEdges } = useEntityStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setNodes, setEdges } =
+    useEntityStore();
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
   const search = useEntitySearch(entities, searchQuery);
@@ -77,7 +78,17 @@ function GraphViewContent({
       // Fit the view on initial load
       setTimeout(() => fitView({ padding: 0.1 }), 50);
     }
-  }, [entities, relationships, onEntityDoubleClick, onGenerateDLO, onGenerateDMO, setNodes, setEdges, nodes.length, fitView]);
+  }, [
+    entities,
+    relationships,
+    onEntityDoubleClick,
+    onGenerateDLO,
+    onGenerateDMO,
+    setNodes,
+    setEdges,
+    nodes.length,
+    fitView,
+  ]);
 
   // --- Event Handlers (omitted for brevity) ---
   const handlePaneClick = useCallback(() => {
@@ -105,10 +116,7 @@ function GraphViewContent({
 
         // 2. Persist the snapped position to storage
         onUpdateEntityPosition(node.id, snappedPosition).catch((error) => {
-          console.error(
-            'Failed to persist entity position. Rolling back/handling error.',
-            error
-          );
+          console.error('Failed to persist entity position. Rolling back/handling error.', error);
         });
       }
     },
@@ -121,15 +129,15 @@ function GraphViewContent({
   const filteredNodes = useMemo(() => {
     if (!search.hasSearchQuery) {
       // If no search is active, return all nodes ensuring search-specific data is reset.
-      return nodes.map(node => ({
+      return nodes.map((node) => ({
         ...node,
         hidden: false, // Ensure all nodes are visible
         // Clean up the data object to remove search-specific flags
         data: {
           ...node.data,
           isSearchMatch: false,
-          dimmed: false
-        }
+          dimmed: false,
+        },
       }));
     }
 
@@ -156,7 +164,8 @@ function GraphViewContent({
   }, [nodes, search.hasSearchQuery, search.matchingEntities]);
 
   const handleCenterOnEntity = useCallback(
-    (entityId: string) => { // Must accept entityId argument
+    (entityId: string) => {
+      // Must accept entityId argument
       onSelectEntity(entityId);
 
       // Center the view on the selected node using useReactFlow's fitView
@@ -181,7 +190,6 @@ function GraphViewContent({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
-        // CRITICAL UPDATE: Pass edgeTypes to enable custom edges
         edgeTypes={edgeTypes}
         minZoom={0.1}
         maxZoom={4}
@@ -190,6 +198,10 @@ function GraphViewContent({
         onNodeDragStop={handleNodeDragStop}
         proOptions={{ hideAttribution: true }}
         className="w-full h-full"
+        panOnDrag={false}
+        panOnScroll={true}
+        zoomOnScroll={true}
+        selectionOnDrag={true}
       >
         <Background
           variant={BackgroundVariant.Dots}
@@ -248,7 +260,6 @@ function GraphViewContent({
           onZoomOut={() => zoomOut()}
           onFitToScreen={() => fitView()}
         />
-
       </ReactFlow>
 
       <SearchResultsPanel
