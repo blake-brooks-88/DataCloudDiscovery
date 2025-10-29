@@ -1,12 +1,5 @@
-import { useCallback, useMemo, useEffect } from 'react';
+import { useCallback, useMemo, useEffect } from 'react'; // Import useState
 import type { Entity, Relationship } from '@shared/schema';
-import EntityNode from './EntityNode';
-import {
-  FieldLineageEdge,
-  FKReferenceEdge,
-  FeedsIntoEdge,
-  TransformsToEdge,
-} from '../../relationships';
 import ReactFlow, {
   Background,
   ReactFlowProvider,
@@ -16,7 +9,6 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-// Import the required components and mappers
 import { useEntityStore } from '../store/useEntityStore';
 import { useEntitySearch } from '../hooks/useEntitySearch';
 import { mapEntitiesToNodes, mapRelationshipsToEdges } from '../utils/nodeMapper';
@@ -25,22 +17,25 @@ import ViewportControls from './ViewportControls';
 import { SearchResultsPanel } from './SearchResultsPanel';
 import { CanvasLegend } from './CanvasLegend';
 
-// --- CRITICAL IMPLEMENTATION DETAIL: Custom Node Map ---
+import EntityNode from './EntityNode';
+import {
+  FieldLineageEdge,
+  FKReferenceEdge,
+  FeedsIntoEdge,
+  TransformsToEdge,
+} from '../../relationships';
+
 const nodeTypes = {
   entity: EntityNode,
 };
-// --- END CRITICAL IMPLEMENTATION DETAIL ---
 
-// --- CRITICAL IMPLEMENTATION DETAIL: Custom Edge Map ---
 const edgeTypes = {
   'field-lineage': FieldLineageEdge,
   'fk-reference': FKReferenceEdge,
-  'feeds-into': FeedsIntoEdge, // <-- ADD THIS
-  'transforms-to': TransformsToEdge, // <-- ADD THIS
+  'feeds-into': FeedsIntoEdge,
+  'transforms-to': TransformsToEdge,
 };
-// --- END CRITICAL IMPLEMENTATION DETAIL ---
 
-// The simplified component signature
 export interface GraphViewProps {
   entities: Entity[];
   relationships?: Relationship[];
@@ -69,26 +64,30 @@ function GraphViewContent({
 
   const search = useEntitySearch(entities, searchQuery);
 
+  // --- FIX: Data Synchronization Refactored ---
+
+  // Effect 1: Synchronize nodes when entities or their callbacks change
   useEffect(() => {
-    if (nodes.length !== entities.length) {
-      setNodes(mapEntitiesToNodes(entities, onEntityDoubleClick, onGenerateDLO, onGenerateDMO));
-      setEdges(mapRelationshipsToEdges(relationships, entities));
+    setNodes(mapEntitiesToNodes(entities, onEntityDoubleClick, onGenerateDLO, onGenerateDMO));
+  }, [entities, onEntityDoubleClick, onGenerateDLO, onGenerateDMO, setNodes]);
 
-      setTimeout(() => fitView({ padding: 0.1 }), 50);
-    }
-  }, [
-    entities,
-    relationships,
-    onEntityDoubleClick,
-    onGenerateDLO,
-    onGenerateDMO,
-    setNodes,
-    setEdges,
-    nodes.length,
-    fitView,
-  ]);
+  // Effect 2: Synchronize edges when entities OR relationships change
+  // This is the core fix. It listens for changes to 'relationships'
+  // and re-maps the edges, which was not happening before.
+  useEffect(() => {
+    setEdges(mapRelationshipsToEdges(relationships, entities));
+  }, [relationships, entities, setEdges]);
 
-  // --- Event Handlers (omitted for brevity) ---
+  // Effect 3: Fit view only once on initial mount
+  useEffect(() => {
+    // We run this with a small delay to allow the layout to settle
+    const timer = setTimeout(() => fitView({ padding: 0.1 }), 50);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitView]); // 'fitView' is stable and this will run only once
+
+  // --- End of Fix ---
+
   const handlePaneClick = useCallback(() => {
     onSelectEntity(null);
   }, [onSelectEntity]);
@@ -98,20 +97,16 @@ function GraphViewContent({
       const updatedNode = allNodes.find((n) => n.id === node.id);
 
       if (updatedNode?.position) {
-        // --- CRITICAL: GRID SNAPPING LOGIC ---
-        const GRID_SIZE = 20; // Must match your ReactFlow Background gap
+        const GRID_SIZE = 20;
         const snappedPosition = {
           x: Math.round(updatedNode.position.x / GRID_SIZE) * GRID_SIZE,
           y: Math.round(updatedNode.position.y / GRID_SIZE) * GRID_SIZE,
         };
-        // ------------------------------------
 
-        // 1. Update the Zustand store immediately with the snapped position (Optimistic update)
         setNodes(
           nodes.map((n) => (n.id === updatedNode.id ? { ...n, position: snappedPosition } : n))
         );
 
-        // 2. Persist the snapped position to storage
         onUpdateEntityPosition(node.id, snappedPosition).catch((error) => {
           console.error('Failed to persist entity position. Rolling back/handling error.', error);
         });
@@ -120,16 +115,12 @@ function GraphViewContent({
     [onUpdateEntityPosition, setNodes, nodes]
   );
 
-  // ... filteredNodes and handleCenterOnEntity remain the same ...
-  // Inside GraphViewContent.tsx
-
+  // ... (filteredNodes and handleCenterOnEntity remain the same) ...
   const filteredNodes = useMemo(() => {
     if (!search.hasSearchQuery) {
-      // If no search is active, return all nodes ensuring search-specific data is reset.
       return nodes.map((node) => ({
         ...node,
-        hidden: false, // Ensure all nodes are visible
-        // Clean up the data object to remove search-specific flags
+        hidden: false,
         data: {
           ...node.data,
           isSearchMatch: false,
@@ -142,9 +133,8 @@ function GraphViewContent({
 
     return nodes.map((node) => {
       const isMatch = matchingIds.includes(node.id);
-      const shouldDim = !isMatch; // Dim all non-matching entities (the "fade away" effect)
+      const shouldDim = !isMatch;
 
-      // Inject the match and dim flags into the node's data
       const updatedData = {
         ...node.data,
         isSearchMatch: isMatch,
@@ -154,7 +144,6 @@ function GraphViewContent({
       return {
         ...node,
         data: updatedData,
-        // We rely on EntityNode's CSS (opacity-30) for dimming, so we keep the node visible (hidden: false)
         hidden: false,
       };
     });
@@ -162,14 +151,10 @@ function GraphViewContent({
 
   const handleCenterOnEntity = useCallback(
     (entityId: string) => {
-      // Must accept entityId argument
       onSelectEntity(entityId);
 
-      // Center the view on the selected node using useReactFlow's fitView
       fitView({
-        // Provide target node information (or use fitView() with no args for the whole graph)
-        // Since your nodes are managed via Zustand, React Flow knows their positions.
-        nodes: [{ id: entityId, width: 320, height: 100, position: { x: 0, y: 0 } }], // Use 320px width
+        nodes: [{ id: entityId, width: 320, height: 100, position: { x: 0, y: 0 } }],
         duration: 300,
         maxZoom: 2,
         padding: 0.5,
@@ -207,10 +192,8 @@ function GraphViewContent({
           color={'#E2E8F0'} //CoolGray-50
         />
 
-        {/* This is where the Crow's Foot SVG Markers should be defined */}
         <svg style={{ position: 'absolute', opacity: 0 }}>
           <defs>
-            {/* Minimal example of a 'one' marker for the end of the line */}
             <marker
               id="cf-one"
               viewBox="0 0 10 10"
@@ -223,7 +206,6 @@ function GraphViewContent({
             >
               <path d="M 0 5 L 10 5" stroke="#64748B" strokeWidth="2" fill="none" />
             </marker>
-            {/* Minimal example of a 'many' marker for the start of the line */}
             <marker
               id="cf-many"
               viewBox="0 0 10 10"
@@ -236,7 +218,6 @@ function GraphViewContent({
             >
               <path d="M 10 0 L 0 5 L 10 10" stroke="#64748B" strokeWidth="2" fill="none" />
             </marker>
-            {/* Define the green arrow for lineage */}
             <marker
               id="arrow-green"
               viewBox="0 0 10 10"
@@ -249,6 +230,7 @@ function GraphViewContent({
             >
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#BED163" />
             </marker>
+            {/* You will need markers for the 'feeds-into' (blue) edge here too */}
           </defs>
         </svg>
 
@@ -267,7 +249,6 @@ function GraphViewContent({
       <CanvasLegend />
 
       {entities.length === 0 && (
-        // ... (No entities message) ...
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
           <div className="text-center">
             <p className="text-xl font-semibold text-coolgray-400">No entities yet</p>

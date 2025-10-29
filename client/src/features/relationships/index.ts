@@ -6,4 +6,4 @@ export { default as TransformsToEdge } from './components/TransformsToEdge';
 
 export { useRelationshipActions } from './hooks/useRelationshipActions';
 export { EntityLevelLine } from './components/EntityLevelLine';
-// export { FieldLevelLine } from './components/FieldLevelLine'
+export { useRelationshipRules } from './hooks/useRelationshipRules';

@@ -1,16 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  Plus,
-  Trash2,
-  Key,
-  Link as LinkIcon,
-  Lock,
-  Eye,
-  EyeOff,
-  ChevronDown,
-  ChevronUp,
-  Edit,
-} from 'lucide-react';
+import { Plus, Trash2, Key, Link as LinkIcon, Lock, Eye, EyeOff, Edit } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,30 +20,14 @@ import type {
   Field,
   FieldType,
   EntityType,
-  Cardinality,
   DataSource,
   Relationship,
 } from '@shared/schema';
-import { getEntityCardStyle } from '@/styles/dataCloudStyles'; // Restored import
+import { getEntityCardStyle } from '@/styles/dataCloudStyles';
 
 /**
- * A modal dialog for creating or editing an entity.
- * It includes tabs for entity details and relationship management.
- *
- * @param {object} props
- * @param {boolean} props.isOpen - Whether the modal is open.
- * @param {() => void} props.onClose - Function to call when the modal is closed.
- * @param {Entity | null} props.entity - The entity to edit, or null to create a new one.
- * @param {Entity[]} props.entities - List of all entities in the project (for relationship linking).
- * @param {DataSource[]} props.dataSources - List of available data sources.
- * @param {Relationship[] | undefined} props.relationships - List of relationships for the current project.
- * @param {(entity: Partial<Entity>) => void} props.onSave - Callback function when saving the entity.
- * @param {(dataSource: Partial<DataSource>) => void} props.onCreateDataSource - Callback to create a new data source.
- * @param {(prefilledEntityId?: string) => void} [props.onOpenRelationshipBuilder] - Optional callback to open the relationship builder.
- * @param {(relationship: Relationship) => void} [props.onEditRelationship] - Optional callback to edit an existing relationship.
- * @returns {JSX.Element}
+ * Interface for EntityModal component props.
  */
-
 export interface EntityModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -63,11 +36,17 @@ export interface EntityModalProps {
   dataSources: DataSource[];
   relationships?: Relationship[];
   onSave: (entity: Partial<Entity>) => void;
+  // NEW PROP: Callback to update a specific field on the entity.
+  // This will be used by the RelationshipBuilder to save FK data.
+  onUpdateField: (entityId: string, fieldId: string, updates: Partial<Field>) => void;
   onCreateDataSource: (dataSource: Partial<DataSource>) => void;
   onOpenRelationshipBuilder?: (prefilledEntityId?: string) => void;
   onEditRelationship?: (relationship: Relationship) => void;
 }
 
+/**
+ * A modal dialog for creating or editing an entity.
+ */
 export default function EntityModal({
   isOpen,
   onClose,
@@ -86,7 +65,7 @@ export default function EntityModal({
   const [businessPurpose, setBusinessPurpose] = useState('');
   const [fields, setFields] = useState<Field[]>([]);
 
-  // Data Cloud metadata
+  // Data Cloud metadata state remains the same...
   const [profileObjectType, setProfileObjectType] = useState<
     'Profile' | 'Engagement' | 'Other' | 'TBD'
   >('TBD');
@@ -107,7 +86,7 @@ export default function EntityModal({
     fields?: Field[];
   };
 
-  // Effect to reset form state when modal opens or entity changes
+  // useEffect for resetting form state remains the same...
   useEffect(() => {
     if (entity) {
       setName(entity.name || '');
@@ -122,12 +101,11 @@ export default function EntityModal({
       setDataSourceId(entity.dataCloudMetadata?.streamConfig?.dataSourceId || '');
       setSourceObjectName(entity.dataCloudMetadata?.streamConfig?.sourceObjectName || '');
     } else if (activeTab === 'details' && entityType === 'data-stream') {
-      // Check localStorage for a draft
       const draftsJSON = localStorage.getItem('dataStreamDrafts');
       if (draftsJSON) {
         try {
           const drafts = JSON.parse(draftsJSON) as Record<string, DataStreamDraft>;
-          const draft = drafts['currentDraft']; // or some key based on your app logic
+          const draft = drafts['currentDraft'];
           if (draft) {
             setName(draft.name || '');
             setDataSourceId(draft.dataSourceId || '');
@@ -142,7 +120,6 @@ export default function EntityModal({
         }
       }
     } else {
-      // Reset to default state for a new entity
       setName('');
       setEntityType('dmo');
       setDataSource('');
@@ -157,12 +134,9 @@ export default function EntityModal({
     }
   }, [entity, isOpen, activeTab, entityType]);
 
-  /**
-   * Adds a new, empty field to the local state.
-   */
   const handleAddField = () => {
     const newField: Field = {
-      id: `field-${Date.now()}`, // Simple unique ID for local state
+      id: `field-${Date.now()}`,
       name: '',
       type: 'string',
       isPK: false,
@@ -172,26 +146,14 @@ export default function EntityModal({
     setFields([...fields, newField]);
   };
 
-  /**
-   * Removes a field from the local state by its ID.
-   * @param {string} fieldId - The ID of the field to remove.
-   */
   const handleRemoveField = (fieldId: string) => {
     setFields(fields.filter((f) => f.id !== fieldId));
   };
 
-  /**
-   * Updates a specific field in the local state.
-   * @param {string} fieldId - The ID of the field to update.
-   * @param {Partial<Field>} updates - The partial field object with updates.
-   */
   const handleFieldChange = (fieldId: string, updates: Partial<Field>) => {
     setFields(fields.map((f) => (f.id === fieldId ? { ...f, ...updates } : f)));
   };
 
-  /**
-   * Compiles the local state into a partial Entity object and calls the onSave prop.
-   */
   const handleSave = () => {
     const updatedEntity: Partial<Entity> = {
       ...(entity?.id && { id: entity.id }),
@@ -200,15 +162,9 @@ export default function EntityModal({
       dataSource,
       businessPurpose,
       fields,
-      // Consolidate Data Cloud metadata based on entity type
       dataCloudMetadata: {
-        ...(entityType === 'dmo' && {
-          profileObjectType,
-          objectType: 'DMO' as const,
-        }),
-        ...(entityType === 'dlo' && {
-          objectType: 'DLO' as const,
-        }),
+        ...(entityType === 'dmo' && { profileObjectType, objectType: 'DMO' as const }),
+        ...(entityType === 'dlo' && { objectType: 'DLO' as const }),
         ...(entityType === 'data-stream' && {
           streamConfig: {
             refreshType,
@@ -219,18 +175,14 @@ export default function EntityModal({
         }),
         apiName: apiName || undefined,
       },
-      // Preserve existing properties not directly edited in this form
       ...(entity?.position && { position: entity.position }),
-      ...(entity?.sourceDataStreamId && {
-        sourceDataStreamId: entity.sourceDataStreamId,
-      }),
+      ...(entity?.sourceDataStreamId && { sourceDataStreamId: entity.sourceDataStreamId }),
       ...(entity?.sourceDLOIds && { sourceDLOIds: entity.sourceDLOIds }),
       ...(entity?.dataSourceId && { dataSourceId: entity.dataSourceId }),
     };
     onSave(updatedEntity);
   };
 
-  // Maps relationship types to their new theme colors
   const typeColors = {
     'feeds-into': 'bg-secondary-50 text-secondary-700 border-secondary-300',
     'transforms-to': 'bg-tertiary-50 text-tertiary-700 border-tertiary-300',
@@ -274,6 +226,7 @@ export default function EntityModal({
           </TabsList>
 
           <TabsContent value="details" className="flex-1 overflow-y-auto px-6 py-4 space-y-6 mt-0">
+            {/* --- General Entity Details Section --- */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="entity-name" className="text-[14px] font-medium text-coolgray-500">
@@ -312,6 +265,7 @@ export default function EntityModal({
                 </Select>
               </div>
 
+              {/* Conditional fields based on entityType remain the same... */}
               {entityType === 'dmo' && (
                 <>
                   <div>
@@ -513,6 +467,7 @@ export default function EntityModal({
               )}
             </div>
 
+            {/* --- Fields Section --- */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <Label className="text-[14px] font-medium text-coolgray-600">Fields</Label>
@@ -548,6 +503,7 @@ export default function EntityModal({
             </div>
           </TabsContent>
 
+          {/* --- Relationships Tab --- */}
           <TabsContent value="relationships" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
             {!entity ? (
               <div className="text-center py-12 text-coolgray-400">
@@ -573,6 +529,7 @@ export default function EntityModal({
                   )}
                 </div>
 
+                {/* Relationship list remains the same... */}
                 {relationships &&
                 relationships.filter(
                   (r) => r.sourceEntityId === entity.id || r.targetEntityId === entity.id
@@ -729,6 +686,7 @@ export default function EntityModal({
           </TabsContent>
         </Tabs>
 
+        {/* --- Footer Buttons --- */}
         <div className="border-t border-coolgray-200 px-6 py-4 flex justify-end gap-2">
           <Button
             variant="outline"
@@ -754,18 +712,7 @@ export default function EntityModal({
 
 /**
  * A sub-component for rendering a single field row within the EntityModal.
- * Includes inputs for name, type, and advanced properties.
- *
- * @param {object} props
- * @param {Field} props.field - The field object to display/edit.
- * @param {Entity[]} props.entities - List of all entities (for FK target selection).
- * @param {string | undefined} props.currentEntityId - The ID of the entity being edited.
- * @param {EntityType} props.currentEntityType - The type of the entity being edited.
- * @param {(updates: Partial<Field>) => void} props.onUpdate - Callback to update the field's state.
- * @param {() => void} props.onRemove - Callback to remove the field.
- * @returns {JSX.Element}
  */
-
 interface FieldRowProps {
   field: Field;
   entities: Entity[];
@@ -775,12 +722,14 @@ interface FieldRowProps {
   onRemove: () => void;
 }
 
-function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: FieldRowProps) {
+function FieldRow({ field, entities, onUpdate, onRemove }: FieldRowProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showFKConfig, setShowFKConfig] = useState(false);
+  // REMOVED: State for showing FK config is no longer needed
+  // const [showFKConfig, setShowFKConfig] = useState(false);
 
   // Users cannot create a foreign key relationship to the entity itself.
-  const availableEntities = entities.filter((e) => e.id !== currentEntityId);
+  // This logic is moved to RelationshipBuilder
+  // const availableEntities = entities.filter((e) => e.id !== currentEntityId);
 
   return (
     <div className="border border-coolgray-200 rounded-xl p-3 space-y-3 bg-coolgray-50">
@@ -817,6 +766,7 @@ function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: Fiel
               <SelectItem value="uuid">uuid</SelectItem>
               <SelectItem value="email">email</SelectItem>
               <SelectItem value="phone">phone</SelectItem>
+              {/* Add other types as needed */}
             </SelectContent>
           </Select>
         </div>
@@ -832,22 +782,19 @@ function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: Fiel
             PK
           </label>
           <label className="flex items-center gap-1 text-[12px] text-coolgray-600">
-            <Checkbox
-              checked={field.isFK}
-              onCheckedChange={(checked) => {
-                onUpdate({ isFK: checked as boolean });
-                if (checked) {
-                  setShowFKConfig(true);
-                }
-              }}
-              data-testid={`checkbox-fk-${field.id}`}
-            />
+            {/* REMOVED: FK Checkbox - FKs are now managed by RelationshipBuilder */}
             <LinkIcon className="h-3 w-3 text-secondary-500" />
             FK
+            {field.isFK && field.fkReference && (
+              <span className="ml-1 text-[10px] text-coolgray-400 italic">
+                (references{' '}
+                {entities.find((e) => e.id === field.fkReference?.targetEntityId)?.name || '...'})
+              </span>
+            )}
           </label>
           <label className="flex items-center gap-1 text-[12px] text-coolgray-600">
             <Checkbox
-              checked={field.containsPII}
+              checked={!!field.containsPII} // Ensure boolean
               onCheckedChange={(checked) => onUpdate({ containsPII: checked as boolean })}
               data-testid={`checkbox-pii-${field.id}`}
             />
@@ -890,153 +837,11 @@ function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: Fiel
         </div>
       </div>
 
-      {field.isFK && (
-        <div className="pt-2 border-t border-coolgray-200">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowFKConfig(!showFKConfig)}
-            className="text-[12px] text-secondary-600 hover:text-secondary-700 w-full justify-between"
-            data-testid={`button-toggle-fk-config-${field.id}`}
-          >
-            <span className="flex items-center gap-1">
-              <LinkIcon className="h-3 w-3" />
-              Foreign Key Configuration
-            </span>
-            {showFKConfig ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
+      {/* REMOVED: Entire Foreign Key Configuration section */}
+      {/* The logic for creating 'references' relationships is now centralized */}
+      {/* in the RelationshipBuilder modal. */}
 
-          {showFKConfig && (
-            <div className="space-y-2 mt-2 bg-secondary-50/50 p-3 rounded-md">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label className="text-[12px] text-coolgray-600">Target Entity *</Label>
-                  <Select
-                    value={field.fkReference?.targetEntityId || ''}
-                    onValueChange={(value) => {
-                      onUpdate({
-                        fkReference: {
-                          targetEntityId: value,
-                          targetFieldId: '', // Reset target field when entity changes
-                          cardinality: field.fkReference?.cardinality || 'many-to-one',
-                          relationshipLabel: field.fkReference?.relationshipLabel,
-                        },
-                      });
-                    }}
-                  >
-                    <SelectTrigger
-                      className="text-[14px] border-coolgray-200 bg-white"
-                      data-testid={`select-target-entity-${field.id}`}
-                    >
-                      <SelectValue placeholder="Select entity..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border-coolgray-200">
-                      {availableEntities.map((e) => (
-                        <SelectItem key={e.id} value={e.id}>
-                          {e.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label className="text-[12px] text-coolgray-600">Target Field *</Label>
-                  <Select
-                    value={field.fkReference?.targetFieldId || ''}
-                    onValueChange={(value) => {
-                      if (!field.fkReference) {
-                        return;
-                      }
-                      onUpdate({
-                        fkReference: {
-                          ...field.fkReference,
-                          targetFieldId: value,
-                        },
-                      });
-                    }}
-                    disabled={!field.fkReference?.targetEntityId}
-                  >
-                    <SelectTrigger
-                      className="text-[14px] border-coolgray-200 bg-white"
-                      data-testid={`select-target-field-${field.id}`}
-                    >
-                      <SelectValue placeholder="Select field..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border-coolgray-200">
-                      {field.fkReference?.targetEntityId &&
-                        entities
-                          .find((e) => e.id === field.fkReference?.targetEntityId)
-                          ?.fields.filter((f) => f.isPK) // Only allow linking to Primary Keys
-                          .map((f) => (
-                            <SelectItem key={f.id} value={f.id}>
-                              {f.name}
-                            </SelectItem>
-                          ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label className="text-[12px] text-coolgray-600">Cardinality</Label>
-                  <Select
-                    value={field.fkReference?.cardinality || 'many-to-one'}
-                    onValueChange={(value) => {
-                      // Add this guard
-                      if (!field.fkReference) {
-                        return;
-                      }
-
-                      onUpdate({
-                        fkReference: {
-                          ...field.fkReference, // Remove the '!'
-                          cardinality: value as Cardinality,
-                        },
-                      });
-                    }}
-                  >
-                    <SelectTrigger
-                      className="text-[14px] border-coolgray-200 bg-white"
-                      data-testid={`select-cardinality-${field.id}`}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border-coolgray-200">
-                      <SelectItem value="one-to-one">One-to-One (1:1)</SelectItem>
-                      <SelectItem value="one-to-many">One-to-Many (1:M)</SelectItem>
-                      <SelectItem value="many-to-one">Many-to-One (M:1)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label className="text-[12px] text-coolgray-600">Relationship Label</Label>
-                  <Input
-                    value={field.fkReference?.relationshipLabel || ''}
-                    onChange={(e) => {
-                      // Add this guard
-                      if (!field.fkReference) {
-                        return;
-                      }
-
-                      onUpdate({
-                        fkReference: {
-                          ...field.fkReference, // Remove the '!'
-                          relationshipLabel: e.target.value,
-                        },
-                      });
-                    }}
-                    placeholder="e.g., owns, belongs to"
-                    className="text-[14px] border-coolgray-200 bg-white"
-                    data-testid={`input-relationship-label-${field.id}`}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* Advanced section remains the same... */}
       {showAdvanced && (
         <div className="space-y-2 pt-2 border-t border-coolgray-200">
           <Input
@@ -1062,7 +867,7 @@ function FieldRow({ field, entities, currentEntityId, onUpdate, onRemove }: Fiel
                 const values = e.target.value
                   .split('|')
                   .map((v) => v.trim())
-                  .filter((v) => v); // Remove empty strings
+                  .filter((v) => v);
                 onUpdate({
                   sampleValues: values.length > 0 ? values : undefined,
                 });

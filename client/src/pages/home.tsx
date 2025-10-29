@@ -1,18 +1,13 @@
 import { useProjects, useProject } from '../lib/storage';
 import { EntityModal, useEntityActions, useEntityViewState } from '../features/entities';
-import {
-  Navbar,
-  ProjectDialog,
-  useProjectActions,
-  ProjectView, // Consolidated import
-} from '../features/projects';
+import { Navbar, ProjectDialog, useProjectActions, ProjectView } from '../features/projects';
 import { DataSourceManager, useDataSourceActions } from '../features/data-sources';
 import { RelationshipBuilder, useRelationshipActions } from '../features/relationships';
 
 import { Plus } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
-import type { InsertDataSource, InsertEntity } from '@shared/schema';
+import type { InsertDataSource, InsertEntity, Field, Relationship } from '@shared/schema';
 
 export default function Home() {
   const { data: projects = [], isLoading } = useProjects();
@@ -21,15 +16,16 @@ export default function Home() {
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [isDataSourceManagerOpen, setIsDataSourceManagerOpen] = useState(false);
   const [isRelationshipBuilderOpen, setIsRelationshipBuilderOpen] = useState(false);
-  const [editingRelationship, setEditingRelationship] = useState<
-    import('@shared/schema').Relationship | null
-  >(null);
+  const [editingRelationship, setEditingRelationship] = useState<Relationship | null>(null);
+
+  // This state will hold the entity ID when opening the builder from the modal
+  const [prefilledEntityId, setPrefilledEntityId] = useState<string | undefined>();
+
   const dataSourceActions = useDataSourceActions(currentProjectId || '');
   const relationshipActions = useRelationshipActions(currentProjectId || '');
 
   const { data: currentProject } = useProject(currentProjectId);
 
-  // Search state removed - now managed in ProjectView
   const viewState = useEntityViewState();
 
   const projectActions = useProjectActions({
@@ -46,14 +42,33 @@ export default function Home() {
     onOpenEditModal: viewState.openEditModal,
   });
 
+  const handleUpdateField = (entityId: string, fieldId: string, updates: Partial<Field>) => {
+    if (!currentProject) {
+      return;
+    }
+    const entity = currentProject.entities.find((e) => e.id === entityId);
+    if (!entity) {
+      return;
+    }
+    const newFields = entity.fields.map((field) =>
+      field.id === fieldId ? { ...field, ...updates } : field
+    );
+    entityActions.handleUpdate(entityId, { fields: newFields });
+  };
+
   useEffect(() => {
     const firstProject = projects[0];
-
-    // Sets the first project as the current project on load if none is selected
     if (!currentProjectId && firstProject) {
       setCurrentProjectId(firstProject.id);
     }
   }, [projects, currentProjectId]);
+
+  // Handler to open the RelationshipBuilder from the EntityModal
+  const handleOpenRelationshipBuilder = (entityId?: string) => {
+    setPrefilledEntityId(entityId);
+    setIsRelationshipBuilderOpen(true);
+    setEditingRelationship(null); // Ensure we're in "create" mode
+  };
 
   if (isLoading) {
     return (
@@ -83,7 +98,6 @@ export default function Home() {
         <div className="fixed bottom-6 right-6 z-50">
           <button
             onClick={viewState.openCreateModal}
-            // Apply Primary-Orange color and standard shadow/shape tokens
             className="bg-primary-500 text-white rounded-full w-[56px] h-[56px] shadow-lg hover:bg-primary-600 flex items-center justify-center"
           >
             <Plus className="h-6 w-6" />
@@ -94,11 +108,9 @@ export default function Home() {
       {!currentProject ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            {/* Uses coolgray text as per style guide */}
             <h2 className="text-[24px] font-bold text-coolgray-600 mb-4">No Project Selected</h2>
             <button
               onClick={() => setIsProjectDialogOpen(true)}
-              // Apply Primary-Orange color and standard shape tokens (rounded-xl is Radius-LG)
               className="px-4 py-2 bg-primary-500 text-white rounded-xl hover:bg-primary-600"
             >
               Create Your First Project
@@ -113,12 +125,12 @@ export default function Home() {
           selectedEntityId={viewState.selectedEntityId}
           onSelectEntity={viewState.setSelectedEntityId}
           onUpdateEntityPosition={entityActions.handleUpdatePosition}
-          // WRAPPER FIX: Extracts ID from the Entity object before calling the original ID-based handler.
           onEntityDoubleClick={(entity) => entityActions.handleEntityDoubleClick(entity.id)}
           onGenerateDLO={(entity) => entityActions.generateDLO(entity.id)}
           onGenerateDMO={(entity) => entityActions.generateDMO(entity.id)}
           onOpenDataSources={() => setIsDataSourceManagerOpen(true)}
-          onOpenRelationships={() => setIsRelationshipBuilderOpen(true)}
+          // Update this to use the new handler
+          onOpenRelationships={() => handleOpenRelationshipBuilder(undefined)}
         />
       )}
 
@@ -146,8 +158,15 @@ export default function Home() {
           entities={currentProject.entities || []}
           dataSources={currentProject.dataSources || []}
           relationships={currentProject.relationships || []}
+          onUpdateField={handleUpdateField}
           onCreateDataSource={(dataSource) => {
             dataSourceActions.handleCreate(dataSource as InsertDataSource);
+          }}
+          // --- WIRE UP THE BUTTONS ---
+          onOpenRelationshipBuilder={handleOpenRelationshipBuilder}
+          onEditRelationship={(rel) => {
+            setEditingRelationship(rel);
+            setIsRelationshipBuilderOpen(true);
           }}
         />
       )}
@@ -162,19 +181,27 @@ export default function Home() {
           onDeleteDataSource={dataSourceActions.handleDelete}
         />
       )}
-      <RelationshipBuilder
-        isOpen={isRelationshipBuilderOpen}
-        onClose={() => {
-          setIsRelationshipBuilderOpen(false);
-          setEditingRelationship(null);
-        }}
-        entities={currentProject?.entities || []}
-        relationships={currentProject?.relationships || []}
-        editingRelationship={editingRelationship}
-        prefilledSourceEntityId={editingRelationship ? undefined : viewState.editingEntity?.id}
-        onSaveRelationship={relationshipActions.handleCreate}
-        onDeleteRelationship={relationshipActions.handleDelete}
-      />
+
+      {/* This component is now fully wired up */}
+      {currentProject && (
+        <RelationshipBuilder
+          isOpen={isRelationshipBuilderOpen}
+          onClose={() => {
+            setIsRelationshipBuilderOpen(false);
+            setEditingRelationship(null);
+            setPrefilledEntityId(undefined); // Clear prefill on close
+          }}
+          entities={currentProject.entities || []}
+          relationships={currentProject.relationships || []}
+          editingRelationship={editingRelationship}
+          // Use the prefilled ID from our new state
+          prefilledSourceEntityId={editingRelationship ? undefined : prefilledEntityId}
+          // --- PASS THE NEW ACTIONS ---
+          onSaveRelationship={relationshipActions.handleCreate}
+          onUpdateEntityField={handleUpdateField}
+          onDeleteRelationship={relationshipActions.handleDelete}
+        />
+      )}
     </div>
   );
 }
