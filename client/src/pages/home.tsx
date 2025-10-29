@@ -56,6 +56,14 @@ export default function Home() {
     entityActions.handleUpdate(entityId, { fields: newFields });
   };
 
+  const handleUpdateFieldMappings = (
+    entityId: string,
+    fieldMappings: import('@shared/schema').FieldMapping[]
+  ) => {
+    // Call the existing entity update action, specifically updating the fieldMappings
+    entityActions.handleUpdate(entityId, { fieldMappings });
+  };
+
   useEffect(() => {
     const firstProject = projects[0];
     if (!currentProjectId && firstProject) {
@@ -158,7 +166,7 @@ export default function Home() {
           entities={currentProject.entities || []}
           dataSources={currentProject.dataSources || []}
           relationships={currentProject.relationships || []}
-          onUpdateField={handleUpdateField}
+          onUpdateFieldMappings={handleUpdateFieldMappings}
           onCreateDataSource={(dataSource) => {
             dataSourceActions.handleCreate(dataSource as InsertDataSource);
           }}

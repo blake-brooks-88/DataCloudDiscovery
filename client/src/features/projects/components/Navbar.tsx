@@ -55,7 +55,7 @@ export function Navbar({
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <Database className="h-5 w-5 text-primary-foreground" />
             </div>
-            <h1 className="text-xl font-bold text-foreground">Schema Builder</h1>
+            <h1 className="text-xl font-bold text-foreground">Data Cloud Discovery</h1>
           </div>
 
           <DropdownMenu>
