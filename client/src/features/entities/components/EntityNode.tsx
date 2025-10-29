@@ -21,6 +21,29 @@ const NODE_HEADER_HEIGHT = 48; // p-3 + pb-2 + content height (approx 48px to th
 const SEPARATOR_HEIGHT = 1; // border-coolgray-200
 const FIELD_ROW_HEIGHT = 32; // py-1.5 (6px) + content height (16px) + py-1.5 (6px) = 28px. Using 32px for safe alignment on 4-point grid.
 
+const TYPE_STYLE_MAP = {
+  'data-stream': {
+    // Blue for Data Stream (using secondary color token)
+    base: 'border-secondary-500 bg-secondary-50 text-secondary-800',
+    selected: 'ring-secondary-200',
+  },
+  'dlo': {
+    // Green/Lime for DLO (using tertiary color token)
+    base: 'border-tertiary-500 bg-tertiary-50 text-tertiary-800',
+    selected: 'ring-tertiary-200',
+  },
+  'dmo': {
+    // Orange for DMO (using primary color token)
+    base: 'border-primary-500 bg-primary-50 text-primary-800',
+    selected: 'ring-primary-200',
+  },
+  // Default fallback for any other type (e.g., plain Entity)
+  'default': {
+    base: 'border-coolgray-200 bg-white text-coolgray-600',
+    selected: 'ring-primary-200', // Use primary ring color for selected default
+  }
+} as const; // 'as const' helps TypeScript ensure string literals are used
+
 /**
  * Calculates the Y-position for a React Flow Handle for a specific field index.
  * The Y position is relative to the top of the node card.
@@ -50,6 +73,14 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
   const { entity, onDoubleClick, onGenerateDLO, onGenerateDMO } = props.data;
   const isSelected = props.selected;
 
+  const typeStyle = useMemo(() => {
+    // Use the entity's type to look up the color map, with a fallback
+    const typeKey = entity.type in TYPE_STYLE_MAP ? entity.type : 'default';
+    return TYPE_STYLE_MAP[typeKey as keyof typeof TYPE_STYLE_MAP];
+  }, [entity.type]);
+
+
+
   // --- Handlers for Domain Actions (Memoized for performance) ---
   const handleGenerateDLO = useCallback(() => {
     if (onGenerateDLO) {
@@ -71,14 +102,15 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
 
   // --- Dynamic Styling based on Design Tokens in tailwind.config ---
   const cardClasses = `
-    w-64 max-w-sm border-2 transition-all duration-150 ease-in-out
-    shadow-md rounded-lg bg-white text-coolgray-600 
-    ${isSelected
-      ? 'border-secondary-500 ring-4 ring-secondary-200'
-      : 'border-coolgray-200 hover:shadow-lg'
+  w-64 max-w-sm border-2 transition-all duration-150 ease-in-out
+  shadow-md rounded-lg
+  ${typeStyle.base} 
+  ${isSelected
+      ? `${typeStyle.selected} ring-4` // Apply type-specific ring
+      : 'hover:shadow-lg'
     }
-    nopan
-  `;
+  nopan
+`;
 
   // Get the first 4 fields to display
   const visibleFields = useMemo(() => entity.fields.slice(0, 4), [entity.fields]);

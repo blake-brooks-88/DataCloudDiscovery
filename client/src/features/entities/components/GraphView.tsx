@@ -5,6 +5,7 @@ import ReactFlow, {
   ReactFlowProvider,
   BackgroundVariant,
   useReactFlow,
+  Node
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -71,7 +72,7 @@ function GraphViewContent({
       setNodes(mapEntitiesToNodes(entities, onEntityDoubleClick, onGenerateDLO, onGenerateDMO));
 
       // CRITICAL UPDATE: Pass entities to mapRelationshipsToEdges to resolve field positions
-      setEdges(mapRelationshipsToEdges(relationships, entities));
+      setEdges(mapRelationshipsToEdges(relationships));
 
       // Fit the view on initial load
       setTimeout(() => fitView({ padding: 0.1 }), 50);
@@ -85,8 +86,31 @@ function GraphViewContent({
 
   // ... handleNodeDragStop remains the same ...
   const handleNodeDragStop = useCallback(
-    (_event: React.MouseEvent) => {
-      // ... (logic from original GraphView.tsx) ...
+    (_event: React.MouseEvent, node: Node, allNodes: Node[]) => {
+      const updatedNode = allNodes.find((n) => n.id === node.id);
+
+      if (updatedNode?.position) {
+        // --- CRITICAL: GRID SNAPPING LOGIC ---
+        const GRID_SIZE = 20; // Must match your ReactFlow Background gap
+        const snappedPosition = {
+          x: Math.round(updatedNode.position.x / GRID_SIZE) * GRID_SIZE,
+          y: Math.round(updatedNode.position.y / GRID_SIZE) * GRID_SIZE,
+        };
+        // ------------------------------------
+
+        // 1. Update the Zustand store immediately with the snapped position (Optimistic update)
+        setNodes(
+          nodes.map((n) => (n.id === updatedNode.id ? { ...n, position: snappedPosition } : n))
+        );
+
+        // 2. Persist the snapped position to storage
+        onUpdateEntityPosition(node.id, snappedPosition).catch((error) => {
+          console.error(
+            'Failed to persist entity position. Rolling back/handling error.',
+            error
+          );
+        });
+      }
     },
     [onUpdateEntityPosition, setNodes, nodes]
   );
