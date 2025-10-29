@@ -114,6 +114,7 @@ export const fieldMappingSchema = z.object({
   sourceEntityId: z.string(),
   sourceFieldId: z.string(),
   transformDescription: z.string().optional(),
+  waypoints: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
 });
 
 export type FieldMapping = z.infer<typeof fieldMappingSchema>;
