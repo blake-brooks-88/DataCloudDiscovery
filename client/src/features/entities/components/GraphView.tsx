@@ -3,7 +3,6 @@ import type { Entity, Relationship } from '@shared/schema';
 import ReactFlow, {
   Background,
   ReactFlowProvider,
-  Node,
   BackgroundVariant,
   useReactFlow,
 } from 'reactflow';
@@ -86,7 +85,7 @@ function GraphViewContent({
 
   // ... handleNodeDragStop remains the same ...
   const handleNodeDragStop = useCallback(
-    (_event: React.MouseEvent, node: Node, allNodes: Node[]) => {
+    (_event: React.MouseEvent) => {
       // ... (logic from original GraphView.tsx) ...
     },
     [onUpdateEntityPosition, setNodes, nodes]
@@ -100,7 +99,7 @@ function GraphViewContent({
 
   const handleCenterOnEntity = useCallback(
     // ... (logic from original GraphView.tsx) ...
-    (entityId: string) => { },
+    () => { },
     [fitView, onSelectEntity]
   );
 
