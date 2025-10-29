@@ -1,48 +1,54 @@
-import { useState } from 'react';
-import type { Entity, FieldType } from '@shared/schema';
+import { useState, useCallback } from 'react';
+import type { Entity } from '@shared/schema';
 
-type ViewMode = 'graph' | 'table';
+export type ViewMode = 'graph' | 'table';
+
+interface EntityViewState {
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+  isEntityModalOpen: boolean;
+  editingEntity: Entity | null;
+  selectedEntityId: string | null;
+  setSelectedEntityId: (id: string | null) => void;
+  openCreateModal: () => void;
+  openEditModal: (entity: Entity) => void;
+  closeModal: () => void;
+}
 
 /**
- * Manages entity view state including selection, filters, and modal visibility.
- * Separates UI state management from business logic.
+ * Hook for managing entity view state (modals, view mode, selection).
+ * NOTE: Search state has been moved to useSearchState to prevent unnecessary re-renders.
  *
- * @returns View state and state management functions
+ * @returns View state management methods and values
  */
-export function useEntityViewState() {
+export function useEntityViewState(): EntityViewState {
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<FieldType | 'all'>('all');
   const [isEntityModalOpen, setIsEntityModalOpen] = useState(false);
   const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
-  const openCreateModal = () => {
+  const openCreateModal = useCallback(() => {
     setEditingEntity(null);
     setIsEntityModalOpen(true);
-  };
+  }, []);
 
-  const openEditModal = (entity: Entity) => {
+  const openEditModal = useCallback((entity: Entity) => {
     setEditingEntity(entity);
     setIsEntityModalOpen(true);
-  };
+  }, []);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setIsEntityModalOpen(false);
     setEditingEntity(null);
-  };
+  }, []);
 
   return {
     viewMode,
     setViewMode,
-    selectedEntityId,
-    setSelectedEntityId,
-    searchQuery,
-    setSearchQuery,
-    typeFilter,
-    setTypeFilter,
     isEntityModalOpen,
     editingEntity,
+    selectedEntityId,
+    setSelectedEntityId,
     openCreateModal,
     openEditModal,
     closeModal,

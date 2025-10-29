@@ -16,20 +16,23 @@ interface DragState {
  * Return type for the useEntityDrag hook.
  */
 export interface UseEntityDragReturn {
-  dragState: DragState | null;
+  /** The ID of the entity currently being dragged, or null. */
+  draggedEntityId: string | null;
+  /** Local position overrides during drag for optimistic updates */
+  draggedEntityPosition: { entityId: string; x: number; y: number } | null;
   handleEntityDragStart: (entityId: string, e: React.DragEvent) => void;
   handleEntityDrag: (e: React.DragEvent) => void;
   handleEntityDragEnd: () => void;
 }
 
 /**
- * Hook for managing entity drag-and-drop operations on the canvas.
- * Tracks drag state and calculates entity positions during drag operations,
- * with final snap-to-grid on drop.
+ * Optimized hook for entity drag-and-drop with local state management.
+ * Uses local state during drag for 60fps performance, only persisting on drop.
+ * This prevents laggy updates caused by frequent storage writes during drag.
  *
  * @param {RefObject<HTMLDivElement>} canvasRef - Ref to the canvas container element
  * @param {Entity[]} entities - Array of entities for position lookups
- * @param {function} onUpdateEntityPosition - Callback to persist position updates
+ * @param {function} onUpdateEntityPosition - Callback to persist position on drop only
  * @returns {UseEntityDragReturn}
  */
 export function useEntityDrag(
@@ -38,10 +41,22 @@ export function useEntityDrag(
   onUpdateEntityPosition: (entityId: string, position: { x: number; y: number }) => void
 ): UseEntityDragReturn {
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [draggedEntityPosition, setDraggedEntityPosition] = useState<{
+    entityId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // This property is used in GraphView to conditionally hide the source entity
+  const draggedEntityId = dragState?.entityId ?? null;
 
   const handleEntityDragStart = useCallback(
     (entityId: string, e: React.DragEvent) => {
       e.stopPropagation();
+
+      // To prevent the double-node issue, we explicitly hide the native drag image.
+      e.dataTransfer.setDragImage(new Image(), 0, 0);
+
       const entity = entities.find((ent) => ent.id === entityId);
       if (!entity) {
         return;
@@ -76,34 +91,44 @@ export function useEntityDrag(
       }
 
       const rect = canvasRef.current.getBoundingClientRect();
+      // Calculate new position based on current mouse position and stored offset
       const newX = e.clientX - rect.left - dragState.offsetX;
       const newY = e.clientY - rect.top - dragState.offsetY;
 
-      onUpdateEntityPosition(dragState.entityId, { x: newX, y: newY });
+      // Update local state only - no storage writes during drag
+      setDraggedEntityPosition({
+        entityId: dragState.entityId,
+        x: newX,
+        y: newY,
+      });
     },
-    [dragState, canvasRef, onUpdateEntityPosition]
+    [dragState, canvasRef]
   );
 
   const handleEntityDragEnd = useCallback(() => {
-    if (!dragState) {
+    if (!dragState || !draggedEntityPosition) {
+      setDragState(null);
+      setDraggedEntityPosition(null);
       return;
     }
 
-    const entity = entities.find((e) => e.id === dragState.entityId);
-    if (entity?.position) {
-      const GRID_SIZE = 20;
-      const snappedPosition = {
-        x: Math.round(entity.position.x / GRID_SIZE) * GRID_SIZE,
-        y: Math.round(entity.position.y / GRID_SIZE) * GRID_SIZE,
-      };
-      onUpdateEntityPosition(dragState.entityId, snappedPosition);
-    }
+    const GRID_SIZE = 20;
+    // Snap the final position to the 4-point grid (20px snap interval)
+    const snappedPosition = {
+      x: Math.round(draggedEntityPosition.x / GRID_SIZE) * GRID_SIZE,
+      y: Math.round(draggedEntityPosition.y / GRID_SIZE) * GRID_SIZE,
+    };
+
+    // Only persist to storage once, on drop
+    onUpdateEntityPosition(dragState.entityId, snappedPosition);
 
     setDragState(null);
-  }, [dragState, entities, onUpdateEntityPosition]);
+    setDraggedEntityPosition(null);
+  }, [dragState, draggedEntityPosition, onUpdateEntityPosition]);
 
   return {
-    dragState,
+    draggedEntityId,
+    draggedEntityPosition,
     handleEntityDragStart,
     handleEntityDrag,
     handleEntityDragEnd,

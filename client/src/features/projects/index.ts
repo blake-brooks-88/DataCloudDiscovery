@@ -3,3 +3,5 @@ export { Toolbar } from './components/Toolbar';
 export { ProjectDialog } from './components/ProjectDialog';
 
 export { useProjectActions } from './hooks/useProjectActions';
+
+export { ProjectView } from './components/ProjectView';

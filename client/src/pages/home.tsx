@@ -1,17 +1,13 @@
-import { useProjects, useProject } from '@/lib/storage';
+import { useProjects, useProject } from '../lib/storage';
+import { EntityModal, useEntityActions, useEntityViewState } from '../features/entities';
 import {
-  GraphView,
-  ListView,
-  EntityModal,
-  useEntityActions,
-  useEntityViewState,
-} from '@/features/entities';
-
-import { Navbar, Toolbar, ProjectDialog, useProjectActions } from '@/features/projects';
-
-import { DataSourceManager, useDataSourceActions } from '@/features/data-sources';
-
-import { RelationshipBuilder, useRelationshipActions } from '@/features/relationships';
+  Navbar,
+  ProjectDialog,
+  useProjectActions,
+  ProjectView, // Consolidated import
+} from '../features/projects';
+import { DataSourceManager, useDataSourceActions } from '../features/data-sources';
+import { RelationshipBuilder, useRelationshipActions } from '../features/relationships';
 
 import { Plus } from 'lucide-react';
 
@@ -33,6 +29,7 @@ export default function Home() {
 
   const { data: currentProject } = useProject(currentProjectId);
 
+  // Search state removed - now managed in ProjectView
   const viewState = useEntityViewState();
 
   const projectActions = useProjectActions({
@@ -46,12 +43,13 @@ export default function Home() {
   });
 
   const entityActions = useEntityActions(currentProjectId || '', currentProject || null, {
-    onOpenEditModal: viewState.openEditModal, // Pass the callback
+    onOpenEditModal: viewState.openEditModal,
   });
 
   useEffect(() => {
     const firstProject = projects[0];
 
+    // Sets the first project as the current project on load if none is selected
     if (!currentProjectId && firstProject) {
       setCurrentProjectId(firstProject.id);
     }
@@ -82,20 +80,10 @@ export default function Home() {
       />
 
       {currentProject && (
-        <Toolbar
-          viewMode={viewState.viewMode}
-          onViewModeChange={viewState.setViewMode}
-          searchQuery={viewState.searchQuery}
-          onSearchChange={viewState.setSearchQuery}
-          onOpenDataSources={() => setIsDataSourceManagerOpen(true)}
-          onOpenRelationships={() => setIsRelationshipBuilderOpen(true)}
-        />
-      )}
-
-      {currentProject && (
         <div className="fixed bottom-6 right-6 z-50">
           <button
             onClick={viewState.openCreateModal}
+            // Apply Primary-Orange color and standard shadow/shape tokens
             className="bg-primary-500 text-white rounded-full w-[56px] h-[56px] shadow-lg hover:bg-primary-600 flex items-center justify-center"
           >
             <Plus className="h-6 w-6" />
@@ -103,47 +91,36 @@ export default function Home() {
         </div>
       )}
 
-      <div className="flex-1 overflow-hidden">
-        {!currentProject ? (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center">
-              <h2 className="text-[24px] font-bold text-coolgray-600 mb-4">No Project Selected</h2>
-              <button
-                onClick={() => setIsProjectDialogOpen(true)}
-                className="px-4 py-2 bg-primary-500 text-white rounded-xl hover:bg-primary-600"
-              >
-                Create Your First Project
-              </button>
-            </div>
+      {!currentProject ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            {/* Uses coolgray text as per style guide */}
+            <h2 className="text-[24px] font-bold text-coolgray-600 mb-4">No Project Selected</h2>
+            <button
+              onClick={() => setIsProjectDialogOpen(true)}
+              // Apply Primary-Orange color and standard shape tokens (rounded-xl is Radius-LG)
+              className="px-4 py-2 bg-primary-500 text-white rounded-xl hover:bg-primary-600"
+            >
+              Create Your First Project
+            </button>
           </div>
-        ) : (
-          <>
-            {viewState.viewMode === 'graph' && (
-              <GraphView
-                entities={currentProject.entities || []}
-                relationships={currentProject.relationships || []}
-                selectedEntityId={viewState.selectedEntityId}
-                searchQuery={viewState.searchQuery}
-                onSelectEntity={viewState.setSelectedEntityId}
-                onUpdateEntityPosition={entityActions.handleUpdatePosition}
-                onEntityDoubleClick={entityActions.handleEntityDoubleClick}
-                onGenerateDLO={entityActions.generateDLO}
-                onGenerateDMO={entityActions.generateDMO}
-                onUpdateRelationshipWaypoints={() => {
-                  // TODO: Implement waypoint persistence
-                }}
-              />
-            )}
-
-            {viewState.viewMode === 'table' && (
-              <ListView
-                entities={currentProject.entities || []}
-                onEntityClick={viewState.setSelectedEntityId}
-              />
-            )}
-          </>
-        )}
-      </div>
+        </div>
+      ) : (
+        <ProjectView
+          viewMode={viewState.viewMode}
+          onViewModeChange={viewState.setViewMode}
+          currentProject={currentProject}
+          selectedEntityId={viewState.selectedEntityId}
+          onSelectEntity={viewState.setSelectedEntityId}
+          onUpdateEntityPosition={entityActions.handleUpdatePosition}
+          // WRAPPER FIX: Extracts ID from the Entity object before calling the original ID-based handler.
+          onEntityDoubleClick={(entity) => entityActions.handleEntityDoubleClick(entity.id)}
+          onGenerateDLO={(entity) => entityActions.generateDLO(entity.id)}
+          onGenerateDMO={(entity) => entityActions.generateDMO(entity.id)}
+          onOpenDataSources={() => setIsDataSourceManagerOpen(true)}
+          onOpenRelationships={() => setIsRelationshipBuilderOpen(true)}
+        />
+      )}
 
       <ProjectDialog
         isOpen={isProjectDialogOpen}
@@ -170,7 +147,6 @@ export default function Home() {
           dataSources={currentProject.dataSources || []}
           relationships={currentProject.relationships || []}
           onCreateDataSource={(dataSource) => {
-            // Type assertion since EntityModal should only pass valid complete data sources
             dataSourceActions.handleCreate(dataSource as InsertDataSource);
           }}
         />

@@ -21,3 +21,5 @@ export { CanvasLegend } from './components/CanvasLegend';
 export { SearchResultsPanel } from './components/SearchResultsPanel';
 export { ViewportControls } from './components/ViewportControls';
 export { RelationshipLayer } from './components/RelationshipLayer';
+export { useSearchState } from './hooks/useSearchState';
+export type { ViewMode } from './hooks/useEntityViewState';
