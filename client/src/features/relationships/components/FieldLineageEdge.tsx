@@ -26,7 +26,7 @@ const FieldLineageEdge: React.FC<EdgeProps<CustomEdgeData>> = ({
     // CRITICAL: We accept all required React Flow props (even if not used for path calc)
     // sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition,
 }) => {
-    if (!data) return null;
+    if (!data) { return null };
 
     // FIX: Destructure the 'path' string directly from the returned object.
     const { path } = getOrthogonalPath({

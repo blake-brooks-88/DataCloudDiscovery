@@ -25,7 +25,7 @@ export const getFeedsIntoPath = (sourceEntity: Entity, targetEntity: Entity): st
     const dy = tCenter.y - sCenter.y;
 
     let sourcePos: Position, targetPos: Position;
-    let startX: number, startY: number, endX: number, endY: number;
+
 
     // 1. Smart Edge Detection (Determine connection edges based on proximity)
     if (Math.abs(dx) > Math.abs(dy)) {
@@ -53,11 +53,11 @@ export const getFeedsIntoPath = (sourceEntity: Entity, targetEntity: Entity): st
     }
 
     // 2. Set absolute start/end points based on determined position
-    startX = sX + (sourcePos === Position.Right ? NODE_WIDTH : 0) + (sourcePos === Position.Left ? 0 : NODE_WIDTH / 2);
-    startY = sY + (sourcePos === Position.Bottom ? NODE_HEIGHT : 0) + (sourcePos === Position.Top ? 0 : NODE_HEIGHT / 2);
+    const startX: number = sX + (sourcePos === Position.Right ? NODE_WIDTH : 0) + (sourcePos === Position.Left ? 0 : NODE_WIDTH / 2);
+    const startY: number = sY + (sourcePos === Position.Bottom ? NODE_HEIGHT : 0) + (sourcePos === Position.Top ? 0 : NODE_HEIGHT / 2);
 
-    endX = tX + (targetPos === Position.Right ? NODE_WIDTH : 0) + (targetPos === Position.Left ? 0 : NODE_WIDTH / 2);
-    endY = tY + (targetPos === Position.Bottom ? NODE_HEIGHT : 0) + (targetPos === Position.Top ? 0 : NODE_HEIGHT / 2);
+    const endX: number = tX + (targetPos === Position.Right ? NODE_WIDTH : 0) + (targetPos === Position.Left ? 0 : NODE_WIDTH / 2);
+    const endY: number = tY + (targetPos === Position.Bottom ? NODE_HEIGHT : 0) + (targetPos === Position.Top ? 0 : NODE_HEIGHT / 2);
 
     // 3. Use getSmoothStepPath to ensure orthogonal segments (React Flow utility)
     // This is a reliable way to get a Manhattan path without complex custom logic.

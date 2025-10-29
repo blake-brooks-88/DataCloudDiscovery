@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo } from 'react';
 import { NodeProps, Handle, Position, NodeToolbar } from 'reactflow';
-import { Table, Trash2, Code, Download, ChevronDown } from 'lucide-react';
-import { Field } from '@shared/schema';
+import { Table, Trash2, Code, Download, ChevronDown, Waves, Cylinder, Layers, Wand } from 'lucide-react';
+import type { Field } from '@shared/schema';
+import { Badge } from '@/components/ui/badge';
 
 import { EntityNodeData } from '../utils/nodeMapper';
 
@@ -15,45 +16,67 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-// --- Layout Constants (Derived from 4-Point Grid tailwind.config ---
-// These are necessary for calculating the precise Y-position of the Handles.
-const NODE_HEADER_HEIGHT = 48; // p-3 + pb-2 + content height (approx 48px to the separator)
-const SEPARATOR_HEIGHT = 1; // border-coolgray-200
-const FIELD_ROW_HEIGHT = 32; // py-1.5 (6px) + content height (16px) + py-1.5 (6px) = 28px. Using 32px for safe alignment on 4-point grid.
+// --- Layout Constants ---
+const NODE_HEADER_HEIGHT = 48;
+const SEPARATOR_HEIGHT = 1;
+const FIELD_ROW_HEIGHT = 32;
 
+// --- CONFIG 1: Node Base and Hover Styles (50 for base, 100 for subtle hover) ---
 const TYPE_STYLE_MAP = {
   'data-stream': {
-    // Blue for Data Stream (using secondary color token)
     base: 'border-secondary-500 bg-secondary-50 text-secondary-800',
+    hover: 'hover:bg-secondary-100', // Dynamic blue hover for field rows
     selected: 'ring-secondary-200',
   },
   'dlo': {
-    // Green/Lime for DLO (using tertiary color token)
     base: 'border-tertiary-500 bg-tertiary-50 text-tertiary-800',
+    hover: 'hover:bg-tertiary-100', // Dynamic green hover for field rows
     selected: 'ring-tertiary-200',
   },
   'dmo': {
-    // Orange for DMO (using primary color token)
     base: 'border-primary-500 bg-primary-50 text-primary-800',
+    hover: 'hover:bg-primary-100', // Dynamic orange hover for field rows
     selected: 'ring-primary-200',
   },
-  // Default fallback for any other type (e.g., plain Entity)
   'default': {
     base: 'border-coolgray-200 bg-white text-coolgray-600',
-    selected: 'ring-primary-200', // Use primary ring color for selected default
+    hover: 'hover:bg-coolgray-100', // Default subtle gray hover
+    selected: 'ring-primary-200',
   }
-} as const; // 'as const' helps TypeScript ensure string literals are used
+} as const;
+
+// --- CONFIG 2: Icon and Badge Styles (700 for badge background) ---
+const TYPE_CONFIG_MAP = {
+  'data-stream': {
+    Icon: Waves,
+    BadgeText: 'Data Stream',
+    IconColorClass: 'text-secondary-500',
+    BadgeColorClass: 'bg-secondary-700 text-white', // Darker blue badge
+  },
+  'dlo': {
+    Icon: Cylinder,
+    BadgeText: 'DLO',
+    IconColorClass: 'text-tertiary-500',
+    BadgeColorClass: 'bg-tertiary-700 text-white', // Darker green badge
+  },
+  'dmo': {
+    Icon: Layers,
+    BadgeText: 'DMO',
+    IconColorClass: 'text-primary-500',
+    BadgeColorClass: 'bg-primary-700 text-white', // Darker orange badge
+  },
+  'default': {
+    Icon: Table,
+    BadgeText: 'Entity',
+    IconColorClass: 'text-coolgray-500',
+    BadgeColorClass: 'bg-coolgray-700 text-white',
+  }
+} as const;
 
 /**
  * Calculates the Y-position for a React Flow Handle for a specific field index.
- * The Y position is relative to the top of the node card.
- *
- * @param {number} index - The index of the field in the entity's fields array (starting at 0).
- * @returns {number} The absolute Y coordinate for the Handle's center.
  */
 const getFieldHandleYPosition = (index: number): number => {
-  // Start at the bottom of the header/separator, then add the accumulated height of rows,
-  // plus half the height of the current row to center the Handle.
   return (
     NODE_HEADER_HEIGHT +
     SEPARATOR_HEIGHT +
@@ -65,23 +88,27 @@ const getFieldHandleYPosition = (index: number): number => {
 /**
  * @component EntityNode
  * @description The custom component for rendering an Entity within the React Flow canvas.
- * It dynamically renders Handles for each field to support field-level lineage.
- * @param {NodeProps<EntityNodeData>} props - The required React Flow props, with custom data under the 'data' field.
- * @returns {JSX.Element} The visual entity node card.
  */
 const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
-  const { entity, onDoubleClick, onGenerateDLO, onGenerateDMO } = props.data;
+  const { entity, onDoubleClick, onGenerateDLO, onGenerateDMO, isSearchMatch, dimmed } = props.data;
   const isSelected = props.selected;
 
+  const hasLinkedDLO = false;
+  const hasLinkedDMO = false;
+
   const typeStyle = useMemo(() => {
-    // Use the entity's type to look up the color map, with a fallback
     const typeKey = entity.type in TYPE_STYLE_MAP ? entity.type : 'default';
     return TYPE_STYLE_MAP[typeKey as keyof typeof TYPE_STYLE_MAP];
   }, [entity.type]);
 
+  const typeConfig = useMemo(() => {
+    const typeKey = entity.type in TYPE_CONFIG_MAP ? entity.type : 'default';
+    return TYPE_CONFIG_MAP[typeKey as keyof typeof TYPE_CONFIG_MAP];
+  }, [entity.type]);
 
+  const IconComponent = typeConfig.Icon;
 
-  // --- Handlers for Domain Actions (Memoized for performance) ---
+  // --- Handlers for Domain Actions (used in buttons/dropdowns) ---
   const handleGenerateDLO = useCallback(() => {
     if (onGenerateDLO) {
       onGenerateDLO(entity);
@@ -100,28 +127,22 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
     }
   }, [entity, onDoubleClick]);
 
-  // --- Dynamic Styling based on Design Tokens in tailwind.config ---
+  // --- Dynamic Styling: w-80 and theme colors ---
   const cardClasses = `
-  w-64 max-w-sm border-2 transition-all duration-150 ease-in-out
-  shadow-md rounded-lg
-  ${typeStyle.base} 
-  ${isSelected
-      ? `${typeStyle.selected} ring-4` // Apply type-specific ring
+    w-80 max-w-sm border-2 transition-all duration-150 ease-in-out
+    shadow-md rounded-lg
+    ${typeStyle.base} 
+    ${isSelected
+      ? `${typeStyle.selected} ring-4`
       : 'hover:shadow-lg'
     }
-  nopan
-`;
+    nopan
+    ${dimmed ? 'opacity-30' : ''} // Dim non-matching entities
+    ${isSearchMatch ? 'ring-4 ring-tertiary-500/50' : ''}
+  `;
 
-  // Get the first 4 fields to display
-  const visibleFields = useMemo(() => entity.fields.slice(0, 4), [entity.fields]);
-  const hiddenFieldCount = entity.fields.length > 4 ? entity.fields.length - 4 : 0;
-
-  // Determines the primary type icon based on EntityType (for Phase 2: DMO, DLO, etc.)
-  const TypeIcon = useMemo(() => {
-    // For now, only using Table, but this will be expanded for DLO/DMO/DataStream icons
-    return <Table className="h-4 w-4" />;
-  }, [entity.type]);
-
+  const visibleFields = useMemo(() => entity.fields.slice(0, 8), [entity.fields]);
+  const hiddenFieldCount = entity.fields.length > 8 ? entity.fields.length - 8 : 0;
 
   return (
     <Card
@@ -137,7 +158,6 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
         position={Position.Top}
         className="flex space-x-2 bg-white p-2 rounded-md shadow-lg border border-coolgray-200"
       >
-        {/* Toolbar actions omitted for brevity, but exist as in original */}
         <Button
           size="sm"
           variant="ghost"
@@ -165,40 +185,75 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
         </DropdownMenu>
       </NodeToolbar>
 
-      <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between h-[48px]">
-        <h3 className="font-bold text-sm text-coolgray-700 truncate max-w-[80%]">{entity.name}</h3>
-        <div className="flex items-center space-x-1 text-coolgray-400">
-          {TypeIcon}
-        </div>
+      {/* --- Card Header: Icon, Title, and Badge (FIXED SPACING/CRAMPING) --- */}
+      <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between h-[48px] border-b border-coolgray-200">
+
+        {/* ICON with margin for spacing */}
+        <IconComponent className={`h-5 w-5 flex-shrink-0 ${typeConfig.IconColorClass} mr-2`} />
+
+        {/* FIX: Reduced max-width to 50% for title to make space for badge */}
+        <h3 className="font-bold text-sm text-coolgray-700 truncate max-w-[50%] flex-1">{entity.name}</h3>
+
+        {/* FIX: Badge with darker color and proper padding */}
+        <Badge
+          variant="default"
+          className={`text-xs py-0.5 whitespace-nowrap ${typeConfig.BadgeColorClass} px-2`}
+        >
+          {typeConfig.BadgeText}
+        </Badge>
       </CardHeader>
+
+      {/* --- Metadata Row --- */}
+      <div className="px-4 py-2 border-b border-coolgray-200 text-xs text-coolgray-600">
+        {entity.type === 'data-stream' && entity.dataCloudMetadata?.streamConfig && (
+          <div className="flex gap-2">
+            <span>{entity.dataCloudMetadata.streamConfig.refreshType}</span>
+            <span>•</span>
+            <span>{entity.dataCloudMetadata.streamConfig.schedule}</span>
+          </div>
+        )}
+        {entity.type === 'dlo' && entity.sourceDataStreamId && (
+          <div>
+            <span>Source: Data Stream</span>
+          </div>
+        )}
+        {entity.type === 'dmo' && (
+          <div className="flex gap-2">
+            {entity.sourceDLOIds && entity.sourceDLOIds.length > 0 && (
+              <>
+                <span>Sources: {entity.sourceDLOIds.length} DLO{entity.sourceDLOIds.length > 1 ? 's' : ''}</span>
+                <span>•</span>
+              </>
+            )}
+            <span>{entity.dataCloudMetadata?.profileObjectType || 'TBD'}</span>
+          </div>
+        )}
+      </div>
 
       <Separator className="bg-coolgray-200" />
 
+      {/* --- Card Content: Field Rows with Dynamic Hover --- */}
       <CardContent className="p-0 text-xs">
         {entity.fields.map((field: Field, index: number) => {
-          // Only render the first 4 field rows to keep the node compact on the graph
-          if (index >= 4) return null;
+          if (index >= 8) { return null };
           const yPos = getFieldHandleYPosition(index);
           const isTarget = true;
-          // CRITICAL FIX: isSource must be TRUE if the entity is not a DMO, or if the field is an FK.
-          // For simplicity and future-proofing, we make all *visible* fields sources.
-          // This allows DLO/DataStream fields to be output sources for maps-to.
           const isSource = true;
-
-          // NOTE: We rely on the mapper/data to filter which fields are actually connected.
 
           return (
             <div
               key={field.id}
-              className="flex items-center justify-between px-3 py-1.5 border-b border-coolgray-100 hover:bg-coolgray-50 transition-colors h-8"
-              data-field-id={field.id} // Custom attribute for easy lookup
+              // FIX: Applying dynamic color-matched hover
+              className={`flex items-center justify-between px-3 py-1.5 border-b border-coolgray-100 
+              ${typeStyle.hover} transition-colors h-8`}
+              data-field-id={field.id}
             >
               <span className="truncate">{field.name}</span>
               <span className="text-coolgray-400 font-mono text-[10px] uppercase ml-2">
                 {field.type.slice(0, 5)}
               </span>
 
-              {/* Target Handle: Always on the left for receiving input/lineage (DMO inputs) */}
+              {/* Target Handle: Always on the left */}
               {isTarget && (
                 <Handle
                   id={`field-target-${field.id}`}
@@ -209,14 +264,13 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
                 />
               )}
 
-              {/* Source Handle: On the right for ALL fields to enable DLO->DMO output and FK references */}
+              {/* Source Handle: On the right */}
               {isSource && (
                 <Handle
                   id={`field-source-${field.id}`}
                   type="source"
                   position={Position.Right}
                   style={{ top: yPos, opacity: 0 }}
-                  // FKs are a subset of source, so we use the Primary-500 color for all outputs
                   className="w-3 h-3 bg-primary-500 border-2 border-primary-100 absolute"
                 />
               )}
@@ -229,6 +283,43 @@ const EntityNode: React.FC<NodeProps<EntityNodeData>> = (props) => {
           </div>
         )}
       </CardContent>
+
+      {/* --- Auto-generation buttons --- */}
+      {entity.type === 'data-stream' && !hasLinkedDLO && onGenerateDLO && (
+        <div className="px-4 py-2 border-t border-coolgray-200">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleGenerateDLO();
+            }}
+            className="w-full text-tertiary-700 border-tertiary-300 hover:bg-tertiary-50"
+            data-testid="button-generate-dlo"
+          >
+            <Wand className="h-4 w-4 mr-1" />
+            Generate DLO
+          </Button>
+        </div>
+      )}
+
+      {entity.type === 'dlo' && !hasLinkedDMO && onGenerateDMO && (
+        <div className="px-4 py-2 border-t border-coolgray-200">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleGenerateDMO();
+            }}
+            className="w-full text-primary-700 border-primary-300 hover:bg-primary-50"
+            data-testid="button-generate-dmo"
+          >
+            <Wand className="h-4 w-4 mr-1" />
+            Generate DMO
+          </Button>
+        </div>
+      )}
     </Card>
   );
 };

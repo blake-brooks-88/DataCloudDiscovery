@@ -185,10 +185,10 @@ export const FieldLevelLine = React.memo(
       // Determine offsets based on the edge position
       let xOffset = 0;
       let yOffset = 0;
-      if (edge === Position.Right) xOffset = -markerSize;
-      if (edge === Position.Left) xOffset = markerSize;
-      if (edge === Position.Bottom) yOffset = -markerSize;
-      if (edge === Position.Top) yOffset = markerSize;
+      if (edge === Position.Right) { xOffset = -markerSize };
+      if (edge === Position.Left) { xOffset = markerSize };
+      if (edge === Position.Bottom) { yOffset = -markerSize };
+      if (edge === Position.Top) { yOffset = markerSize };
 
       if (isOneSide) {
         // "One" Marker (A simple perpendicular line)

@@ -116,14 +116,59 @@ function GraphViewContent({
   );
 
   // ... filteredNodes and handleCenterOnEntity remain the same ...
+  // Inside GraphViewContent.tsx
+
   const filteredNodes = useMemo(() => {
-    // ... (logic from original GraphView.tsx) ...
-    return nodes; // Simplified return
+    if (!search.hasSearchQuery) {
+      // If no search is active, return all nodes ensuring search-specific data is reset.
+      return nodes.map(node => ({
+        ...node,
+        hidden: false, // Ensure all nodes are visible
+        // Clean up the data object to remove search-specific flags
+        data: {
+          ...node.data,
+          isSearchMatch: false,
+          dimmed: false
+        }
+      }));
+    }
+
+    const matchingIds = search.matchingEntities.map((e) => e.id);
+
+    return nodes.map((node) => {
+      const isMatch = matchingIds.includes(node.id);
+      const shouldDim = !isMatch; // Dim all non-matching entities (the "fade away" effect)
+
+      // Inject the match and dim flags into the node's data
+      const updatedData = {
+        ...node.data,
+        isSearchMatch: isMatch,
+        dimmed: shouldDim,
+      };
+
+      return {
+        ...node,
+        data: updatedData,
+        // We rely on EntityNode's CSS (opacity-30) for dimming, so we keep the node visible (hidden: false)
+        hidden: false,
+      };
+    });
   }, [nodes, search.hasSearchQuery, search.matchingEntities]);
 
   const handleCenterOnEntity = useCallback(
-    // ... (logic from original GraphView.tsx) ...
-    () => { },
+    (entityId: string) => { // Must accept entityId argument
+      onSelectEntity(entityId);
+
+      // Center the view on the selected node using useReactFlow's fitView
+      fitView({
+        // Provide target node information (or use fitView() with no args for the whole graph)
+        // Since your nodes are managed via Zustand, React Flow knows their positions.
+        nodes: [{ id: entityId, width: 320, height: 100, position: { x: 0, y: 0 } }], // Use 320px width
+        duration: 300,
+        maxZoom: 2,
+        padding: 0.5,
+      });
+    },
     [fitView, onSelectEntity]
   );
 

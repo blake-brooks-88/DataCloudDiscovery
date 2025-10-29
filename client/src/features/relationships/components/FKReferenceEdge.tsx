@@ -33,7 +33,7 @@ const FKReferenceEdge: React.FC<EdgeProps<FKEdgeData>> = ({
     data,
     id,
 }) => {
-    if (!data) return null;
+    if (!data) { return null };
 
     // FIX: Destructure the 'path' string directly from the returned object.
     const { path } = getOrthogonalPath({

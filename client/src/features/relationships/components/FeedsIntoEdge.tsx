@@ -31,7 +31,7 @@ interface FeedsIntoEdgeData {
 const FeedsIntoEdge: React.FC<EdgeProps<FeedsIntoEdgeData>> = (props) => {
     const { id, data } = props;
 
-    if (!data) return null;
+    if (!data) { return null };
 
     // CRITICAL FIX: Calculate the orthogonal path using the universal utility.
     // We pass UNDEFINED for the field IDs since this is entity-level.

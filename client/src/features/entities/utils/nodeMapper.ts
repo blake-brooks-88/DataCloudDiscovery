@@ -15,6 +15,8 @@ export interface EntityNodeData {
     onDoubleClick: GraphViewProps['onEntityDoubleClick'];
     onGenerateDLO?: GraphViewProps['onGenerateDLO'];
     onGenerateDMO?: GraphViewProps['onGenerateDMO'];
+    isSearchMatch?: boolean;
+    dimmed?: boolean;
 }
 
 /**
@@ -43,6 +45,8 @@ export const mapEntitiesToNodes = (
             onDoubleClick: onEntityDoubleClick,
             onGenerateDLO,
             onGenerateDMO,
+            isSearchMatch: false,
+            dimmed: false,
         },
         // 'nodrag' ensures clicking on the node itself doesn't pan the canvas
         // className: 'nodrag',
