@@ -92,26 +92,40 @@ function GraphViewContent({
     onSelectEntity(null);
   }, [onSelectEntity]);
 
+  /**
+   * @description Handles the snap-to-grid behavior and persists the final position.
+   * We must include 'nodes' in the dependency array because the store's setNodes
+   * only supports passing the final state array, requiring access to the current state.
+   */
   const handleNodeDragStop = useCallback(
-    (_event: React.MouseEvent, node: Node, allNodes: Node[]) => {
-      const updatedNode = allNodes.find((n) => n.id === node.id);
-
-      if (updatedNode?.position) {
+    // Removed the unused `allNodes` parameter to simplify the signature
+    (_event: React.MouseEvent, node: Node) => {
+      if (node.position) {
         const GRID_SIZE = 20;
+        const finalPosition = node.position;
+
+        // 1. Calculate the snapped position
         const snappedPosition = {
-          x: Math.round(updatedNode.position.x / GRID_SIZE) * GRID_SIZE,
-          y: Math.round(updatedNode.position.y / GRID_SIZE) * GRID_SIZE,
+          x: Math.round(finalPosition.x / GRID_SIZE) * GRID_SIZE,
+          y: Math.round(finalPosition.y / GRID_SIZE) * GRID_SIZE,
         };
 
-        setNodes(
-          nodes.map((n) => (n.id === updatedNode.id ? { ...n, position: snappedPosition } : n))
+        // 2. Calculate the new nodes array based on the current 'nodes' dependency
+        const newNodes = nodes.map((n) =>
+          n.id === node.id ? { ...n, position: snappedPosition } : n
         );
 
+        // 3. Set state directly with the new array to perform the visual snap
+        setNodes(newNodes);
+
+        // 4. Persist the change to storage (consolidated persistence calls)
         onUpdateEntityPosition(node.id, snappedPosition).catch((error) => {
-          console.error('Failed to persist entity position. Rolling back/handling error.', error);
+          console.error('Failed to persist snapped entity position. Handle rollback/error:', error);
+          // TODO: Use useToast here to notify the user of the error
         });
       }
     },
+    // Dependency array MUST include 'nodes' due to the useEntityStore signature.
     [onUpdateEntityPosition, setNodes, nodes]
   );
 
@@ -153,6 +167,8 @@ function GraphViewContent({
     (entityId: string) => {
       onSelectEntity(entityId);
 
+      // We should ideally fetch the actual node dimensions for a perfect fit,
+      // but for now, we leave the placeholder width/height as they provide a decent bounding box.
       fitView({
         nodes: [{ id: entityId, width: 320, height: 100, position: { x: 0, y: 0 } }],
         duration: 300,

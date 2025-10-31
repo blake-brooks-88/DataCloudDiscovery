@@ -4,3 +4,8 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+.claude/
+CLAUDE.md
+dev/
+PROJECT_KNOWLEDGE.md
+TROUBLESHOOTING.md
