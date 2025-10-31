@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
@@ -36,5 +37,13 @@ export default defineConfig({
       strict: true,
       deny: ['**/.*'],
     },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './client/src/setupTests.ts',
+    css: false,
+    include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    root: resolve(__dirname),
   },
 });

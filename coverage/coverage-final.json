@@ -1,0 +1,101 @@
+{
+  "/Users/blakebrooks/Documents/repos/SalesforceDataCloudDiscovery/client/src/lib/utils.ts": {
+    "path": "/Users/blakebrooks/Documents/repos/SalesforceDataCloudDiscovery/client/src/lib/utils.ts",
+    "statementMap": {
+      "0": { "start": { "line": 5, "column": 2 }, "end": { "line": 5, "column": null } }
+    },
+    "fnMap": {
+      "0": {
+        "name": "cn",
+        "decl": { "start": { "line": 4, "column": 16 }, "end": { "line": 4, "column": 22 } },
+        "loc": { "start": { "line": 4, "column": 44 }, "end": { "line": 6, "column": null } },
+        "line": 4
+      }
+    },
+    "branchMap": {},
+    "s": { "0": 14 },
+    "f": { "0": 14 },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": { "f:4:16:4:22": 0, "s:5:2:5:Infinity": 0 }
+    }
+  },
+  "/Users/blakebrooks/Documents/repos/SalesforceDataCloudDiscovery/shared/schema.ts": {
+    "path": "/Users/blakebrooks/Documents/repos/SalesforceDataCloudDiscovery/shared/schema.ts",
+    "statementMap": {
+      "0": { "start": { "line": 40, "column": 33 }, "end": { "line": 46, "column": null } },
+      "1": { "start": { "line": 50, "column": 27 }, "end": { "line": 79, "column": null } },
+      "2": { "start": { "line": 83, "column": 34 }, "end": { "line": 90, "column": null } },
+      "3": { "start": { "line": 94, "column": 39 }, "end": { "line": 100, "column": null } },
+      "4": { "start": { "line": 104, "column": 34 }, "end": { "line": 110, "column": null } },
+      "5": { "start": { "line": 114, "column": 28 }, "end": { "line": 129, "column": null } },
+      "6": { "start": { "line": 133, "column": 32 }, "end": { "line": 142, "column": null } },
+      "7": { "start": { "line": 146, "column": 34 }, "end": { "line": 160, "column": null } },
+      "8": { "start": { "line": 164, "column": 40 }, "end": { "line": 168, "column": null } },
+      "9": { "start": { "line": 171, "column": 26 }, "end": { "line": 177, "column": null } },
+      "10": { "start": { "line": 180, "column": 34 }, "end": { "line": 184, "column": null } },
+      "11": { "start": { "line": 187, "column": 36 }, "end": { "line": 195, "column": null } },
+      "12": { "start": { "line": 198, "column": 35 }, "end": { "line": 202, "column": null } },
+      "13": { "start": { "line": 205, "column": 33 }, "end": { "line": 207, "column": null } },
+      "14": { "start": { "line": 210, "column": 35 }, "end": { "line": 215, "column": null } },
+      "15": { "start": { "line": 218, "column": 34 }, "end": { "line": 218, "column": null } },
+      "16": { "start": { "line": 221, "column": 33 }, "end": { "line": 221, "column": null } },
+      "17": { "start": { "line": 224, "column": 38 }, "end": { "line": 224, "column": null } },
+      "18": { "start": { "line": 227, "column": 40 }, "end": { "line": 227, "column": null } }
+    },
+    "fnMap": {},
+    "branchMap": {},
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1,
+      "6": 1,
+      "7": 1,
+      "8": 1,
+      "9": 1,
+      "10": 1,
+      "11": 1,
+      "12": 1,
+      "13": 1,
+      "14": 1,
+      "15": 1,
+      "16": 1,
+      "17": 1,
+      "18": 1
+    },
+    "f": {},
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 0,
+      "lastStatement": 19,
+      "seen": {
+        "s:40:33:46:Infinity": 0,
+        "s:50:27:79:Infinity": 1,
+        "s:83:34:90:Infinity": 2,
+        "s:94:39:100:Infinity": 3,
+        "s:104:34:110:Infinity": 4,
+        "s:114:28:129:Infinity": 5,
+        "s:133:32:142:Infinity": 6,
+        "s:146:34:160:Infinity": 7,
+        "s:164:40:168:Infinity": 8,
+        "s:171:26:177:Infinity": 9,
+        "s:180:34:184:Infinity": 10,
+        "s:187:36:195:Infinity": 11,
+        "s:198:35:202:Infinity": 12,
+        "s:205:33:207:Infinity": 13,
+        "s:210:35:215:Infinity": 14,
+        "s:218:34:218:Infinity": 15,
+        "s:221:33:221:Infinity": 16,
+        "s:224:38:224:Infinity": 17,
+        "s:227:40:227:Infinity": 18
+      }
+    }
+  }
+}
