@@ -1,81 +1,92 @@
 import type { StorageService } from './StorageService.interface';
-import type {
-  Project,
-  InsertProject,
-  Entity,
-  InsertEntity,
-  Relationship,
-  InsertRelationship,
-  DataSource,
-  InsertDataSource,
+import {
+  type ProjectDetail,
+  type ProjectSummary,
+  type InsertProject,
+  type Entity,
+  type InsertEntity,
+  type Relationship,
+  type InsertRelationship,
+  type DataSource,
+  type InsertDataSource,
+  MockDbStateSchema,
+  type MockDbState,
+  ProjectDetailSchema,
+  ProjectSummarySchema,
 } from '@shared/schema';
 
 export class LocalStorageService implements StorageService {
   private readonly STORAGE_KEY = 'data-cloud-projects';
 
-  private loadProjects(): Project[] {
+  private loadDb(): MockDbState {
     try {
       const data = localStorage.getItem(this.STORAGE_KEY);
       if (!data) {
-        return [];
+        return { projects: [] };
       }
-
       const parsed = JSON.parse(data);
-      return Array.isArray(parsed.projects) ? parsed.projects : [];
+      return MockDbStateSchema.parse(parsed);
     } catch (error) {
       console.error('Failed to load projects from localStorage:', error);
-      return [];
+      localStorage.removeItem(this.STORAGE_KEY);
+      return { projects: [] };
     }
   }
 
-  private saveProjects(projects: Project[]): void {
+  private saveDb(db: MockDbState): void {
     try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify({ projects }));
+      const data = MockDbStateSchema.parse(db);
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
       console.error('Failed to save projects to localStorage:', error);
       throw new Error('Storage quota exceeded or localStorage unavailable');
     }
   }
 
-  private findProject(projects: Project[], projectId: string): Project | undefined {
+  private findProject(projects: ProjectDetail[], projectId: string): ProjectDetail | undefined {
     return projects.find((p) => p.id === projectId);
   }
 
-  private touchProject(project: Project): void {
+  private touchProject(project: ProjectDetail): void {
     project.lastModified = Date.now();
   }
 
-  async getAllProjects(): Promise<Project[]> {
-    return this.loadProjects();
+  async getAllProjects(): Promise<ProjectSummary[]> {
+    const db = this.loadDb();
+    // Return only summary data for list views
+    return db.projects.map((p) => ProjectSummarySchema.parse(p));
   }
 
-  async getProject(id: string): Promise<Project | null> {
-    const projects = this.loadProjects();
-    return this.findProject(projects, id) || null;
+  async getProject(id: string): Promise<ProjectDetail | null> {
+    const db = this.loadDb();
+    return this.findProject(db.projects, id) || null;
   }
 
-  async createProject(insertProject: InsertProject): Promise<Project> {
-    const projects = this.loadProjects();
+  async createProject(insertProject: InsertProject): Promise<ProjectDetail> {
+    const db = this.loadDb();
 
-    const newProject: Project = {
+    const now = Date.now();
+    const newProject: ProjectDetail = {
       ...insertProject,
       id: crypto.randomUUID(),
-      createdAt: Date.now(),
-      lastModified: Date.now(),
+      createdAt: now,
+      lastModified: now,
+      organizationId: 'org_personal_mock', // For mock-first dev
       entities: insertProject.entities || [],
       dataSources: insertProject.dataSources || [],
       relationships: insertProject.relationships || [],
     };
 
-    projects.push(newProject);
-    this.saveProjects(projects);
+    const parsedProject = ProjectDetailSchema.parse(newProject);
+    db.projects.push(parsedProject);
+    this.saveDb(db);
 
-    return newProject;
+    return parsedProject;
   }
 
-  async updateProject(id: string, updates: Partial<Project>): Promise<Project> {
-    const projects = this.loadProjects();
-    const project = this.findProject(projects, id);
+  async updateProject(id: string, updates: Partial<ProjectDetail>): Promise<ProjectDetail> {
+    const db = this.loadDb();
+    const project = this.findProject(db.projects, id);
 
     if (!project) {
       throw new Error(`Project with id ${id} not found`);
@@ -83,25 +94,27 @@ export class LocalStorageService implements StorageService {
 
     Object.assign(project, updates);
     this.touchProject(project);
-    this.saveProjects(projects);
 
-    return project;
+    const parsedProject = ProjectDetailSchema.parse(project);
+    this.saveDb(db);
+
+    return parsedProject;
   }
 
   async deleteProject(id: string): Promise<void> {
-    const projects = this.loadProjects();
-    const filteredProjects = projects.filter((p) => p.id !== id);
+    const db = this.loadDb();
+    const filteredProjects = db.projects.filter((p) => p.id !== id);
 
-    if (filteredProjects.length === projects.length) {
+    if (filteredProjects.length === db.projects.length) {
       throw new Error(`Project with id ${id} not found`);
     }
 
-    this.saveProjects(filteredProjects);
+    this.saveDb({ projects: filteredProjects });
   }
 
   async createEntity(projectId: string, insertEntity: InsertEntity): Promise<Entity> {
-    const projects = this.loadProjects();
-    const project = this.findProject(projects, projectId);
+    const db = this.loadDb();
+    const project = this.findProject(db.projects, projectId);
 
     if (!project) {
       throw new Error(`Project with id ${projectId} not found`);
@@ -114,7 +127,7 @@ export class LocalStorageService implements StorageService {
 
     project.entities.push(newEntity);
     this.touchProject(project);
-    this.saveProjects(projects);
+    this.saveDb(db);
 
     return newEntity;
   }
@@ -124,8 +137,8 @@ export class LocalStorageService implements StorageService {
     entityId: string,
     updates: Partial<Entity>
   ): Promise<Entity> {
-    const projects = this.loadProjects();
-    const project = this.findProject(projects, projectId);
+    const db = this.loadDb();
+    const project = this.findProject(db.projects, projectId);
 
     if (!project) {
       throw new Error(`Project with id ${projectId} not found`);
@@ -138,14 +151,14 @@ export class LocalStorageService implements StorageService {
 
     Object.assign(entity, updates);
     this.touchProject(project);
-    this.saveProjects(projects);
+    this.saveDb(db);
 
     return entity;
   }
 
   async deleteEntity(projectId: string, entityId: string): Promise<void> {
-    const projects = this.loadProjects();
-    const project = this.findProject(projects, projectId);
+    const db = this.loadDb();
+    const project = this.findProject(db.projects, projectId);
 
     if (!project) {
       throw new Error(`Project with id ${projectId} not found`);
@@ -158,7 +171,6 @@ export class LocalStorageService implements StorageService {
       throw new Error(`Entity with id ${entityId} not found`);
     }
 
-    // Clean up relationships that reference deleted entity
     if (project.relationships) {
       project.relationships = project.relationships.filter(
         (r) => r.sourceEntityId !== entityId && r.targetEntityId !== entityId
@@ -166,15 +178,15 @@ export class LocalStorageService implements StorageService {
     }
 
     this.touchProject(project);
-    this.saveProjects(projects);
+    this.saveDb(db);
   }
 
   async createRelationship(
     projectId: string,
     insertRelationship: InsertRelationship
   ): Promise<Relationship> {
-    const projects = this.loadProjects();
-    const project = this.findProject(projects, projectId);
+    const db = this.loadDb();
+    const project = this.findProject(db.projects, projectId);
 
     if (!project) {
       throw new Error(`Project with id ${projectId} not found`);
@@ -191,7 +203,7 @@ export class LocalStorageService implements StorageService {
 
     project.relationships.push(newRelationship);
     this.touchProject(project);
-    this.saveProjects(projects);
+    this.saveDb(db);
 
     return newRelationship;
   }
@@ -201,8 +213,8 @@ export class LocalStorageService implements StorageService {
     relationshipId: string,
     updates: Partial<Relationship>
   ): Promise<Relationship> {
-    const projects = this.loadProjects();
-    const project = this.findProject(projects, projectId);
+    const db = this.loadDb();
+    const project = this.findProject(db.projects, projectId);
 
     if (!project) {
       throw new Error(`Project with id ${projectId} not found`);
@@ -219,14 +231,14 @@ export class LocalStorageService implements StorageService {
 
     Object.assign(relationship, updates);
     this.touchProject(project);
-    this.saveProjects(projects);
+    this.saveDb(db);
 
     return relationship;
   }
 
   async deleteRelationship(projectId: string, relationshipId: string): Promise<void> {
-    const projects = this.loadProjects();
-    const project = this.findProject(projects, projectId);
+    const db = this.loadDb();
+    const project = this.findProject(db.projects, projectId);
 
     if (!project) {
       throw new Error(`Project with id ${projectId} not found`);
@@ -244,15 +256,15 @@ export class LocalStorageService implements StorageService {
     }
 
     this.touchProject(project);
-    this.saveProjects(projects);
+    this.saveDb(db);
   }
 
   async createDataSource(
     projectId: string,
     insertDataSource: InsertDataSource
   ): Promise<DataSource> {
-    const projects = this.loadProjects();
-    const project = this.findProject(projects, projectId);
+    const db = this.loadDb();
+    const project = this.findProject(db.projects, projectId);
 
     if (!project) {
       throw new Error(`Project with id ${projectId} not found`);
@@ -269,7 +281,7 @@ export class LocalStorageService implements StorageService {
 
     project.dataSources.push(newDataSource);
     this.touchProject(project);
-    this.saveProjects(projects);
+    this.saveDb(db);
 
     return newDataSource;
   }
@@ -279,8 +291,8 @@ export class LocalStorageService implements StorageService {
     dataSourceId: string,
     updates: Partial<DataSource>
   ): Promise<DataSource> {
-    const projects = this.loadProjects();
-    const project = this.findProject(projects, projectId);
+    const db = this.loadDb();
+    const project = this.findProject(db.projects, projectId);
 
     if (!project) {
       throw new Error(`Project with id ${projectId} not found`);
@@ -297,14 +309,14 @@ export class LocalStorageService implements StorageService {
 
     Object.assign(dataSource, updates);
     this.touchProject(project);
-    this.saveProjects(projects);
+    this.saveDb(db);
 
     return dataSource;
   }
 
   async deleteDataSource(projectId: string, dataSourceId: string): Promise<void> {
-    const projects = this.loadProjects();
-    const project = this.findProject(projects, projectId);
+    const db = this.loadDb();
+    const project = this.findProject(db.projects, projectId);
 
     if (!project) {
       throw new Error(`Project with id ${projectId} not found`);
@@ -322,6 +334,6 @@ export class LocalStorageService implements StorageService {
     }
 
     this.touchProject(project);
-    this.saveProjects(projects);
+    this.saveDb(db);
   }
 }
