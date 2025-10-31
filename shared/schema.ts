@@ -18,17 +18,9 @@ export type FieldType =
   | 'phone'
   | 'email';
 
-export type EntityType =
-  | 'data-source' // Container (NOT rendered as entity card, but as swimlane)
-  | 'data-stream' // Ingestion config
-  | 'dlo' // Raw data
-  | 'dmo' // Unified data
-  | 'data-transform'; // Transformation logic (optional, advanced)
+export type EntityType = 'data-source' | 'data-stream' | 'dlo' | 'dmo' | 'data-transform';
 
-export type RelationshipType =
-  | 'feeds-into' // Data Stream → DLO (1:1 ONLY)
-  | 'transforms-to' // DLO → DMO (many:1)
-  | 'references'; // DMO → DMO (many:1, traditional FK)
+export type RelationshipType = 'feeds-into' | 'transforms-to' | 'references';
 
 export type SourceSystemType =
   | 'salesforce'
@@ -124,24 +116,15 @@ export const entitySchema = z.object({
   name: z.string().min(1, 'Entity name is required'),
   type: z.enum(['data-source', 'data-stream', 'dlo', 'dmo', 'data-transform']),
   fields: z.array(fieldSchema),
-
-  // Linking properties
   dataSourceId: z.string().optional(),
   sourceDataStreamId: z.string().optional(),
   sourceDLOIds: z.array(z.string()).optional(),
-
-  // Data Cloud metadata
   dataCloudMetadata: dataCloudMetadataSchema.optional(),
-
-  // Field-level mappings
   fieldMappings: z.array(fieldMappingSchema).optional(),
-
-  // Legacy fields (for backward compatibility during migration)
   dataSource: z.string().optional(),
   businessPurpose: z.string().optional(),
   implementationStatus: z.enum(['not-started', 'in-progress', 'completed']).optional(),
   implementationNotes: z.string().optional(),
-
   position: z.object({ x: z.number(), y: z.number() }).optional(),
 });
 
@@ -178,24 +161,57 @@ export const relationshipSchema = z.object({
 
 export type Relationship = z.infer<typeof relationshipSchema>;
 
-export const projectSchema = z.object({
+export const OrganizationMemberSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  // role: z.enum(['owner', 'admin', 'member']),
+});
+export type OrganizationMember = z.infer<typeof OrganizationMemberSchema>;
+
+export const UserSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  name: z.string().optional(),
+  avatarUrl: z.string().url().optional(),
+  organizations: z.array(OrganizationMemberSchema),
+});
+export type User = z.infer<typeof UserSchema>;
+
+export const OrganizationSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  // role: z.enum(['owner', 'admin', 'member']),
+});
+export type Organization = z.infer<typeof OrganizationSchema>;
+
+export const ProjectSummarySchema = z.object({
   id: z.string(),
   name: z.string().min(1, 'Project name is required'),
   clientName: z.string().optional(),
   consultant: z.string().optional(),
   createdAt: z.number(),
   lastModified: z.number(),
-  dataSources: z.array(dataSourceSchema).optional(),
-  entities: z.array(entitySchema),
-  relationships: z.array(relationshipSchema).optional(),
+  organizationId: z.string(),
 });
+export type ProjectSummary = z.infer<typeof ProjectSummarySchema>;
 
-export type Project = z.infer<typeof projectSchema>;
+export const ProjectDetailSchema = ProjectSummarySchema.extend({
+  dataSources: z.array(dataSourceSchema).default([]),
+  entities: z.array(entitySchema).default([]),
+  relationships: z.array(relationshipSchema).default([]),
+});
+export type ProjectDetail = z.infer<typeof ProjectDetailSchema>;
 
-export const insertProjectSchema = projectSchema.omit({
+export const MockDbStateSchema = z.object({
+  projects: z.array(ProjectDetailSchema).default([]),
+});
+export type MockDbState = z.infer<typeof MockDbStateSchema>;
+
+export const insertProjectSchema = ProjectDetailSchema.omit({
   id: true,
   createdAt: true,
   lastModified: true,
+  organizationId: true,
 });
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 

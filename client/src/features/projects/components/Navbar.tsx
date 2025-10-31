@@ -18,11 +18,11 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import type { Project } from '@shared/schema';
+import type { ProjectDetail, ProjectSummary } from '@shared/schema';
 
 interface NavbarProps {
-  currentProject: Project | null;
-  projects: Project[];
+  currentProject: ProjectDetail | null;
+  projects: ProjectSummary[];
   onSelectProject: (projectId: string) => void;
   onCreateProject: () => void;
   onRenameProject: () => void;
@@ -34,6 +34,14 @@ interface NavbarProps {
   onExportDataDictionary: () => void;
 }
 
+/**
+ * @component Navbar
+ * @description The main application navigation bar. Handles project selection,
+ * creation, deletion, and import/export operations.
+ *
+ * @param {NavbarProps} props - Component props
+ * @returns {JSX.Element}
+ */
 export function Navbar({
   currentProject,
   projects,

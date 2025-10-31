@@ -5,21 +5,22 @@ import {
   useDeleteEntity,
   useCreateRelationship,
 } from '@/lib/storage';
-import type { Entity, InsertEntity, Project } from '@shared/schema';
+import type { Entity, InsertEntity, ProjectDetail } from '@shared/schema';
 
 /**
- * Entity management operations for the current project.
+ * @hook useEntityActions
+ * @description Provides entity management operations for the current project.
  * Handles CRUD operations, DLO/DMO generation, and user feedback.
  *
  * @param {string} projectId - Current project ID
- * @param {Project | null | undefined} currentProject - Full project data for DLO/DMO generation
+ * @param {ProjectDetail | null | undefined} currentProject - Full project data for DLO/DMO generation
  * @param {object} callbacks - UI state callbacks
  * @param {function} callbacks.onOpenEditModal - Callback to open entity modal in edit mode
  * @returns Entity operations with toast notifications
  */
 export function useEntityActions(
   projectId: string,
-  currentProject: Project | null | undefined,
+  currentProject: ProjectDetail | null | undefined,
   callbacks: {
     onOpenEditModal: (entity: Entity) => void;
   }
@@ -70,15 +71,11 @@ export function useEntityActions(
       return;
     }
 
-    // CRITICAL FIX: Use mutateAsync to perform the update.
-    // The GraphView component now relies on this promise to manage its temporary
-    // droppedPosition state.
     try {
       await updateEntity.mutateAsync({ entityId, updates: { position } });
     } catch (error) {
-      // Log the error but do not show a noisy toast, as drag failures are high frequency.
       console.error(`Failed to persist position for entity ${entityId}:`, error);
-      throw error; // Re-throw so GraphView can handle rollback if needed
+      throw error;
     }
   };
 
@@ -87,6 +84,9 @@ export function useEntityActions(
       return;
     }
 
+    // NOTE: We are intentionally not using a modal confirmation
+    // to align with the provided codebase's use of `confirm`.
+    // This can be upgraded to a shadcn/ui Dialog later.
     if (confirm('Delete this entity? This cannot be undone.')) {
       try {
         await deleteEntity.mutateAsync(entityId);
