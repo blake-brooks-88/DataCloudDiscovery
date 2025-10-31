@@ -1,153 +1,127 @@
 # Page snapshot
 
 ```yaml
-- generic:
-    - generic:
-        - list
-        - generic:
-            - navigation:
-                - generic:
-                    - generic:
-                        - generic:
-                            - generic:
-                                - img
-                            - heading [level=1]: Data Cloud Discovery
-                        - button:
-                            - img
-                            - text: Multi Entity Test
-                            - img
-                    - generic:
-                        - button:
-                            - img
-                            - text: Import
-                        - button:
-                            - img
-                            - text: Export
-            - generic:
-                - button:
-                    - img
-            - generic:
-                - generic:
-                    - generic:
-                        - generic:
-                            - button:
-                                - img
-                                - text: Graph View
-                            - button:
-                                - img
-                                - text: Table View
-                    - generic:
-                        - generic:
-                            - img
-                            - textbox:
-                                - /placeholder: Search entities or fields...
-                        - button:
-                            - img
-                            - text: Data Sources
-                        - button:
-                            - img
-                            - text: Relationships
-            - generic:
-                - generic:
-                    - generic:
-                        - generic:
-                            - generic:
-                                - generic:
-                                    - img
-                        - img
-                        - img
-                        - generic [ref=e1]:
-                            - button [ref=e2] [cursor=pointer]:
-                                - img
-                            - button [ref=e3] [cursor=pointer]:
-                                - img
-                            - button [ref=e4] [cursor=pointer]:
-                                - img
-                    - generic:
-                        - generic: Legend
-                        - generic:
-                            - generic: Entity Types
-                            - generic:
-                                - generic:
-                                    - generic: Data Stream (Ingestion)
-                                - generic:
-                                    - generic: DLO (Raw Data)
-                                - generic:
-                                    - generic: DMO (Unified Model)
-                        - generic:
-                            - generic: Relationships
-                            - generic:
-                                - generic:
-                                    - img
-                                    - generic: Ingests (Data Stream → DLO)
-                                - generic:
-                                    - img
-                                    - generic: Transforms (field lineage)
-                                - generic:
-                                    - img
-                                    - generic: References (FK)
-                    - generic:
-                        - generic:
-                            - paragraph: No entities yet
-                            - paragraph: Click the + button to add your first entity
-    - dialog:
-        - generic:
-            - heading [level=2]: Create New Entity
-        - generic:
-            - tablist:
-                - tab [selected]: Details
-                - tab: Relationships
-            - tabpanel:
-                - generic:
-                    - generic:
-                        - text: Entity Name *
-                        - textbox:
-                            - /placeholder: e.g., Customer, Order
-                            - text: Data Stream
-                    - generic:
-                        - text: Entity Type *
-                        - combobox [expanded]:
-                            - generic: DMO (Data Model Object)
-                            - img
-                    - generic:
-                        - text: Data Source
-                        - textbox:
-                            - /placeholder: e.g., Salesforce Production
-                    - generic:
-                        - text: Profile Object Type
-                        - combobox:
-                            - generic: TBD
-                            - img
-                    - generic:
-                        - text: API Name
-                        - textbox:
-                            - /placeholder: e.g., Data_Stream_DMO
-                    - generic:
-                        - text: Business Purpose
-                        - textbox:
-                            - /placeholder: Describe...
-                - generic:
-                    - generic:
-                        - generic: Fields
-                        - button:
-                            - img
-                            - text: Add Field
-                    - generic:
-                        - generic: No fields yet. Click "Add Field" to create one.
-        - generic:
-            - button: Cancel
-            - button [disabled]: Create Entity
-        - button:
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - region "Notifications (F8)":
+      - list [ref=e4]:
+        - listitem [ref=e5]:
+          - generic [ref=e7]: Entity created successfully
+          - button [ref=e8] [cursor=pointer]:
+            - img [ref=e9]
+    - generic [ref=e13]:
+      - navigation [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e16]:
+            - generic [ref=e17]:
+              - img [ref=e19]
+              - heading "Data Cloud Discovery" [level=1] [ref=e23]
+            - button "Multi Entity Test" [ref=e24] [cursor=pointer]:
+              - img
+              - text: Multi Entity Test
+              - img
+          - generic [ref=e25]:
+            - button "Import" [ref=e26] [cursor=pointer]:
+              - img
+              - text: Import
+            - button "Export" [ref=e27] [cursor=pointer]:
+              - img
+              - text: Export
+      - button [ref=e29] [cursor=pointer]:
+        - img [ref=e30]
+      - generic [ref=e34]:
+        - generic [ref=e36]:
+          - button "Graph View" [ref=e37] [cursor=pointer]:
             - img
-            - generic: Close
-    - listbox [ref=e6]:
-        - option "Data Stream (Ingestion)" [ref=e7]:
-            - generic [ref=e8]: Data Stream (Ingestion)
-        - option "DLO (Data Lake Object)" [ref=e9]:
-            - generic [ref=e10]: DLO (Data Lake Object)
-        - option "DMO (Data Model Object)" [active] [selected] [ref=e11]:
-            - img [ref=e14]
-            - generic [ref=e16]: DMO (Data Model Object)
-        - option "Data Transform" [ref=e17]:
-            - generic [ref=e18]: Data Transform
+            - text: Graph View
+          - button "Table View" [ref=e38] [cursor=pointer]:
+            - img
+            - text: Table View
+        - generic [ref=e39]:
+          - generic [ref=e40]:
+            - img [ref=e41]
+            - textbox "Search entities or fields..." [ref=e44]
+          - button "Data Sources" [ref=e45] [cursor=pointer]:
+            - img
+            - text: Data Sources
+          - button "Relationships" [ref=e46] [cursor=pointer]:
+            - img
+            - text: Relationships
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - generic [ref=e51] [cursor=pointer]:
+            - generic:
+              - img
+              - generic:
+                - button "Data Stream Data Stream full • daily id strin Generate DLO" [ref=e52]:
+                  - generic [ref=e53]:
+                    - generic [ref=e56]:
+                      - img [ref=e57]
+                      - heading "Data Stream" [level=3] [ref=e61]
+                      - generic [ref=e62]: Data Stream
+                    - generic [ref=e64]:
+                      - generic [ref=e65]: full
+                      - generic [ref=e66]: •
+                      - generic [ref=e67]: daily
+                    - generic [ref=e69]:
+                      - generic [ref=e70]: id
+                      - generic [ref=e71]: strin
+                    - button "Generate DLO" [ref=e75]:
+                      - img
+                      - text: Generate DLO
+                - button "DLO DLO id strin Generate DMO" [ref=e76]:
+                  - generic [ref=e77]:
+                    - generic [ref=e80]:
+                      - img [ref=e81]
+                      - heading "DLO" [level=3] [ref=e84]
+                      - generic [ref=e85]: DLO
+                    - generic [ref=e88]:
+                      - generic [ref=e89]: id
+                      - generic [ref=e90]: strin
+                    - button "Generate DMO" [ref=e94]:
+                      - img
+                      - text: Generate DMO
+                - button "DMO DMO TBD id strin" [ref=e95]:
+                  - generic [ref=e96]:
+                    - generic [ref=e99]:
+                      - img [ref=e100]
+                      - heading "DMO" [level=3] [ref=e104]
+                      - generic [ref=e105]: DMO
+                    - generic [ref=e108]: TBD
+                    - generic [ref=e110]:
+                      - generic [ref=e111]: id
+                      - generic [ref=e112]: strin
+          - img [ref=e115]
+          - img [ref=e117]
+          - generic [ref=e118]:
+            - button "Zoom In" [ref=e119] [cursor=pointer]:
+              - img
+            - button "Zoom Out" [ref=e120] [cursor=pointer]:
+              - img
+            - button "Fit View" [ref=e121] [cursor=pointer]:
+              - img
+        - generic:
+          - generic: Legend
+          - generic:
+            - generic: Entity Types
+            - generic:
+              - generic:
+                - generic: Data Stream (Ingestion)
+              - generic:
+                - generic: DLO (Raw Data)
+              - generic:
+                - generic: DMO (Unified Model)
+          - generic:
+            - generic: Relationships
+            - generic:
+              - generic:
+                - img
+                - generic: Ingests (Data Stream → DLO)
+              - generic:
+                - img
+                - generic: Transforms (field lineage)
+              - generic:
+                - img
+                - generic: References (FK)
+  - status [ref=e123]: Notification Entity created successfully
 ```

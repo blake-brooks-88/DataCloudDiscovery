@@ -11,3 +11,6 @@ PROJECT_KNOWLEDGE.md
 TROUBLESHOOTING.md
 TESTING_STRATEGY.md
 playwright-report/
+test-results/
+.playwright/
+client/coverage/

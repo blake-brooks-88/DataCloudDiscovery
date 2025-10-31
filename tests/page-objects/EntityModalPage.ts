@@ -33,9 +33,18 @@ export class EntityModalPage extends BasePage {
   async fillForm(data: EntityData) {
     await this.nameInput.fill(data.name);
 
+    // Map entity type codes to their UI display names
+    const entityTypeDisplayNames: Record<string, string> = {
+      'data-stream': 'Data Stream (Ingestion)',
+      dlo: 'DLO (Data Lake Object)',
+      dmo: 'DMO (Data Model Object)',
+      'data-transform': 'Data Transform',
+    };
+
     // Select entity type
     await this.typeSelect.click();
-    await this.page.getByRole('option', { name: new RegExp(data.type, 'i') }).click();
+    const displayName = entityTypeDisplayNames[data.type] || data.type;
+    await this.page.getByRole('option', { name: displayName }).click();
 
     // Fill optional fields if provided
     if (data.businessPurpose) {

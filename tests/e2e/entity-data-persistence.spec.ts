@@ -50,9 +50,9 @@ test.describe('Entity Data Persistence', () => {
     // Verify all fields are populated correctly
     await expect(entityModal.nameInput).toHaveValue('Complete Entity');
 
-    // Verify type is selected (check the select value)
-    const typeValue = await entityModal.typeSelect.inputValue();
-    expect(typeValue.toLowerCase()).toContain('dmo');
+    // Verify type is selected (check the select trigger text content)
+    const typeValue = await entityModal.typeSelect.textContent();
+    expect(typeValue?.toLowerCase()).toContain('dmo');
 
     // Close modal
     await entityModal.cancel();
