@@ -1,0 +1,94 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+    - region "Notifications (F8)":
+        - list
+    - generic [ref=e3]:
+        - navigation [ref=e4]:
+            - generic [ref=e5]:
+                - generic [ref=e6]:
+                    - generic [ref=e7]:
+                        - img [ref=e9]
+                        - heading "Data Cloud Discovery" [level=1] [ref=e13]
+                    - button "Precision Test" [ref=e14] [cursor=pointer]:
+                        - img
+                        - text: Precision Test
+                        - img
+                - generic [ref=e15]:
+                    - button "Import" [ref=e16] [cursor=pointer]:
+                        - img
+                        - text: Import
+                    - button "Export" [ref=e17] [cursor=pointer]:
+                        - img
+                        - text: Export
+        - button [ref=e19] [cursor=pointer]:
+            - img [ref=e20]
+        - generic [ref=e24]:
+            - generic [ref=e26]:
+                - button "Graph View" [ref=e27] [cursor=pointer]:
+                    - img
+                    - text: Graph View
+                - button "Table View" [ref=e28] [cursor=pointer]:
+                    - img
+                    - text: Table View
+            - generic [ref=e29]:
+                - generic [ref=e30]:
+                    - img [ref=e31]
+                    - textbox "Search entities or fields..." [ref=e34]
+                - button "Data Sources" [ref=e35] [cursor=pointer]:
+                    - img
+                    - text: Data Sources
+                - button "Relationships" [ref=e36] [cursor=pointer]:
+                    - img
+                    - text: Relationships
+        - generic [ref=e38]:
+            - generic [ref=e39]:
+                - generic [ref=e41] [cursor=pointer]:
+                    - generic:
+                        - img
+                        - button "Precise Entity DLO id strin Generate DMO" [ref=e42]:
+                            - generic [ref=e43]:
+                                - generic [ref=e46]:
+                                    - img [ref=e47]
+                                    - heading "Precise Entity" [level=3] [ref=e50]
+                                    - generic [ref=e51]: DLO
+                                - generic [ref=e54]:
+                                    - generic [ref=e55]: id
+                                    - generic [ref=e56]: strin
+                                - button "Generate DMO" [ref=e60]:
+                                    - img
+                                    - text: Generate DMO
+                - img [ref=e61]
+                - img [ref=e63]
+                - generic [ref=e64]:
+                    - button "Zoom In" [ref=e65] [cursor=pointer]:
+                        - img
+                    - button "Zoom Out" [ref=e66] [cursor=pointer]:
+                        - img
+                    - button "Fit View" [ref=e67] [cursor=pointer]:
+                        - img
+            - generic:
+                - generic: Legend
+                - generic:
+                    - generic: Entity Types
+                    - generic:
+                        - generic:
+                            - generic: Data Stream (Ingestion)
+                        - generic:
+                            - generic: DLO (Raw Data)
+                        - generic:
+                            - generic: DMO (Unified Model)
+                - generic:
+                    - generic: Relationships
+                    - generic:
+                        - generic:
+                            - img
+                            - generic: Ingests (Data Stream → DLO)
+                        - generic:
+                            - img
+                            - generic: Transforms (field lineage)
+                        - generic:
+                            - img
+                            - generic: References (FK)
+```
