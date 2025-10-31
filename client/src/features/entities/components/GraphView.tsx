@@ -83,7 +83,6 @@ function GraphViewContent({
     // We run this with a small delay to allow the layout to settle
     const timer = setTimeout(() => fitView({ padding: 0.1 }), 50);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitView]); // 'fitView' is stable and this will run only once
 
   // --- End of Fix ---
