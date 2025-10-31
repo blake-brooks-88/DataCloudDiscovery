@@ -19,6 +19,7 @@ export interface EntityNodeData {
 /**
  * @function mapEntitiesToNodes
  * @description Converts the domain-specific Entity array into the structure required by React Flow Nodes.
+ * Positions are snapped to the grid to ensure consistency with drag behavior.
  * @param {Entity[]} entities - The core domain entity objects from storage.
  * @param {GraphViewProps['onEntityDoubleClick']} onEntityDoubleClick - Handler for entity double-click.
  * @returns {Node<EntityNodeData>[]} The array of React Flow Nodes.
@@ -29,22 +30,29 @@ export const mapEntitiesToNodes = (
   onGenerateDLO?: GraphViewProps['onGenerateDLO'],
   onGenerateDMO?: GraphViewProps['onGenerateDMO']
 ): Node<EntityNodeData>[] => {
-  return entities.map((entity) => ({
-    id: entity.id,
-    type: 'entity',
-    position: {
-      x: entity.position?.x ?? 0,
-      y: entity.position?.y ?? 0,
-    },
-    data: {
-      entity: entity,
-      onDoubleClick: onEntityDoubleClick,
-      onGenerateDLO,
-      onGenerateDMO,
-      isSearchMatch: false,
-      dimmed: false,
-    },
-  }));
+  const GRID_SIZE = 20;
+
+  return entities.map((entity) => {
+    const rawX = entity.position?.x ?? 0;
+    const rawY = entity.position?.y ?? 0;
+
+    return {
+      id: entity.id,
+      type: 'entity',
+      position: {
+        x: Math.round(rawX / GRID_SIZE) * GRID_SIZE,
+        y: Math.round(rawY / GRID_SIZE) * GRID_SIZE,
+      },
+      data: {
+        entity: entity,
+        onDoubleClick: onEntityDoubleClick,
+        onGenerateDLO,
+        onGenerateDMO,
+        isSearchMatch: false,
+        dimmed: false,
+      },
+    };
+  });
 };
 
 /**
