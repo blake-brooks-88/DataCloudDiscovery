@@ -44,6 +44,7 @@ export default defineConfig({
     setupFiles: './client/src/setupTests.ts',
     css: false,
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    exclude: ['node_modules', 'dist', 'tests/**/*'],
     root: resolve(__dirname),
   },
 });
