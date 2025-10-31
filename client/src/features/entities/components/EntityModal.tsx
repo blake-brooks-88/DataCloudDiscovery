@@ -447,19 +447,38 @@ export default function EntityModal({
                 </>
               )}
               {entityType === 'dlo' && (
-                <div>
-                  <Label htmlFor="api-name" className="text-[14px] font-medium text-coolgray-500">
-                    API Name
-                  </Label>
-                  <Input
-                    id="api-name"
-                    value={apiName}
-                    onChange={(e) => setApiName(e.target.value)}
-                    placeholder={`e.g., ${name.replace(/\s+/g, '_')}_DLO`}
-                    className="mt-1 border-coolgray-200"
-                    data-testid="input-api-name"
-                  />
-                </div>
+                <>
+                  <div>
+                    <Label htmlFor="api-name" className="text-[14px] font-medium text-coolgray-500">
+                      API Name
+                    </Label>
+                    <Input
+                      id="api-name"
+                      value={apiName}
+                      onChange={(e) => setApiName(e.target.value)}
+                      placeholder={`e.g., ${name.replace(/\s+/g, '_')}_DLO`}
+                      className="mt-1 border-coolgray-200"
+                      data-testid="input-api-name"
+                    />
+                  </div>
+                  <div>
+                    <Label
+                      htmlFor="business-purpose"
+                      className="text-[14px] font-medium text-coolgray-500"
+                    >
+                      Business Purpose
+                    </Label>
+                    <Textarea
+                      id="business-purpose"
+                      value={businessPurpose}
+                      onChange={(e) => setBusinessPurpose(e.target.value)}
+                      placeholder="Describe..."
+                      className="mt-1 border-coolgray-200"
+                      rows={2}
+                      data-testid="textarea-business-purpose"
+                    />
+                  </div>
+                </>
               )}
             </div>
 
